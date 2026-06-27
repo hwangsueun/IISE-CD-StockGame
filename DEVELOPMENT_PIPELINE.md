@@ -198,4 +198,137 @@ CREATE TABLE game_sessions (
 );
 CREATE TABLE game_turns (
   session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  turn_number INT NOT NULL, trade_date DATE NOT NULL, PRIMARY KEY
+  turn_number INT NOT NULL, trade_date DATE NOT NULL, PRIMARY KEY (session_id, turn_number)
+);
+CREATE TABLE holdings (
+  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  quantity INT NOT NULL CHECK (quantity >= 0), avg_price NUMERIC NOT NULL,
+  PRIMARY KEY (session_id, asset_id)
+);
+CREATE TABLE trades (
+  id SERIAL PRIMARY KEY, session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  turn_number INT NOT NULL, asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  trade_type VARCHAR(4) NOT NULL CHECK (trade_type IN ('buy','sell')),
+  quantity INT NOT NULL CHECK (quantity > 0), price NUMERIC NOT NULL, amount NUMERIC NOT NULL,
+  realized_pnl NUMERIC, created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_trades_session ON trades(session_id, turn_number);
+CREATE TABLE repayments (
+  id SERIAL PRIMARY KEY, session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  month_index INT NOT NULL, due_amount INT NOT NULL, paid_amount INT NOT NULL,
+  ratio NUMERIC, trust_delta INT, stress_delta INT, created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE event_log (
+  id SERIAL PRIMARY KEY, session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  turn_number INT NOT NULL, event_type VARCHAR(30) NOT NULL, detail JSONB,
+  cash_delta INT DEFAULT 0, stress_delta INT DEFAULT 0, trust_delta INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE memos (
+  id SERIAL PRIMARY KEY, session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  game_date DATE NOT NULL, content VARCHAR(100), UNIQUE (session_id, game_date)
+);
+CREATE TABLE news_exposure (
+  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  game_date DATE NOT NULL, news_id INT NOT NULL REFERENCES news(id),
+  PRIMARY KEY (session_id, game_date, news_id)
+);
+
+-- ===== 시드 (채권 4 + 거시지표 7). 주식 117/코인 10은 ETL 적재. =====
+INSERT INTO assets (asset_id, asset_type, code, name, masked_name, currency) VALUES
+ ('BOND_KTB3Y','bond','KTB3Y','국고채 3년','국채 단기','KRW'),
+ ('BOND_KTB10Y','bond','KTB10Y','국고채 10년','국채 장기','KRW'),
+ ('BOND_CORPAAA','bond','CORPAAA','회사채 AAA','우량 회사채','KRW'),
+ ('BOND_CORPBBB','bond','CORPBBB','회사채 BBB','투기 회사채','KRW');
+INSERT INTO bond_info VALUES
+ ('BOND_KTB3Y','국고채',NULL,'3Y'),('BOND_KTB10Y','국고채',NULL,'10Y'),
+ ('BOND_CORPAAA','회사채','AAA',NULL),('BOND_CORPBBB','회사채','BBB',NULL);
+INSERT INTO macro_indicators VALUES
+ ('base_rate','기준금리','%'),('usdkrw','USD/KRW 환율','원'),('cpi','소비자물가지수','지수'),
+ ('ktb_yield','국채금리','%'),('wti','WTI 유가','USD'),('gold','금 가격','USD'),('leading_index','경기선행지수','지수');
+```
+
+**핵심 조회 패턴**: 거래·총자산은 `asset_prices`만으로(타입 무관). 종목 상세 화면만 `*_price_detail`/타입별 정보 테이블 조인. 포트폴리오 비중은 `holdings ⋈ assets ⋈ asset_prices`.
+
+---
+
+## 6. 백엔드 구조 & API (`server/`)
+
+```
+server/src/
+├── index.js · db.js(pg 풀+트랜잭션)
+├── routes/        game · assets · news · community · portfolio · event · repayment · memo
+├── controllers/   (동일)
+└── services/  turnSelector(240) · pricingService(환율) · tradeService · valuationService
+              · eventEngine(8종) · stressPolicy · trustPolicy · repaymentService · reportService · maskingService
+```
+
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/api/game/start` | 세션·난이도·240턴 생성 |
+| GET | `/api/game/:id` · `/turn/:n` | 상태 / 턴 데이터 |
+| POST | `/api/game/:id/trade` · `/next-turn` · `/repay` · `/event` | 거래·턴진행·상환·이벤트 |
+| GET | `/api/game/:id/portfolio` · `/report/...` · `/result` | 포트폴리오·리포트·결산 |
+| GET | `/api/assets?type=&sort=` · `/assets/:id` · `/assets/:id/prices` | 종목 목록·상세·차트 |
+| GET | `/api/macro/:date` · `/news/:date(/:assetId)` · `/community/:assetId` | 지표·뉴스·종토방 |
+| ·/·/·/· | `/api/game/:id/memo` | 캘린더 메모 CRUD |
+
+핵심 원칙: 돈·상태·시간(턴)은 **서버 권위**. 거래는 정수·즉시체결·수수료0, 평균단가·실현손익 서버 계산.
+
+---
+
+## 7. UI 화면
+
+기존 디자인 작업물(`디자인/` 10개 HTML) 기준. 상세는 **`UI_SCREENS.md`** 참조.
+- 메인화면: 상태바(현금·총자산·부채·스트레스·신뢰도·턴) + 메뉴(마켓·뉴스·포트폴리오·캘린더) + NEXT TURN
+- 마켓(랭킹/업종/참고지표) · 종목상세(차트·뉴스·종토방·정보 4탭, 타입별 상이) · 포트폴리오(종합/주식/채권/코인/수익분석) · 매수/매도
+- 이벤트 6종(사채전화·상환·기절·명절·여행·결혼식) · 정산 · 엔딩
+
+---
+
+## 8. 개발 로드맵 / 마일스톤
+
+| Phase | 목표 | 상태 |
+|---|---|---|
+| P0 기반 | DB 스키마 + Docker + 서버 부트스트랩 | ✅ 스키마(23테이블) 검증 완료 |
+| P1 데이터 적재 | 131자산 시세·재무·거시·뉴스·종토방 ETL | ⏳ stub→실데이터 |
+| P2 게임 코어 | 세션·240턴·매수/매도·평가·자동저장 | ⏳ (프로토타입 컨트롤러 → 풀스코프 재작성) |
+| P3 상태/상환 | 스트레스·신뢰도·월말상환·승패 | ⏳ |
+| P4 이벤트 | 이벤트 엔진 + 8종 | ⏳ |
+| P5 프론트 | React19+Vite 전 화면(UI_SCREENS 기준) | ⏳ |
+| P6 리포트/안정화 | 월간·최종 리포트(LLM 피드백)·밸런싱·배포 | ⏳ |
+
+---
+
+## 9. 개발 환경 / 실행
+
+```bash
+docker-compose up -d                          # db(antsurvival) + api(3001), 스키마 자동 적용
+docker exec antsurvival_api node seeds/import_news.js --stub
+curl http://localhost:3001/health
+cd stock-game-frontend && npm run dev          # React+Vite :5173
+```
+환경변수: `DATABASE_URL`, `PORT=3001`, `CORS_ORIGIN`, `GAME_START_RANGE=2013-01-01..2023-12-31`.
+
+---
+
+## 10. 검증 현황
+
+- DB 스키마(최종 타입별 분리, **23테이블**): PostgreSQL 16 생성·시드·FK 체인 검증 완료(§5 DDL).
+- 백엔드 프로토타입(JS): 구문검사 + 게임흐름 통합테스트 15/15 통과(4종목 기준).
+- 다음: ① 컨트롤러를 §5 스키마/풀스코프로 재작성 → ② 실데이터 적재 → ③ 프론트 연결.
+
+---
+
+## 11. 산출물 / 문서 맵
+
+| 문서/파일 | 내용 |
+|---|---|
+| **본 문서** | 최종 개발 파이프라인(단일 기준, 전체 DDL 포함) |
+| `UI_SCREENS.md` | 디자인 기반 화면 명세 + UI↔API 매핑 |
+| `server/migrations/001_init.sql` | DB 스키마(타입별 분리, 23테이블 — §5 DDL과 동일) |
+| `server/` | Express JS MVC 스캐폴드 |
+| `docker-compose.yml` | DB+API 컨테이너 |
+| `repo_alignment_check.md` | 프로토타입↔풀스코프 정렬 이력 |
+
+> 이전 `ARCHITECTURE_revised.md`·`TECH_STACK_revised.md`의 내용은 본 문서에 통합됨.
