@@ -73,113 +73,129 @@ React + Vite (JS)  →  Express (Node.js, plain JS)  →  PostgreSQL (Docker)
 
 ---
 
-## 5. DB 스키마 (최종 — 자산 타입별 분리)
+## 5. DB 스키마 (최종 — 자산 타입별 분리, 전체 DDL)
 
-> 실제 드라이브 데이터 확인 결과 **타입별 가격 구조가 근본적으로 다름**(주식=OHLCV+수급, 채권=수익률 시계열, 코인=USD 종가+시총). 그래서 **공통 마스터/시세 + 타입별 상세** 로 분리한다.
+> 실제 드라이브 데이터 확인 결과 **타입별 가격 구조가 근본적으로 다름**(주식=OHLCV+수급, 채권=수익률 시계열, 코인=USD 종가+시총). 그래서 **공통 마스터/시세 + 타입별 상세**로 분리한다. 아래 DDL은 PostgreSQL 16에서 실행 검증 완료(23테이블). 그대로 `server/migrations/001_init.sql`로 사용.
 
-### 공통
-- `assets` — 통합 마스터: `asset_id, asset_type(stock|bond|coin), code, name, masked_name, sector, currency, is_active`
-- `asset_prices` — **거래·평가용 최소 공통 시세**: `asset_id, trade_date, close_price, change_rate, currency` (매수/매도·총자산·포트폴리오가 타입 무관하게 이 테이블 사용)
+```sql
+CREATE EXTENSION IF NOT EXISTS pgcrypto;  -- gen_random_uuid()
 
-### 타입별 상세 시세 (네이티브 컬럼)
-- `stock_price_detail` — `open/high/low, volume, 외국인·기관·개인 수급, 유동주식수, 시가총액`
-- `bond_price_detail` — `yield(수익률), price_index`
-- `coin_price_detail` — `market_cap, volume_usd`
+-- ===== 공통 =====
+CREATE TABLE assets (
+  asset_id    VARCHAR(20) PRIMARY KEY,            -- STOCK_005930 / BOND_KTB3Y / COIN_BTC
+  asset_type  VARCHAR(10) NOT NULL CHECK (asset_type IN ('stock','bond','coin')),
+  code        VARCHAR(20),
+  name        VARCHAR(100) NOT NULL,
+  masked_name VARCHAR(100),                       -- 게임 표시용 가상명
+  sector      VARCHAR(50),
+  currency    VARCHAR(3) NOT NULL DEFAULT 'KRW',  -- KRW | USD(코인)
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX idx_assets_type ON assets(asset_type);
 
-### 타입별 정보
-- `stock_financials`(**반기별**: 매출·영업이익·순이익·부채총계·현금성·재고) · `stock_valuation`(**반기별**: PER·PBR·PSR·EV/EBITDA·ROE·ROA·EPS·BPS·SPS·시총)
-- `bond_info`(채권종류·신용등급·만기) · `coin_info`(심볼·시총tier·상장/폐지연도·생존여부)
+-- 거래/평가 공통 최소 시세 (매수·매도·총자산·포트폴리오가 타입 무관하게 사용)
+CREATE TABLE asset_prices (
+  asset_id    VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  trade_date  DATE NOT NULL,
+  close_price NUMERIC NOT NULL,
+  change_rate NUMERIC,
+  currency    VARCHAR(3) NOT NULL DEFAULT 'KRW',
+  PRIMARY KEY (asset_id, trade_date)
+);
+CREATE INDEX idx_prices_date ON asset_prices(trade_date);
 
-### 거시 / 뉴스 / 종토방
-- `macro_indicators` · `macro_daily`
-- `news`(news_type·asset_id·headline·body·sentiment·event_family·is_masked) · `news_tags`
-- `community_posts` · `community_comments`(읽기 전용)
+-- ===== 타입별 상세 시세 =====
+CREATE TABLE stock_price_detail (
+  asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  trade_date DATE NOT NULL,
+  open_price NUMERIC, high_price NUMERIC, low_price NUMERIC, volume BIGINT,
+  foreign_qty BIGINT, inst_qty BIGINT, indiv_qty BIGINT,   -- 외국인/기관/개인 수급
+  shares_outstanding BIGINT, market_cap NUMERIC,
+  PRIMARY KEY (asset_id, trade_date)
+);
+CREATE TABLE bond_price_detail (
+  asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  trade_date DATE NOT NULL,
+  yield_rate NUMERIC,        -- 수익률(%)
+  price_index NUMERIC,       -- 수익률→가격지수 변환
+  PRIMARY KEY (asset_id, trade_date)
+);
+CREATE TABLE coin_price_detail (
+  asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  trade_date DATE NOT NULL,
+  market_cap NUMERIC, volume_usd NUMERIC,
+  PRIMARY KEY (asset_id, trade_date)
+);
 
-### 플레이어
-- `game_sessions`(상태값: cash·debt·stress·trust·current_turn·status·difficulty) · `game_turns`(1~240)
-- `holdings` · `trades`(실현손익) · `repayments`(20턴) · `event_log`(이벤트) · `memos`(캘린더) · `news_exposure`(스트레스 제한 노출)
+-- ===== 타입별 정보 =====
+CREATE TABLE stock_financials (   -- 반기별
+  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  fiscal_year INT NOT NULL, half SMALLINT NOT NULL CHECK (half IN (1,2)),
+  revenue NUMERIC, operating_income NUMERIC, net_income NUMERIC,
+  total_debt NUMERIC, cash_equivalents NUMERIC, inventory NUMERIC,
+  PRIMARY KEY (asset_id, fiscal_year, half)
+);
+CREATE TABLE stock_valuation (    -- 반기별
+  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
+  fiscal_year INT NOT NULL, half SMALLINT NOT NULL CHECK (half IN (1,2)),
+  revenue_growth NUMERIC, op_margin NUMERIC, net_margin NUMERIC, debt_ratio NUMERIC,
+  per NUMERIC, pbr NUMERIC, psr NUMERIC, ev_ebitda NUMERIC,
+  roe NUMERIC, roa NUMERIC, eps NUMERIC, bps NUMERIC, sps NUMERIC, market_cap NUMERIC,
+  PRIMARY KEY (asset_id, fiscal_year, half)
+);
+CREATE TABLE bond_info (
+  asset_id VARCHAR(20) PRIMARY KEY REFERENCES assets(asset_id),
+  bond_type VARCHAR(20), credit_rating VARCHAR(10), maturity VARCHAR(10)
+);
+CREATE TABLE coin_info (
+  asset_id VARCHAR(20) PRIMARY KEY REFERENCES assets(asset_id),
+  symbol VARCHAR(20), market_cap_tier VARCHAR(20),
+  listing_year INT, delisting_year INT, survived_to_2023 BOOLEAN
+);
 
-> 권위 DDL: `server/migrations/001_init.sql`. **타입별 분리안 반영을 위해 갱신 예정**(현재 통합 asset_prices 버전 → 위 분리안으로 개정).
+-- ===== 거시 =====
+CREATE TABLE macro_indicators (indicator_code VARCHAR(30) PRIMARY KEY, display_name VARCHAR(50), unit VARCHAR(20));
+CREATE TABLE macro_daily (
+  indicator_code VARCHAR(30) NOT NULL REFERENCES macro_indicators(indicator_code),
+  trade_date DATE NOT NULL, value NUMERIC, PRIMARY KEY (indicator_code, trade_date)
+);
 
----
+-- ===== 뉴스 =====
+CREATE TABLE news (
+  id SERIAL PRIMARY KEY, news_date DATE NOT NULL, news_type VARCHAR(30) NOT NULL,
+  asset_id VARCHAR(20) REFERENCES assets(asset_id),
+  headline VARCHAR(300) NOT NULL, body TEXT,
+  sentiment VARCHAR(20) CHECK (sentiment IN ('positive','negative','neutral')),
+  event_family VARCHAR(50), is_masked BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX idx_news_date  ON news(news_date);
+CREATE INDEX idx_news_asset ON news(asset_id, news_date);
+CREATE TABLE news_tags (
+  news_id INT NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  tag_type VARCHAR(20), tag VARCHAR(50), PRIMARY KEY (news_id, tag_type, tag)
+);
 
-## 6. 백엔드 구조 & API (`server/`)
+-- ===== 종토방 (읽기 전용) =====
+CREATE TABLE community_posts (
+  id SERIAL PRIMARY KEY, post_date DATE NOT NULL, asset_id VARCHAR(20) REFERENCES assets(asset_id),
+  npc_nickname VARCHAR(50), title VARCHAR(300), body TEXT, recommend_count INT DEFAULT 0, sentiment VARCHAR(20)
+);
+CREATE INDEX idx_posts_asset_date ON community_posts(asset_id, post_date);
+CREATE TABLE community_comments (
+  id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  npc_nickname VARCHAR(50), body TEXT NOT NULL, sentiment VARCHAR(20)
+);
 
-```
-server/src/
-├── index.js · db.js(pg 풀+트랜잭션)
-├── routes/        game · assets · news · community · portfolio · event · repayment · memo
-├── controllers/   (동일)
-└── services/  turnSelector(240) · pricingService(환율) · tradeService · valuationService
-              · eventEngine(8종) · stressPolicy · trustPolicy · repaymentService · reportService · maskingService
-```
-
-| Method | Endpoint | 설명 |
-|---|---|---|
-| POST | `/api/game/start` | 세션·난이도·240턴 생성 |
-| GET | `/api/game/:id` · `/turn/:n` | 상태 / 턴 데이터 |
-| POST | `/api/game/:id/trade` · `/next-turn` · `/repay` · `/event` | 거래·턴진행·상환·이벤트 |
-| GET | `/api/game/:id/portfolio` · `/report/...` · `/result` | 포트폴리오·리포트·결산 |
-| GET | `/api/assets?type=&sort=` · `/assets/:id` · `/assets/:id/prices` | 종목 목록·상세·차트 |
-| GET | `/api/macro/:date` · `/news/:date(/:assetId)` · `/community/:assetId` | 지표·뉴스·종토방 |
-| ·/·/·/· | `/api/game/:id/memo` | 캘린더 메모 CRUD |
-
-핵심 원칙: 돈·상태·시간(턴)은 **서버 권위**. 거래는 정수·즉시체결·수수료0, 평균단가·실현손익 서버 계산.
-
----
-
-## 7. UI 화면
-
-기존 디자인 작업물(`디자인/` 10개 HTML) 기준. 상세는 **`UI_SCREENS.md`** 참조.
-- 메인화면: 상태바(현금·총자산·부채·스트레스·신뢰도·턴) + 메뉴(마켓·뉴스·포트폴리오·캘린더) + NEXT TURN
-- 마켓(랭킹/업종/참고지표) · 종목상세(차트·뉴스·종토방·정보 4탭, 타입별 상이) · 포트폴리오(종합/주식/채권/코인/수익분석) · 매수/매도
-- 이벤트 6종(사채전화·상환·기절·명절·여행·결혼식) · 정산 · 엔딩
-
----
-
-## 8. 개발 로드맵 / 마일스톤
-
-| Phase | 목표 | 상태 |
-|---|---|---|
-| P0 기반 | DB 스키마 + Docker + 서버 부트스트랩 | ✅ 스키마 검증(통합안) / 타입별 분리안 개정 예정 |
-| P1 데이터 적재 | 131자산 시세·재무·거시·뉴스·종토방 ETL | ⏳ stub→실데이터 |
-| P2 게임 코어 | 세션·240턴·매수/매도·평가·자동저장 | ⏳ (프로토타입 컨트롤러 → 풀스코프 재작성) |
-| P3 상태/상환 | 스트레스·신뢰도·월말상환·승패 | ⏳ |
-| P4 이벤트 | 이벤트 엔진 + 8종 | ⏳ |
-| P5 프론트 | React19+Vite 전 화면(UI_SCREENS 기준) | ⏳ |
-| P6 리포트/안정화 | 월간·최종 리포트(LLM 피드백)·밸런싱·배포 | ⏳ |
-
----
-
-## 9. 개발 환경 / 실행
-
-```bash
-docker-compose up -d                          # db(antsurvival) + api(3001), 스키마 자동 적용
-docker exec antsurvival_api node seeds/import_news.js --stub
-curl http://localhost:3001/health
-cd stock-game-frontend && npm run dev          # React+Vite :5173
-```
-환경변수: `DATABASE_URL`, `PORT=3001`, `CORS_ORIGIN`, `GAME_START_RANGE=2013-01-01..2023-12-31`.
-
----
-
-## 10. 검증 현황
-
-- DB 스키마(통합안 19테이블): PostgreSQL 16 생성·시드 검증 완료.
-- 백엔드 프로토타입(JS): 구문검사 + 게임흐름 통합테스트 15/15 통과(4종목 기준).
-- 다음: ① 스키마 타입별 분리 개정 → ② 컨트롤러 풀스코프 재작성 → ③ 실데이터 적재.
-
----
-
-## 11. 산출물 / 문서 맵
-
-| 문서/파일 | 내용 |
-|---|---|
-| **본 문서** | 최종 개발 파이프라인(단일 기준) |
-| `UI_SCREENS.md` | 디자인 기반 화면 명세 + UI↔API 매핑 |
-| `server/migrations/001_init.sql` | DB 스키마(타입별 분리안으로 개정 예정) |
-| `server/` | Express JS MVC 스캐폴드 |
-| `docker-compose.yml` | DB+API 컨테이너 |
-| `repo_alignment_check.md` | 프로토타입↔풀스코프 정렬 이력 |
-
-> 이전 `ARCHITECTURE_revised.md`·`TECH_STACK_revised.md`의 내용은 본 문서에 통합됨.
+-- ===== 플레이어 =====
+CREATE TABLE game_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), created_at TIMESTAMP DEFAULT NOW(),
+  status VARCHAR(20) DEFAULT 'active',          -- active | success | failed
+  difficulty VARCHAR(10), start_date DATE, current_turn INT DEFAULT 1,
+  initial_cash INT DEFAULT 50000000, debt_initial INT NOT NULL,
+  cash INT NOT NULL, debt INT NOT NULL,
+  stress INT DEFAULT 0   CHECK (stress BETWEEN 0 AND 100),
+  trust  INT DEFAULT 100 CHECK (trust  BETWEEN 0 AND 100), final_cash INT
+);
+CREATE TABLE game_turns (
+  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  turn_number INT NOT NULL, trade_date DATE NOT NULL, PRIMARY KEY
