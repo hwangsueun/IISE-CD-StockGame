@@ -332,3 +332,39 @@ cd stock-game-frontend && npm run dev          # React+Vite :5173
 | `repo_alignment_check.md` | 프로토타입↔풀스코프 정렬 이력 |
 
 > 이전 `ARCHITECTURE_revised.md`·`TECH_STACK_revised.md`의 내용은 본 문서에 통합됨.
+
+---
+
+## 12. 개발 폴더 구조 (스캐폴드)
+
+`server`(Express JS MVC) + `frontend`(React19+Vite) + Docker. ★=동작 코드, 나머지=TODO 스텁.
+
+```
+antsurvival/
+├── docker-compose.yml              # DB(postgres16) + API(3001)
+├── README.md
+├── server/                         # Express(JS) MVC + PostgreSQL
+│   ├── Dockerfile · package.json · .env.example
+│   ├── migrations/001_init.sql     # ★ 최종 23테이블 스키마(§5 DDL)
+│   ├── seeds/import_news.js         # 데이터 적재(--stub)
+│   └── src/
+│       ├── index.js · db.js         # ★ 진입점 · pg 연결
+│       ├── config/constants.js      # 240턴·뉴스열람제한 등 상수
+│       ├── routes/                  # ★ API 배선: game·assets·macro·news·community
+│       ├── controllers/             # gameController·assetController·macroController·newsController·communityController
+│       └── services/                # turnSelector·pricingService·tradeService·valuationService
+│                                    # ·eventEngine·stressPolicy·trustPolicy·repaymentService·reportService·maskingService
+└── frontend/                       # React 19 + Vite (JS)
+    ├── package.json · vite.config.js(/api 프록시) · index.html
+    └── src/
+        ├── main.jsx · App.jsx        # 화면 전환
+        ├── api/client.js             # ★ 백엔드 호출 클라이언트
+        ├── pages/                    # IntroScreen · MainScreen
+        ├── components/               # StatusBar·MarketModal·AssetDetailModal·PortfolioModal·NewsModal·TradeModal
+        ├── state/gameStore.js
+        └── styles/global.css
+```
+
+- **★ 동작**: 진입점·DB연결·라우트 배선·API 클라이언트·DB 스키마.
+- **TODO 스텁**: 컨트롤러(501 응답)·서비스(시그니처)·프론트 컴포넌트. 각 파일에 `pipeline §5/§6 참고` 주석.
+- 실행: `docker-compose up -d` → `node seeds/import_news.js --stub` → `cd frontend && npm run dev`.
