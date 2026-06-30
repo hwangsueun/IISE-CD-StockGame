@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>이벤트 — 상환일, 사채업자 방문</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #050302;
+    --frame: #2a1a10;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --green: #4ade80;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0604;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #1a0f0a 0%, #050302 80%), #050302;
+  }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: #1a0f0a; border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold); letter-spacing: 2px; z-index: 200;
+  }
+  .nav-strip {
+    position: absolute; top: -28px; right: 24px;
+    display: flex; gap: 6px; z-index: 200;
+  }
+  .nav-strip a, .nav-strip button {
+    background: #1a0f0a; border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    text-decoration: none; cursor: pointer;
+  }
+  .nav-strip a:hover, .nav-strip button:hover { color: var(--gold); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.08) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+
+  /* screen indicator */
+  .screen-tag {
+    position: absolute;
+    top: 18px; left: 22px;
+    display: flex; align-items: center; gap: 10px;
+    z-index: 30;
+  }
+  .screen-tag .num {
+    background: var(--gold); color: #1a0f0a;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+  }
+  .screen-tag .nm {
+    background: #1a0f0a; border: 2px solid #5a3624;
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: auto;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+
+  /* stage area (above narration) */
+  .stage {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    bottom: 280px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 60px 60px 12px;
+    z-index: 5;
+    overflow: auto;
+  }
+
+  /* center big text (knock) */
+  .big-center { text-align: center; animation: fadeUp 1.2s steps(8,end); }
+  .big-center .small { font-family: 'Press Start 2P', monospace; font-size: 11px; color: var(--ink-dim); letter-spacing: 4px; margin-bottom: 14px; }
+  .big-center .big {
+    font-family: 'Galmuri11', monospace; font-size: 44px;
+    color: var(--ink); letter-spacing: 6px; text-shadow: 3px 3px 0 #000;
+  }
+  .big-center .knock {
+    font-family: 'Press Start 2P', monospace; font-size: 36px;
+    color: var(--gold); letter-spacing: 6px; text-shadow: 3px 3px 0 #000;
+    animation: knockShake 0.32s steps(2,end) 0s 6;
+  }
+  @keyframes knockShake {
+    0%   { transform: translateX(-3px); }
+    100% { transform: translateX(3px); }
+  }
+  .big-center .sub {
+    margin-top: 14px; font-family: 'Galmuri11', monospace; font-size: 16px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .press-hint {
+    position: absolute; left: 50%; bottom: 320px; transform: translateX(-50%);
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold); letter-spacing: 2px;
+    animation: blinkSlow 1s steps(2,end) infinite;
+    z-index: 6;
+  }
+  @keyframes blinkSlow { 0%,49%{opacity:1;} 50%,100%{opacity:0.2;} }
+
+  /* ====== remit panel (input form) ====== */
+  .remit-card {
+    width: 920px; max-width: 96%;
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--gold),
+      inset 0 0 0 6px #2a1a10,
+      8px 8px 0 #000,
+      0 0 32px rgba(245,197,66,0.18);
+    padding: 18px 22px 20px;
+    animation: cardPop 280ms steps(5,end);
+  }
+  @keyframes cardPop { from { opacity:0; transform: translateY(16px) scale(.96); } to { opacity:1; transform: none; } }
+  .remit-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 10px; margin-bottom: 12px;
+    border-bottom: 2px dashed #3d2418;
+  }
+  .remit-head .ttl {
+    font-family: 'Press Start 2P', monospace; font-size: 12px;
+    color: var(--gold); letter-spacing: 2px; text-shadow: 2px 2px 0 #000;
+  }
+  .remit-head .date {
+    font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .remit-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px;
+    padding-bottom: 12px; margin-bottom: 12px;
+    border-bottom: 1px dashed #2a1a10;
+  }
+  .remit-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4px 0;
+  }
+  .remit-row .k { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .remit-row .v {
+    font-family: 'Galmuri11', monospace; font-size: 16px; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .remit-row .v.cash { color: var(--green); }
+  .remit-row .v.debt { color: var(--red); }
+  .remit-row .v.interest { color: var(--amber); }
+  .remit-row .v.expect { color: var(--gold); }
+
+  .input-area {
+    display: grid; grid-template-columns: 1fr auto; gap: 10px;
+    align-items: stretch;
+  }
+  .input-wrap {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .input-lbl {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--gold); letter-spacing: 2px;
+  }
+  .input-box {
+    display: flex; align-items: center;
+    background: #000; border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #5a3624;
+    padding: 0 12px;
+    height: 56px;
+  }
+  .input-box .won {
+    font-family: 'Press Start 2P', monospace; font-size: 18px;
+    color: var(--gold); margin-right: 8px;
+  }
+  .input-box input {
+    flex: 1;
+    background: transparent; border: 0; outline: none;
+    color: var(--ink);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 22px;
+    letter-spacing: 2px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    width: 100%;
+  }
+  .input-box input::placeholder { color: #5a3624; font-size: 14px; }
+  .input-box .unit {
+    font-family: 'Galmuri11', monospace; font-size: 14px;
+    color: var(--ink-dim); margin-left: 6px;
+  }
+  .input-msg {
+    min-height: 16px;
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--red); letter-spacing: 0.5px;
+  }
+  .input-msg.ok { color: var(--green); }
+
+  /* ---- final-mode breakdown dropdown ---- */
+  .final-main-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    padding-bottom: 14px; margin-bottom: 12px;
+    border-bottom: 1px dashed #2a1a10;
+  }
+  .final-main-cell {
+    background: #000;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #2a1a10;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .final-main-cell.totalAssets { box-shadow: inset 0 0 0 2px var(--gold); }
+  .final-main-cell.debt        { box-shadow: inset 0 0 0 2px #7f1d1d; }
+  .final-main-cell.payable     { box-shadow: inset 0 0 0 2px #166534; }
+  .final-main-cell .k {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 2px;
+  }
+  .final-main-cell .v {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px;
+    color: var(--ink); text-shadow: 2px 2px 0 #000;
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .final-main-cell.totalAssets .v { color: var(--gold); }
+  .final-main-cell.debt .v        { color: var(--red); }
+  .final-main-cell.payable .v     { color: var(--green); }
+
+  .breakdown-toggle {
+    width: 100%;
+    background: #1a0f0a;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #5a3624;
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Galmuri11', monospace;
+    font-size: 15px; color: var(--gold); letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .breakdown-toggle:hover { background: #2a1a10; }
+  .breakdown-toggle .arrow {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold);
+  }
+  .breakdown-panel {
+    background: #050302;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #2a1a10;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .breakdown-panel[hidden] { display: none; }
+  .breakdown-head {
+    display: grid; grid-template-columns: 80px 1fr 80px;
+    gap: 8px;
+    padding: 4px 4px 6px;
+    border-bottom: 1px dashed #3d2418;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .breakdown-head .r,
+  .breakdown-row .r { text-align: right; }
+  .breakdown-row {
+    display: grid; grid-template-columns: 80px 1fr 80px;
+    gap: 8px;
+    padding: 6px 4px;
+    border-bottom: 1px dashed #2a1a10;
+    font-family: 'Galmuri11', monospace; font-size: 14px;
+    align-items: baseline;
+  }
+  .breakdown-row:last-child { border-bottom: 0; }
+  .breakdown-row .k {
+    font-family: 'Galmuri11', monospace; font-size: 14px;
+    color: var(--ink); letter-spacing: 1px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .breakdown-row .swatch {
+    width: 10px; height: 10px; border: 1px solid #000;
+    image-rendering: pixelated; flex-shrink: 0;
+  }
+  .breakdown-row .v {
+    color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .breakdown-row .p {
+    color: var(--gold);
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .breakdown-row.total {
+    margin-top: 4px;
+    border-top: 2px solid #3d2418;
+    padding-top: 8px;
+  }
+  .breakdown-row.total .k { color: var(--gold); }
+  .breakdown-row.total .v { color: var(--gold); font-weight: bold; }
+  .breakdown-row.total .p { color: var(--gold); }
+
+  .repay-shortcut {
+    background: transparent;
+    border: 2px dashed #5a3624;
+    color: var(--gold);
+    font-family: 'Galmuri11', monospace; font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    margin-top: 6px;
+  }
+  .repay-shortcut:hover { background: #1a0f0a; }
+
+  .send-btn {
+    background: var(--gold);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px #fff5cc,
+      inset 0 -6px 0 #b8862a,
+      4px 4px 0 #000;
+    color: #1a0f0a;
+    padding: 0 22px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+    min-width: 180px;
+    align-self: stretch;
+    transition: transform 80ms steps(2,end);
+  }
+  .send-btn:hover { transform: translate(-1px,-1px); background: #fde68a; }
+  .send-btn:active { transform: translate(2px,2px); box-shadow: inset 0 0 0 2px #fff5cc, inset 0 -2px 0 #b8862a, 0 0 0 #000; }
+  .send-btn .num {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: #7f1d1d; letter-spacing: 2px;
+  }
+  .send-btn .text {
+    font-family: 'Galmuri11', monospace; font-size: 22px;
+    color: #1a0f0a; letter-spacing: 2px;
+  }
+
+  /* result state card */
+  .result-card {
+    width: 760px; max-width: 96%;
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px #5a3624,
+      inset 0 0 0 6px #2a1a10,
+      8px 8px 0 #000;
+    padding: 18px 24px;
+    animation: cardPop 240ms steps(5,end);
+  }
+  .result-card h3 {
+    font-family: 'Press Start 2P', monospace; font-size: 12px;
+    color: var(--gold); letter-spacing: 2px; text-shadow: 2px 2px 0 #000;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px dashed #3d2418;
+  }
+  .result-row {
+    display: grid; grid-template-columns: 220px 1fr 200px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px dashed #2a1a10;
+    font-family: 'Galmuri11', monospace;
+    font-size: 16px;
+  }
+  .result-row:last-child { border-bottom: 0; }
+  .result-row .k { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .result-row .before { color: var(--ink-dim); text-align: right; }
+  .result-row .after  { color: var(--ink); text-align: right; font-weight: bold; }
+  .result-row .arrow  { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--gold); text-align: center; }
+  .result-paid {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: #1a0f0a;
+    border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--gold);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .result-paid .k { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--gold); letter-spacing: 1px; }
+  .result-paid .v {
+    font-family: 'Press Start 2P', monospace; font-size: 18px;
+    color: var(--gold); text-shadow: 2px 2px 0 #000; letter-spacing: 1px;
+  }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute;
+    left: 30px; right: 30px; bottom: 30px;
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px #5a3624,
+      inset 0 0 0 6px #2a1a10,
+      6px 6px 0 #000;
+    padding: 16px 22px 18px;
+    z-index: 8;
+    height: 230px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed #3d2418;
+    padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 40px; height: 40px;
+    background: #2a1a10; border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px #5a3624;
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold);
+  }
+  .nar-portrait.sys { color: var(--gold); }
+  .nar-name { font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--gold); letter-spacing: 1px; }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    border: 1px solid #5a3624; padding: 2px 6px;
+  }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--gold); }
+  .nar-body {
+    flex: 1;
+    font-family: 'Galmuri11', monospace;
+    font-size: 19px; line-height: 1.6;
+    color: var(--ink);
+    text-wrap: pretty; letter-spacing: 0.5px;
+    overflow: hidden;
+  }
+  .nar-body .em  { color: var(--gold); }
+  .nar-body .red { color: var(--red); }
+  .nar-body .grn { color: var(--green); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 18px;
+    background: var(--gold); vertical-align: -3px; margin-left: 4px;
+    animation: blinkFast 0.55s steps(2,end) infinite;
+  }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px;
+    color: var(--gold); letter-spacing: 2px;
+    animation: nextBob 0.7s steps(2,end) infinite;
+    user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* choice strip (used only for farewell continue) */
+  .choice-strip {
+    position: absolute;
+    left: 30px; right: 30px;
+    bottom: 290px;
+    display: grid; grid-template-columns: 1fr;
+    gap: 12px; z-index: 6;
+    max-width: 380px; margin: 0 auto;
+  }
+  .choice-btn {
+    background: var(--gold);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #fff5cc, inset 0 -6px 0 #b8862a, 4px 4px 0 #000;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px;
+    text-align: left;
+  }
+  .choice-btn .num  { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #7f1d1d; letter-spacing: 2px; }
+  .choice-btn .text { font-family: 'Galmuri11', monospace; font-size: 20px; color: #1a0f0a; letter-spacing: 1px; }
+  .choice-btn:hover { background: #fde68a; transform: translate(-1px,-1px); }
+
+  .fade-mask {
+    position: absolute; inset: 0; background: #000;
+    z-index: 90; pointer-events: none; opacity: 0;
+    transition: opacity 220ms steps(4,end);
+  }
+  .fade-mask.on { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<div class="game" id="game" data-screen-label="EVT · 사채업자 방문">
+  <div class="title-plate">★ EVENT · 상환일 — 사채업자 방문 ★</div>
+  <div class="nav-strip">
+    <button id="resetBtn" title="처음으로">↺ 처음으로</button>
+  </div>
+
+  <div class="screen-tag" id="screenTag">
+    <span class="num" id="tagNum">V1</span>
+    <span class="nm" id="tagName">현관문 두드림</span>
+    <span class="step" id="tagStep">STEP 1 / 6</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+  <div class="press-hint" id="pressHint" hidden>▶ 화면을 클릭하세요</div>
+
+  <div class="choice-strip" id="choices" hidden></div>
+
+  <div class="narration" id="narration" hidden>
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">$</div>
+      <span class="nar-name" id="narName">사채업자 김씨</span>
+      <span class="nar-tag" id="narTag">DIALOG</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b></span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <div class="fade-mask" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  POST-ENDING GUARD — if the game already ended, don't allow
+  //  another repayment; bounce to the matching ending page.
+  //  Also: if there is no active game at all, bounce to the intro
+  //  rather than letting an empty-state crash through.
+  // ============================================================
+  (function postEndingGuard() {
+    try {
+      const raw = localStorage.getItem('stockgame_demo_state_v1');
+      if (!raw) {
+        // 진행 중인 게임이 없습니다. 처음 화면으로 이동합니다.
+        try { alert('진행 중인 게임이 없습니다. 처음 화면으로 이동합니다.'); } catch (_) {}
+        window.location.replace('Intro - Debt Setup.html');
+        return;
+      }
+      const s = JSON.parse(raw);
+      if (!s || typeof s !== 'object') return;
+      if (s.endingType === 'happy') {
+        window.location.replace('Final Result.html');
+      } else if (s.endingType === 'bad') {
+        window.location.replace('Bad End - Bankruptcy.html');
+      }
+    } catch (_) {}
+  })();
+</script>
+<script>
+  // ============================================================
+  //  SHARED DEMO STATE (localStorage)
+  // ============================================================
+  const DEMO_STATE_KEY = 'stockgame_demo_state_v1';
+  const DEFAULT_DEMO_STATE = {
+    turn: 20,
+    maxTurn: 20,
+    cash: 0,
+    initialDebt: 100000000,
+    debt: 100000000,
+    repaidDebt: 0,
+    monthlyRepayment: 5000000,
+    trust: 72,
+    stress: 45,
+    repaymentDue: true,
+    repaymentReason: 'final_turn'
+  };
+
+  function mergeWithDefaultState(savedState) {
+    const merged = { ...DEFAULT_DEMO_STATE };
+    if (!savedState || typeof savedState !== 'object') return merged;
+    for (const k of Object.keys(DEFAULT_DEMO_STATE)) {
+      if (savedState[k] !== undefined && savedState[k] !== null) merged[k] = savedState[k];
+    }
+    // preserve any extra keys we didn't know about
+    for (const k of Object.keys(savedState)) {
+      if (!(k in merged)) merged[k] = savedState[k];
+    }
+    // ---- migrate legacy debt object {paid,total in 만} → scalar number (원) ----
+    if (merged.debt && typeof merged.debt === 'object') {
+      const total = (typeof merged.debt.total === 'number') ? merged.debt.total : 10000;
+      const paid  = (typeof merged.debt.paid  === 'number') ? merged.debt.paid  : 0;
+      merged.debt = Math.max(0, (total - paid)) * 10000;
+      if (typeof savedState.initialDebt !== 'number') merged.initialDebt = total * 10000;
+      if (typeof savedState.repaidDebt  !== 'number') merged.repaidDebt  = paid  * 10000;
+    }
+    if (typeof merged.debt        !== 'number') merged.debt        = 0;
+    if (typeof merged.initialDebt !== 'number') merged.initialDebt = 100000000;
+    if (typeof merged.repaidDebt  !== 'number') merged.repaidDebt  = 0;
+    return merged;
+  }
+  function loadGameState() {
+    try {
+      const raw = localStorage.getItem(DEMO_STATE_KEY);
+      if (!raw) return { ...DEFAULT_DEMO_STATE };
+      const parsed = JSON.parse(raw);
+      return mergeWithDefaultState(parsed);
+    } catch (_) {
+      return { ...DEFAULT_DEMO_STATE };
+    }
+  }
+  function saveGameState(state) {
+    try { localStorage.setItem(DEMO_STATE_KEY, JSON.stringify(state)); } catch (_) {}
+  }
+  function isFinalRepaymentMode(s) {
+    if (!s) return false;
+    if (s.repaymentReason === 'final_turn') return true;
+    if (s.repaymentDue === true && (s.turn ?? 0) >= (s.maxTurn ?? 20)) return true;
+    if ((s.turn ?? 0) >= (s.maxTurn ?? 20)) return true;
+    return false;
+  }
+
+  const DEMO_STATE = loadGameState();
+  const FINAL_MODE = isFinalRepaymentMode(DEMO_STATE);
+
+  // ============================================================
+  //  FINAL ASSET BREAKDOWN (cash + stock + bond + coin)
+  //  - Uses each holding's lastPx (set by Main Screen.recalcTotalAssets
+  //    on every turn advance / trade), falling back to avg cost.
+  //  - Never invents prices. Never re-fetches base prices here.
+  // ============================================================
+  const KNOWN_ASSET_CATS = ['stock', 'bond', 'coin'];
+
+  function valueOfHoldingsBucket(bucket) {
+    if (!bucket || typeof bucket !== 'object') return 0;
+    let sum = 0;
+    for (const code of Object.keys(bucket)) {
+      const h = bucket[code];
+      if (!h || !h.qty) continue;
+      const px = (typeof h.lastPx === 'number' && h.lastPx > 0)
+        ? h.lastPx
+        : (typeof h.avg === 'number' ? h.avg : 0);
+      sum += h.qty * px;
+    }
+    return sum;
+  }
+
+  function calculateFinalAssetBreakdown(state) {
+    const cashValue = Math.max(0, Math.round(Number(state && state.cash) || 0));
+    const holdings = (state && state.holdings) || {};
+    const stockValue = Math.round(valueOfHoldingsBucket(holdings.stock));
+    const bondValue  = Math.round(valueOfHoldingsBucket(holdings.bond));
+    const coinValue  = Math.round(valueOfHoldingsBucket(holdings.coin));
+    // Any extra asset buckets we don't know about → "other"
+    let otherValue = 0;
+    for (const cat of Object.keys(holdings)) {
+      if (KNOWN_ASSET_CATS.includes(cat)) continue;
+      otherValue += valueOfHoldingsBucket(holdings[cat]);
+    }
+    otherValue = Math.round(otherValue);
+    const holdingsTotal = stockValue + bondValue + coinValue + otherValue;
+    const totalAssets   = cashValue + holdingsTotal;
+    return {
+      cash: cashValue,
+      stock: stockValue,
+      bond: bondValue,
+      coin: coinValue,
+      other: otherValue,
+      holdingsTotal,
+      totalAssets
+    };
+  }
+
+  // Perform the one-time liquidation when we first enter final mode.
+  // Idempotent: guarded by DEMO_STATE.finalLiquidationDone.
+  function performFinalLiquidationOnce() {
+    if (!FINAL_MODE) return;
+    if (DEMO_STATE.finalLiquidationDone) return;
+
+    const b = calculateFinalAssetBreakdown(DEMO_STATE);
+    DEMO_STATE.finalCashBeforeLiquidation = b.cash;
+    DEMO_STATE.finalHoldingsValue         = b.holdingsTotal;
+    DEMO_STATE.finalTotalAssets           = b.totalAssets;
+    DEMO_STATE.finalAvailableCash         = b.totalAssets;
+    DEMO_STATE.finalAssetBreakdown        = b;
+
+    // Liquidate: convert every holding to cash at current-turn valuation.
+    DEMO_STATE.cash               = b.totalAssets;
+    DEMO_STATE.holdings           = {};
+    DEMO_STATE.finalLiquidationDone = true;
+    saveGameState(DEMO_STATE);
+  }
+  performFinalLiquidationOnce();
+
+  // After liquidation, all values needed for display come from saved fields.
+  const FINAL_BREAKDOWN = (FINAL_MODE && DEMO_STATE.finalAssetBreakdown)
+    ? DEMO_STATE.finalAssetBreakdown
+    : calculateFinalAssetBreakdown(DEMO_STATE);
+  const FINAL_TOTAL_ASSETS = (FINAL_MODE && typeof DEMO_STATE.finalTotalAssets === 'number')
+    ? DEMO_STATE.finalTotalAssets
+    : FINAL_BREAKDOWN.totalAssets;
+
+  // ============================================================
+  //  GAME STATE (display values)
+  //  In final mode, mirror DEMO_STATE so the screen shows the live numbers.
+  // ============================================================
+  const STATE = FINAL_MODE ? {
+    today:                  '최종 상환일 · DAY 020 (월)',
+    principalDebt:          Math.max(0, DEMO_STATE.debt | 0),
+    monthlyInterestRate:    0,                    // 마지막 회차에는 추가 이자 미반영
+    cash:                   Math.max(0, DEMO_STATE.cash | 0),    // == FINAL_TOTAL_ASSETS after liquidation
+    totalAssets:            Math.max(0, FINAL_TOTAL_ASSETS | 0),
+    finalAvailableCash:     Math.max(0, FINAL_TOTAL_ASSETS | 0),
+    visitsTotal:            DEMO_STATE.maxTurn || 20,
+    visitsDone:             (DEMO_STATE.maxTurn || 20) - 1,   // this is the last visit
+  } : {
+    today:                  'DAY 029 (월)',
+    principalDebt:          55000000,
+    monthlyInterestRate:    0.01,
+    cash:                    7200000,
+    visitsTotal:            12,
+    visitsDone:              3,
+  };
+
+  // 이번 방문 시 계산값
+  const accruedInterest = Math.round(STATE.principalDebt * STATE.monthlyInterestRate);
+  const debtWithInterest = STATE.principalDebt + accruedInterest;
+  const remainingRepaymentCount = STATE.visitsTotal - STATE.visitsDone; // 이번 포함
+  const expectedMonthlyRepayment = Math.ceil(debtWithInterest / remainingRepaymentCount);
+
+  // 송금 후 채워질 값
+  let paidAmount = 0;
+  let repaymentPaceRatio = 0;
+  let newDebt = debtWithInterest;
+  let newCash = STATE.cash;
+
+  // ============================================================
+  //  SCREEN FLOW
+  // ============================================================
+  const TOTAL_STEPS = 6;
+  let screenIdx = 0;
+  let locked = false;
+  let typingFn = null;
+
+  const stage   = () => document.getElementById('stage');
+  const choices = () => document.getElementById('choices');
+  const narEl   = () => document.getElementById('narration');
+
+  const FLOW = [
+    // ----- V1: 현관문 두드림 -----
+    {
+      id:'V1', name:'현관문 두드림',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center">
+            <div class="small">★ 월요일 · 상환일 ★</div>
+            <div class="knock">똑. 똑. 똑.</div>
+            <div class="sub">…누가 문을 두드린다.</div>
+          </div>`;
+        pressHint(true);
+        narration(false);
+      },
+      advance: 'click'
+    },
+
+    // ----- V2: 인사 -----
+    {
+      id:'V2', name:'인사 한 마디',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center" style="opacity:.55;">
+            <div class="small">현관 앞</div>
+            <div class="big" style="font-size:28px;color:var(--ink-dim);">사채업자 김씨</div>
+          </div>`;
+        pressHint(false);
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', tag:'DIALOG',
+          text:'<span class="em">똑똑.</span> 박사장. 나야. <span class="em">월요일마다 오는 사람.</span>'
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- V3: 송금 요청 + 입력 폼 -----
+    {
+      id:'V3', name: FINAL_MODE ? '최종 상환 입력' : '송금 입력',
+      build() {
+        stage().innerHTML = renderRemitCard();
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', tag: FINAL_MODE ? 'FINAL' : 'REQUEST',
+          text: FINAL_MODE
+            ? '오늘이 <span class="em">마지막 상환일</span>이야, 박사장. <span class="red">기한 내에 빚을 모두 갚지 못하면 배드엔딩으로 이동합니다.</span>'
+            : '에이~ 설마 또 까먹은 척은 아니지? <span class="em">자, 얼마 보낼 건데?</span>'
+        });
+        // wire up input + submit
+        setTimeout(setupRemitForm, 30);
+      },
+      advance: 'wait'   // form takes over
+    },
+
+    // ----- V4: 송금 처리 후 결과 카드 + 김씨 반응 -----
+    {
+      id:'V4', name:'송금 결과',
+      build() {
+        stage().innerHTML = renderResultCard();
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', tag:'REACTION',
+          text: pickReactionLine(repaymentPaceRatio, paidAmount)
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- V5: 작별 (or 최종 엔딩 분기) -----
+    {
+      id:'V5', name: FINAL_MODE ? '엔딩 결정' : '작별 인사',
+      build() {
+        if (FINAL_MODE) {
+          // 최종 회차에서는 작별 인사 대신 엔딩 결정으로 이동
+          stage().innerHTML = `
+            <div class="big-center">
+              <div class="small">★ FINAL ★</div>
+              <div class="big" id="endingMsg" style="font-size:24px;color:var(--gold);line-height:1.5;">정산을 마무리하는 중…</div>
+            </div>`;
+          narration(true, {
+            who:'시스템', portrait:'!', tag:'SYSTEM',
+            text: DEMO_STATE.debt > 0
+              ? '<span class="red">기한 내에 모든 빚을 갚지 못했습니다. 배드엔딩으로 이동합니다.</span>'
+              : '<span class="grn">기한 내에 모든 빚을 갚았습니다. 해피엔딩으로 이동합니다.</span>'
+          });
+          decideFinalEnding();
+          return;
+        }
+        stage().innerHTML = `
+          <div class="big-center" style="opacity:.6;">
+            <div class="small">CALL ENDS</div>
+            <div class="big" style="font-size:28px;color:var(--ink-dim);">…문을 닫는다.</div>
+          </div>`;
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', tag:'FAREWELL',
+          text:'다음 월요일에 또 보자. 나도 박사장 자주 보기 싫어. <span class="em">근데 박사장이 자꾸 날 부르잖아.</span>'
+        });
+      },
+      advance: FINAL_MODE ? 'wait' : 'choice',
+      onTypedDone() { if (!FINAL_MODE) showContinueButton(); }
+    },
+
+    // ----- V6: 본편 복귀 -----
+    {
+      id:'V6', name:'본편 복귀',
+      build() {
+        if (FINAL_MODE) {
+          // 엔딩 분기에서 이미 처리됨 — 안전 가드
+          decideFinalEnding();
+          return;
+        }
+        stage().innerHTML = `
+          <div class="big-center">
+            <div class="small">RETURNING</div>
+            <div class="big" style="font-size:32px;color:var(--gold);">…</div>
+          </div>`;
+        narration(false);
+        document.getElementById('fade').classList.add('on');
+        setTimeout(() => location.href = 'Main Screen.html', 320);
+      },
+      advance: 'wait'
+    }
+  ];
+
+  // ============================================================
+  //  FINAL REPAYMENT — apply + decide ending
+  // ============================================================
+  function applyRepaymentAmount(inputAmount) {
+    const amount = Math.max(0, Math.floor(Number(inputAmount) || 0));
+    const actualPayment = Math.min(amount, Math.max(0, DEMO_STATE.cash), Math.max(0, DEMO_STATE.debt));
+    DEMO_STATE.cash       = Math.max(0, (DEMO_STATE.cash || 0) - actualPayment);
+    DEMO_STATE.debt       = Math.max(0, (DEMO_STATE.debt || 0) - actualPayment);
+    DEMO_STATE.repaidDebt = (DEMO_STATE.repaidDebt || 0) + actualPayment;
+    saveGameState(DEMO_STATE);
+    return actualPayment;
+  }
+
+  function decideFinalEnding() {
+    if (DEMO_STATE.debt > 0) {
+      goToBadEnding();
+    } else {
+      goToHappyEnding();
+    }
+  }
+
+  function goToHappyEnding() {
+    DEMO_STATE.endingType      = 'happy';
+    DEMO_STATE.endingReason    = 'debt_fully_repaid';
+    DEMO_STATE.gameEnded       = true;
+    DEMO_STATE.finalDebt       = 0;
+    DEMO_STATE.finalCash       = DEMO_STATE.cash || 0;
+    DEMO_STATE.finalRepaidDebt = DEMO_STATE.repaidDebt || 0;
+    DEMO_STATE.repaymentDue    = false;
+    saveGameState(DEMO_STATE);
+    showMessageSafe('기한 내에 모든 빚을 갚았습니다. 해피엔딩으로 이동합니다.');
+    setTimeout(() => {
+      document.getElementById('fade').classList.add('on');
+      setTimeout(() => { location.href = 'Final Result.html'; }, 320);
+    }, 1100);
+  }
+
+  function goToBadEnding() {
+    DEMO_STATE.endingType      = 'bad';
+    DEMO_STATE.endingReason    = 'debt_remaining';
+    DEMO_STATE.gameEnded       = true;
+    DEMO_STATE.finalDebt       = DEMO_STATE.debt || 0;
+    DEMO_STATE.finalCash       = DEMO_STATE.cash || 0;
+    DEMO_STATE.finalRepaidDebt = DEMO_STATE.repaidDebt || 0;
+    DEMO_STATE.repaymentDue    = false;
+    saveGameState(DEMO_STATE);
+    showMessageSafe('기한 내에 모든 빚을 갚지 못했습니다. 배드엔딩으로 이동합니다.');
+    setTimeout(() => {
+      document.getElementById('fade').classList.add('on');
+      setTimeout(() => { location.href = 'Bad End - Bankruptcy.html'; }, 320);
+    }, 1100);
+  }
+
+  function showMessageSafe(message) {
+    try {
+      let banner = document.getElementById('endingBanner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'endingBanner';
+        banner.style.cssText = [
+          'position:absolute','left:50%','top:42%','transform:translate(-50%,-50%)',
+          'z-index:120','padding:18px 28px',
+          'background:#0c0704','border:4px solid #000',
+          'box-shadow:inset 0 0 0 2px #f5c542, inset 0 0 0 6px #2a1a10, 6px 6px 0 #000',
+          "font-family:'Galmuri11', monospace",'font-size:20px','color:#f4e4cc',
+          'letter-spacing:1px','text-align:center','max-width:80%'
+        ].join(';');
+        document.getElementById('game').appendChild(banner);
+      }
+      banner.textContent = message;
+    } catch (_) {}
+  }
+
+  // ============================================================
+  //  RENDERERS
+  // ============================================================
+  const fmt = n => n.toLocaleString('ko-KR');
+
+  function renderRemitCard() {
+    if (FINAL_MODE) {
+      const b = FINAL_BREAKDOWN || calculateFinalAssetBreakdown(DEMO_STATE);
+      const total = b.totalAssets || 0;
+      const pct = v => (total > 0 ? ((v / total) * 100) : 0);
+      const fmtPct = v => pct(v).toFixed(1) + '%';
+      const remainingDebt = Math.max(0, DEMO_STATE.debt | 0);
+      const payable = Math.max(0, Math.min(total, remainingDebt) | 0);
+
+      const rowsHtml = [
+        { k: '현금', v: b.cash,  cls: 'sw-cash',  color: '#f5c542' },
+        { k: '주식', v: b.stock, cls: 'sw-stock', color: '#4ade80' },
+        { k: '채권', v: b.bond,  cls: 'sw-bond',  color: '#3b82f6' },
+        { k: '코인', v: b.coin,  cls: 'sw-coin',  color: '#f59e0b' },
+      ].map(r => `
+          <div class="breakdown-row">
+            <span class="k"><span class="swatch" style="background:${r.color};"></span>${r.k}</span>
+            <span class="v r">₩ ${fmt(r.v)}</span>
+            <span class="p r">${fmtPct(r.v)}</span>
+          </div>`).join('');
+
+      const otherRowHtml = (b.other && b.other > 0) ? `
+          <div class="breakdown-row">
+            <span class="k"><span class="swatch" style="background:#c9a888;"></span>기타</span>
+            <span class="v r">₩ ${fmt(b.other)}</span>
+            <span class="p r">${fmtPct(b.other)}</span>
+          </div>` : '';
+
+      return `
+        <div class="remit-card">
+          <div class="remit-head">
+            <span class="ttl">★ 최종 상환일 ★</span>
+            <span class="date">${STATE.today}</span>
+          </div>
+
+          <div class="final-main-grid">
+            <div class="final-main-cell totalAssets">
+              <span class="k">총 자산</span>
+              <span class="v">₩ ${fmt(total)}</span>
+            </div>
+            <div class="final-main-cell debt">
+              <span class="k">남은 빚</span>
+              <span class="v">₩ ${fmt(remainingDebt)}</span>
+            </div>
+          </div>
+
+          <button type="button" class="breakdown-toggle" id="breakdownToggle" aria-expanded="false">
+            <span>자산비중 확인하기</span>
+            <span class="arrow" id="breakdownArrow">▼</span>
+          </button>
+          <div class="breakdown-panel" id="breakdownPanel" hidden>
+            <div class="breakdown-head">
+              <span>자산</span>
+              <span class="r">평가금액</span>
+              <span class="r">비중</span>
+            </div>
+            ${rowsHtml}
+            ${otherRowHtml}
+            <div class="breakdown-row total">
+              <span class="k">총 자산</span>
+              <span class="v r">₩ ${fmt(total)}</span>
+              <span class="p r">${total > 0 ? '100.0%' : '0%'}</span>
+            </div>
+          </div>
+
+          <div class="input-area">
+            <div class="input-wrap">
+              <div class="input-lbl">▶ 상환 금액 — 마지막 상환 기회입니다.</div>
+              <div class="input-box">
+                <span class="won">₩</span>
+                <input id="remitInput" type="text" inputmode="numeric" autocomplete="off" placeholder="금액을 입력하세요" />
+                <span class="unit">원</span>
+              </div>
+              <div class="input-msg" id="remitMsg">&nbsp;</div>
+              <button type="button" class="repay-shortcut" id="fullRepayBtn">▶ 전액 상환 (₩ ${fmt(payable)})</button>
+            </div>
+            <button class="send-btn" id="sendBtn">
+              <span class="num">CONFIRM</span>
+              <span class="text">상환하기</span>
+            </button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="remit-card">
+        <div class="remit-head">
+          <span class="ttl">★ 월 상환 ★</span>
+          <span class="date">${STATE.today}</span>
+        </div>
+        <div class="remit-grid">
+          <div class="remit-row"><span class="k">보유 현금</span><span class="v cash">₩ ${fmt(STATE.cash)}</span></div>
+          <div class="remit-row"><span class="k">남은 빚 (현재)</span><span class="v debt">₩ ${fmt(STATE.principalDebt)}</span></div>
+          <div class="remit-row"><span class="k">이번 기간 이자</span><span class="v interest">+ ₩ ${fmt(accruedInterest)}</span></div>
+          <div class="remit-row"><span class="k">이자 반영 후 빚</span><span class="v debt">₩ ${fmt(debtWithInterest)}</span></div>
+          <div class="remit-row"><span class="k">남은 상환 기회</span><span class="v">${remainingRepaymentCount}회 (오늘 포함)</span></div>
+          <div class="remit-row"><span class="k">이번 달 기대 상환액</span><span class="v expect">₩ ${fmt(expectedMonthlyRepayment)}</span></div>
+        </div>
+        <div class="input-area">
+          <div class="input-wrap">
+            <div class="input-lbl">▶ 송금액 입력 (0원 이상)</div>
+            <div class="input-box">
+              <span class="won">₩</span>
+              <input id="remitInput" type="text" inputmode="numeric" autocomplete="off" placeholder="금액을 입력하세요" />
+              <span class="unit">원</span>
+            </div>
+            <div class="input-msg" id="remitMsg">&nbsp;</div>
+          </div>
+          <button class="send-btn" id="sendBtn">
+            <span class="num">CONFIRM</span>
+            <span class="text">송금한다</span>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function renderResultCard() {
+    return `
+      <div class="result-card">
+        <h3>★ 상환 처리 ★</h3>
+        <div class="result-row">
+          <span class="k">남은 빚</span>
+          <span class="before">₩ ${fmt(STATE.principalDebt)} (+이자 ${fmt(accruedInterest)})</span>
+          <span class="after">₩ ${fmt(newDebt)}</span>
+        </div>
+        <div class="result-row">
+          <span class="k">보유 현금</span>
+          <span class="before">₩ ${fmt(STATE.cash)}</span>
+          <span class="after">₩ ${fmt(newCash)}</span>
+        </div>
+        <div class="result-row">
+          <span class="k">남은 상환 기회</span>
+          <span class="before">${remainingRepaymentCount}회</span>
+          <span class="after">${remainingRepaymentCount - 1}회</span>
+        </div>
+        <div class="result-paid">
+          <span class="k">송금 완료</span>
+          <span class="v">₩ ${fmt(paidAmount)}</span>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  //  REMIT FORM LOGIC
+  // ============================================================
+  function setupRemitForm() {
+    const input = document.getElementById('remitInput');
+    const msg = document.getElementById('remitMsg');
+    const btn = document.getElementById('sendBtn');
+    if (!input || !btn) return;
+
+    // ----- breakdown dropdown toggle (final mode only) -----
+    const toggle = document.getElementById('breakdownToggle');
+    const panel  = document.getElementById('breakdownPanel');
+    const arrow  = document.getElementById('breakdownArrow');
+    if (toggle && panel) {
+      toggle.addEventListener('click', e => {
+        e.stopPropagation();
+        const opening = panel.hasAttribute('hidden');
+        if (opening) {
+          panel.removeAttribute('hidden');
+          toggle.setAttribute('aria-expanded', 'true');
+          if (arrow) arrow.textContent = '▲';
+        } else {
+          panel.setAttribute('hidden', '');
+          toggle.setAttribute('aria-expanded', 'false');
+          if (arrow) arrow.textContent = '▼';
+        }
+      });
+    }
+
+    // ----- full-repay shortcut (final mode only) -----
+    const fullBtn = document.getElementById('fullRepayBtn');
+    if (fullBtn) {
+      fullBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const remainingDebt = Math.max(0, DEMO_STATE.debt | 0);
+        const payable = Math.max(0, Math.min(STATE.cash, remainingDebt) | 0);
+        input.value = payable.toLocaleString('ko-KR');
+        msg.textContent = '\u00A0';
+        msg.classList.remove('ok');
+        input.focus();
+      });
+    }
+
+    // Format input live: digits only with thousand separators
+    input.addEventListener('input', () => {
+      let raw = input.value.replace(/[^0-9-]/g, '');
+      // keep optional leading minus to be detected by validator
+      const neg = raw.startsWith('-');
+      raw = raw.replace(/-/g,'');
+      const num = raw === '' ? '' : parseInt(raw, 10);
+      input.value = (neg ? '-' : '') + (num === '' ? '' : num.toLocaleString('ko-KR'));
+      msg.textContent = '\u00A0';
+      msg.classList.remove('ok');
+    });
+    input.focus();
+
+    function getValue() {
+      const v = input.value.replace(/,/g,'').trim();
+      if (v === '') return NaN;
+      return Number(v);
+    }
+
+    function submit() {
+      const v = getValue();
+      if (!Number.isFinite(v) || isNaN(v) || v < 0) {
+        msg.textContent = '올바른 금액을 입력하세요.';
+        msg.classList.remove('ok');
+        return;
+      }
+      if (v > STATE.cash) {
+        msg.textContent = '보유 현금이 부족합니다.';
+        msg.classList.remove('ok');
+        return;
+      }
+      if (v > debtWithInterest) {
+        msg.textContent = '남은 빚보다 많이 송금할 수 없습니다.';
+        msg.classList.remove('ok');
+        return;
+      }
+      // 0원 허용 (검증 통과)
+      const inputPayment = Math.floor(v);
+      // cap by cash and debt, never negative
+      const actualPayment = Math.max(0, Math.min(inputPayment, STATE.cash, debtWithInterest));
+      paidAmount = actualPayment;
+      repaymentPaceRatio = expectedMonthlyRepayment > 0
+        ? paidAmount / expectedMonthlyRepayment
+        : 0;
+      newDebt = debtWithInterest - paidAmount;
+      newCash = STATE.cash - paidAmount;
+      applyTrustInternally(repaymentPaceRatio); // 노출 X
+
+      // ===== FINAL REPAYMENT MODE — apply to shared DEMO_STATE =====
+      if (FINAL_MODE) {
+        applyRepaymentAmount(actualPayment);
+      }
+
+      nextScreen();
+    }
+
+    btn.addEventListener('click', submit);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  }
+
+  // 신뢰도 내부 갱신 (UI 노출 없음)
+  function applyTrustInternally(ratio) {
+    // pace 기준 단순 매핑 — 본편에서 main state에 적용한다고 가정
+    let delta = 0;
+    if (paidAmount === 0)              delta = -25;
+    else if (ratio >= 1.20)            delta = +10;
+    else if (ratio >= 1.00)            delta = +6;
+    else if (ratio >= 0.80)            delta = +2;
+    else if (ratio >= 0.50)            delta = -5;
+    else                                delta = -15;
+    try {
+      const memo = JSON.parse(localStorage.getItem('stocklife.runtime') || '{}');
+      memo.lenderTrustDelta = (memo.lenderTrustDelta || 0) + delta;
+      memo.lastPaceRatio = ratio;
+      memo.lastPaidAmount = paidAmount;
+      memo.lastVisitAt = Date.now();
+      localStorage.setItem('stocklife.runtime', JSON.stringify(memo));
+    } catch(_) {}
+    // window 핸들로도 노출 (디버깅용, UI에는 표시 안 함)
+    window.__STOCKLIFE_LAST_VISIT = {
+      paidAmount,
+      repaymentPaceRatio,
+      newDebt,
+      newCash,
+      lenderTrustDelta: delta
+    };
+  }
+
+  function pickReactionLine(ratio, paid) {
+    if (paid === 0) {
+      return '<span class="red">0원?</span> 사람을 여기까지 오게 해놓고 빈손이면 섭섭하지. 박사장. 진짜로.';
+    }
+    if (ratio >= 1.20) return '오? 박사장 <span class="em">오늘 왜 이래?</span> …좋아. 이런 박사장 좋아.';
+    if (ratio >= 1.00) return '응. 딱 좋네. 이대로만 가자, 응?';
+    if (ratio >= 0.80) return '에이~ 박사장. <span class="em">조금 모자라잖아.</span> …뭐, 알겠어. 이번엔 넘어가.';
+    if (ratio >= 0.50) return '박사장. <span class="em">0 하나 덜 친 거 아니지?</span> 다음 주엔 좀 채우자.';
+    return '에이~ 박사장 왜 이래? <span class="red">이러면 나도 곤란해.</span>';
+  }
+
+  // ============================================================
+  //  GENERIC UI HELPERS  (intro와 동일 패턴)
+  // ============================================================
+  function pressHint(show) { document.getElementById('pressHint').hidden = !show; }
+  function narration(show, info) {
+    const el = narEl();
+    el.hidden = !show;
+    if (show && info) {
+      const p = document.getElementById('narPortrait');
+      p.textContent = info.portrait || '$';
+      p.className = 'nar-portrait ' + (info.portraitCls || '');
+      document.getElementById('narName').textContent = info.who;
+      document.getElementById('narTag').textContent  = info.tag || 'DIALOG';
+      typeWriter(info.text);
+    }
+  }
+  function setScreenTag(scr) {
+    document.getElementById('tagNum').textContent  = scr.id;
+    document.getElementById('tagName').textContent = scr.name;
+    document.getElementById('tagStep').textContent = `STEP ${screenIdx+1} / ${TOTAL_STEPS}`;
+    document.getElementById('narStep').textContent = screenIdx+1;
+  }
+  function typeWriter(html) {
+    locked = true;
+    document.getElementById('narNext').style.display = 'none';
+    const body = document.getElementById('narBody');
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    typingFn = () => {
+      cancelled = true;
+      root.innerHTML = src;
+      cursor.remove();
+      locked = false;
+      document.getElementById('narNext').style.display = '';
+      if (FLOW[screenIdx].onTypedDone) FLOW[screenIdx].onTypedDone();
+      typingFn = null;
+    };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) {
+        cursor.remove();
+        locked = false;
+        document.getElementById('narNext').style.display = '';
+        if (FLOW[screenIdx].onTypedDone) FLOW[screenIdx].onTypedDone();
+        typingFn = null;
+        return;
+      }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1);
+        i = close + 1;
+      } else {
+        buf += src[i++];
+      }
+      root.innerHTML = buf;
+      setTimeout(tick, 22);
+    }
+    tick();
+  }
+  function showContinueButton() {
+    const wrap = choices();
+    wrap.hidden = false;
+    wrap.innerHTML = '';
+    const go = document.createElement('button');
+    go.className = 'choice-btn';
+    go.innerHTML = `<span class="num">CONTINUE</span><span class="text">▶ 문을 닫는다</span>`;
+    go.addEventListener('click', e => { e.stopPropagation(); wrap.hidden = true; nextScreen(); });
+    wrap.appendChild(go);
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  function enter() {
+    const scr = FLOW[screenIdx];
+    setScreenTag(scr);
+    choices().hidden = true;
+    document.getElementById('narNext').style.display = '';
+    scr.build();
+  }
+  function nextScreen() {
+    if (screenIdx >= FLOW.length - 1) { enter(); return; }
+    screenIdx++;
+    enter();
+  }
+
+  document.getElementById('game').addEventListener('click', e => {
+    if (e.target.closest('.choice-btn')) return;
+    if (e.target.closest('.nav-strip')) return;
+    if (e.target.closest('.remit-card')) return;       // 송금카드 안 클릭은 무시
+    if (e.target.closest('.result-card')) return;       // 결과카드 안도 무시(스크롤/읽기 보호)
+    if (locked) { if (typingFn) typingFn(); return; }
+    const scr = FLOW[screenIdx];
+    if (scr.advance === 'click') nextScreen();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    location.reload();
+  });
+
+  enter();
+</script>
+
+</body>
+</html>

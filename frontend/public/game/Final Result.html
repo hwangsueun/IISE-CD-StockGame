@@ -1,0 +1,1468 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>RESULT — 20턴 정산</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #050302;
+    --frame: #2a1a10;
+    --panel: #0c0704;
+    --panel-2: #1a0f0a;
+    --line: #3d2418;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --ink-faint: #7c5040;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --green: #4ade80;
+    --green-dark: #166534;
+    --red: #ef4444;
+    --red-dark: #7f1d1d;
+    --blue: #60a5fa;
+    --blue-dark: #1e3a8a;
+    /* accent — switched per ending via .ending-* classes */
+    --accent: var(--gold);
+    --accent-dark: var(--gold-dark);
+    --accent-soft: rgba(245,197,66,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0604;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #1a0f0a 0%, #050302 80%), #050302;
+    transition: background 400ms steps(6,end);
+  }
+  body.ending-good   { background: radial-gradient(ellipse at center, #1a1808 0%, #050402 80%), #050302; }
+  body.ending-normal { background: radial-gradient(ellipse at center, #0c1218 0%, #02040a 80%), #02040a; }
+  body.ending-bad    { background: radial-gradient(ellipse at center, #1c0606 0%, #060101 80%), #060101; }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7);
+    image-rendering: pixelated;
+    overflow: hidden;
+    transition: box-shadow 300ms steps(4,end);
+  }
+  .game.ending-good {
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 60px rgba(74,222,128,0.25);
+    --accent: var(--green);
+    --accent-dark: var(--green-dark);
+    --accent-soft: rgba(74,222,128,0.18);
+  }
+  .game.ending-normal {
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 60px rgba(96,165,250,0.22);
+    --accent: var(--blue);
+    --accent-dark: var(--blue-dark);
+    --accent-soft: rgba(96,165,250,0.18);
+  }
+  .game.ending-bad {
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 60px rgba(239,68,68,0.30);
+    --accent: var(--red);
+    --accent-dark: var(--red-dark);
+    --accent-soft: rgba(239,68,68,0.20);
+  }
+
+  /* background mood layer */
+  .mood {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    transition: background 400ms steps(6,end), opacity 400ms steps(4,end);
+  }
+  .game.ending-good .mood {
+    background:
+      radial-gradient(circle at 30% 0%, rgba(245,197,66,0.18) 0%, transparent 55%),
+      radial-gradient(circle at 75% 100%, rgba(74,222,128,0.14) 0%, transparent 55%),
+      linear-gradient(180deg, #1a1408 0%, #0a0a06 100%);
+  }
+  .game.ending-normal .mood {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(96,165,250,0.14) 0%, transparent 55%),
+      linear-gradient(180deg, #0c121a 0%, #060810 60%, #04060c 100%);
+  }
+  .game.ending-bad .mood {
+    background:
+      radial-gradient(circle at 50% 100%, rgba(239,68,68,0.22) 0%, transparent 60%),
+      radial-gradient(circle at 20% 30%, rgba(127,29,29,0.18) 0%, transparent 50%),
+      linear-gradient(180deg, #100302 0%, #0a0201 100%);
+  }
+  /* tiny floating particles */
+  .mood::after {
+    content:""; position: absolute; inset: 0;
+    background:
+      radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.18) 50%, transparent 51%),
+      radial-gradient(2px 2px at 70% 20%, rgba(255,255,255,0.12) 50%, transparent 51%),
+      radial-gradient(2px 2px at 40% 70%, rgba(255,255,255,0.10) 50%, transparent 51%),
+      radial-gradient(2px 2px at 85% 60%, rgba(255,255,255,0.14) 50%, transparent 51%),
+      radial-gradient(2px 2px at 10% 85%, rgba(255,255,255,0.10) 50%, transparent 51%);
+    animation: drift 9s steps(40,end) infinite;
+    opacity: 0.6;
+  }
+  @keyframes drift {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(-20px); }
+  }
+
+  /* title plate */
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: var(--panel-2); border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--accent); letter-spacing: 2px; z-index: 200;
+    text-shadow: 1px 1px 0 #000;
+  }
+  /* debug switch */
+  .debug-switch {
+    position: absolute; top: -28px; right: 24px;
+    display: flex; gap: 4px; z-index: 200;
+  }
+  .debug-switch .lbl {
+    background: var(--panel-2); border: 3px solid var(--frame);
+    padding: 4px 8px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-faint); letter-spacing: 1px;
+  }
+  .debug-switch button {
+    background: var(--panel-2); border: 3px solid var(--frame);
+    padding: 4px 8px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    cursor: pointer;
+  }
+  .debug-switch button:hover { color: var(--ink); }
+  .debug-switch button.on.g { color: var(--green); border-color: var(--green-dark); }
+  .debug-switch button.on.n { color: var(--blue); border-color: var(--blue-dark); }
+  .debug-switch button.on.b { color: var(--red); border-color: var(--red-dark); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.08) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+
+  /* screen tag */
+  .screen-tag {
+    position: absolute; top: 18px; left: 22px;
+    display: flex; align-items: center; gap: 10px;
+    z-index: 30;
+  }
+  .screen-tag .num {
+    background: var(--accent); color: #1a0f0a;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.25);
+  }
+  .screen-tag .nm {
+    background: var(--panel-2); border: 2px solid #5a3624;
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: 6px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+
+  /* top title bar */
+  .top-title {
+    position: absolute;
+    top: 18px; right: 22px;
+    z-index: 30;
+    background: var(--panel-2);
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent-dark), 3px 3px 0 #000;
+    padding: 6px 14px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  /* ========== stage ========== */
+  .stage {
+    position: absolute;
+    left: 0; right: 0; top: 70px;
+    bottom: 260px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 14px 36px;
+    z-index: 5;
+  }
+
+  /* ========== ending badge ========== */
+  .ending-badge {
+    text-align: center;
+    animation: badgeIn 600ms steps(8,end);
+  }
+  @keyframes badgeIn {
+    0%   { opacity: 0; transform: translateY(20px) scale(.9); }
+    60%  { opacity: 1; transform: translateY(0) scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  .ending-badge .frame {
+    display: inline-block;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 3px var(--accent),
+      inset 0 0 0 6px var(--panel-2),
+      8px 8px 0 #000,
+      0 0 50px var(--accent-soft);
+    padding: 26px 52px 30px;
+    position: relative;
+  }
+  .ending-badge .frame::before,
+  .ending-badge .frame::after {
+    content: "★";
+    position: absolute;
+    top: 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--accent);
+  }
+  .ending-badge .frame::before { left: 14px; }
+  .ending-badge .frame::after  { right: 14px; }
+  .ending-badge .lbl-en {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px; letter-spacing: 4px;
+    color: var(--ink-dim);
+    margin-bottom: 10px;
+  }
+  .ending-badge .lbl-en .accent { color: var(--accent); text-shadow: 2px 2px 0 #000; }
+  .ending-badge .ttl {
+    font-family: 'Galmuri11', monospace;
+    font-weight: bold;
+    font-size: 64px;
+    line-height: 1.05;
+    color: var(--accent);
+    letter-spacing: 6px;
+    text-shadow:
+      4px 4px 0 #000,
+      0 0 24px var(--accent-soft);
+    margin-bottom: 14px;
+  }
+  .ending-badge .grade {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 8px 20px;
+    background: #000;
+    border: 3px solid var(--accent);
+    box-shadow: inset 0 0 0 2px var(--panel-2), 3px 3px 0 #000;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 4px;
+  }
+  .ending-badge .grade .g {
+    font-size: 22px;
+    margin-left: 8px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .ending-badge .sub {
+    font-family: 'Galmuri11', monospace;
+    font-size: 18px;
+    color: var(--ink);
+    letter-spacing: 1.5px;
+    margin-top: 14px;
+    max-width: 760px;
+  }
+  .ending-badge .sub::before { content: "“"; color: var(--accent); margin-right: 4px; }
+  .ending-badge .sub::after  { content: "”"; color: var(--accent); margin-left: 4px; }
+
+  /* ========== result-card (R2) ========== */
+  .result-card {
+    width: 980px; max-width: 96%;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--accent),
+      inset 0 0 0 6px var(--panel-2),
+      8px 8px 0 #000,
+      0 0 40px var(--accent-soft);
+    padding: 18px 22px 20px;
+    animation: cardPop 280ms steps(5,end);
+  }
+  @keyframes cardPop { from { opacity:0; transform: translateY(16px) scale(.96); } to { opacity:1; transform: none; } }
+  .result-card .rc-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 10px; margin-bottom: 14px;
+    border-bottom: 2px dashed var(--line);
+  }
+  .result-card .rc-head .ttl {
+    font-family: 'Press Start 2P', monospace; font-size: 13px;
+    color: var(--accent); letter-spacing: 2px; text-shadow: 2px 2px 0 #000;
+  }
+  .result-card .rc-head .sub {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .result-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4px 32px;
+  }
+  .result-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 8px 4px;
+    border-bottom: 1px dashed var(--line);
+    font-family: 'Galmuri11', monospace;
+  }
+  .result-row:nth-last-child(-n+2) { border-bottom: 0; }
+  .result-row .k {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .result-row .v {
+    font-family: 'Galmuri11', monospace; font-size: 17px;
+    color: var(--ink); font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+  }
+  .result-row .v.up    { color: var(--green); }
+  .result-row .v.down  { color: var(--red); }
+  .result-row .v.accent{ color: var(--accent); }
+  .result-row .v.flat  { color: var(--ink); }
+  .grade-badge {
+    margin-top: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 18px;
+    background: var(--panel-2);
+    border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .grade-badge .lbl {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--accent); letter-spacing: 2px;
+  }
+  .grade-badge .grade {
+    font-family: 'Press Start 2P', monospace; font-size: 26px;
+    color: var(--accent); letter-spacing: 3px;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  /* ========== breakdown-grid (R3) ========== */
+  .breakdown-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    width: 1100px; max-width: 98%;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .breakdown-card {
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--accent-dark),
+      inset 0 0 0 5px var(--panel-2),
+      5px 5px 0 #000;
+    padding: 16px 18px 18px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 280px;
+  }
+  .breakdown-card .bc-head {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 2px dashed var(--line);
+    padding-bottom: 8px;
+  }
+  .breakdown-card .bc-ic {
+    width: 36px; height: 36px;
+    background: var(--panel-2);
+    border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--accent);
+  }
+  .breakdown-card .bc-num {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 2px;
+  }
+  .breakdown-card .bc-ttl {
+    font-family: 'Galmuri11', monospace;
+    font-weight: bold;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .breakdown-card .bc-body {
+    font-family: 'Galmuri11', monospace;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink);
+    letter-spacing: 0.5px;
+    flex: 1;
+  }
+  .breakdown-card .bc-rating {
+    margin-top: auto;
+    display: flex; gap: 4px; align-items: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 1px;
+  }
+  .breakdown-card .bc-rating .dots { display: flex; gap: 3px; }
+  .breakdown-card .bc-rating .dot {
+    width: 10px; height: 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--ink-faint);
+    image-rendering: pixelated;
+  }
+  .breakdown-card .bc-rating .dot.on {
+    background: var(--accent);
+    border-color: #000;
+    box-shadow: inset 0 -2px 0 var(--accent-dark);
+  }
+
+  /* ========== character-card (R4) ========== */
+  .character-card {
+    display: grid; grid-template-columns: 220px 1fr;
+    gap: 24px; align-items: stretch;
+    width: 920px; max-width: 96%;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--accent),
+      inset 0 0 0 6px var(--panel-2),
+      8px 8px 0 #000;
+    padding: 22px;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .char-portrait {
+    background: var(--panel-2);
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent-dark);
+    padding: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  /* pixel silhouette */
+  .pixel-man {
+    width: 120px; height: 144px;
+    position: relative;
+    image-rendering: pixelated;
+  }
+  .pixel-man .px {
+    position: absolute;
+    background: var(--ink-dim);
+    image-rendering: pixelated;
+  }
+  .game.ending-good .pixel-man .px  { background: #d4b894; }
+  .game.ending-normal .pixel-man .px{ background: #8aa0b8; }
+  .game.ending-bad .pixel-man .px   { background: #8a5040; }
+  .pixel-man .px.hat   { background: #1a0f0a; }
+  .pixel-man .px.suit  { background: var(--accent-dark); }
+  .pixel-man .px.glass { background: #000; }
+  .pixel-man .px.tie   { background: var(--accent); }
+  .pixel-man .px.eye   { background: var(--accent); }
+  .char-portrait .name {
+    font-family: 'Galmuri11', monospace;
+    font-size: 16px;
+    color: var(--accent);
+    text-shadow: 2px 2px 0 #000;
+    letter-spacing: 2px;
+  }
+  .char-portrait .role {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 1px;
+  }
+  .char-lines {
+    display: flex; flex-direction: column; gap: 12px;
+    justify-content: center;
+  }
+  .char-line {
+    background: var(--panel-2);
+    border-left: 4px solid var(--accent);
+    padding: 12px 16px;
+    font-family: 'Galmuri11', monospace;
+    font-size: 18px;
+    color: var(--ink);
+    line-height: 1.5;
+    letter-spacing: 0.5px;
+    box-shadow: 3px 3px 0 #000;
+  }
+  .char-line::before {
+    content: "“";
+    color: var(--accent);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    margin-right: 6px;
+  }
+
+  /* ========== advice-card (R5) ========== */
+  .advice-card {
+    width: 880px; max-width: 96%;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 3px var(--accent),
+      inset 0 0 0 7px var(--panel-2),
+      8px 8px 0 #000,
+      0 0 60px var(--accent-soft);
+    padding: 24px 30px 28px;
+    animation: cardPop 280ms steps(5,end);
+    position: relative;
+  }
+  .advice-card .stamp {
+    position: absolute;
+    top: -16px; right: 24px;
+    background: var(--accent);
+    color: #1a0f0a;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 6px 12px;
+    border: 3px solid #000;
+    letter-spacing: 2px;
+    box-shadow: 2px 2px 0 #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.25);
+  }
+  .advice-card .ad-head {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    border-bottom: 2px dashed var(--line);
+  }
+  .advice-card .ad-ic {
+    width: 48px; height: 48px;
+    background: var(--panel-2);
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px;
+    color: var(--accent);
+  }
+  .advice-card .ad-ttl {
+    font-family: 'Galmuri11', monospace;
+    font-weight: bold;
+    font-size: 26px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .advice-card .ad-en {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+  .advice-card .ad-body {
+    font-family: 'Galmuri11', monospace;
+    font-size: 19px;
+    color: var(--ink);
+    line-height: 1.7;
+    letter-spacing: 0.5px;
+  }
+  .advice-card .ad-body .em { color: var(--accent); }
+
+  /* ========== final action (R6) — combined badge + buttons ========== */
+  .final-screen {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 22px;
+  }
+  .final-screen .final-grade-strip {
+    display: flex; gap: 10px; align-items: center;
+    padding: 10px 18px;
+    background: var(--panel-2);
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--accent), 3px 3px 0 #000;
+  }
+  .final-screen .final-grade-strip .lbl {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--ink-dim); letter-spacing: 2px;
+  }
+  .final-screen .final-grade-strip .g {
+    font-family: 'Press Start 2P', monospace; font-size: 28px;
+    color: var(--accent); letter-spacing: 4px;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  .choice-strip {
+    display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 14px;
+    width: 980px; max-width: 96%;
+    margin-top: 4px;
+  }
+  .choice-btn {
+    background: var(--accent);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px rgba(255,255,255,0.5),
+      inset 0 -6px 0 var(--accent-dark),
+      4px 4px 0 #000;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    transition: transform 80ms steps(2,end);
+    color: #1a0f0a;
+    text-decoration: none;
+  }
+  .choice-btn.alt {
+    background: var(--panel-2);
+    box-shadow: inset 0 0 0 2px var(--accent), inset 0 -6px 0 var(--panel), 4px 4px 0 #000;
+  }
+  .choice-btn.alt .text { color: var(--accent); }
+  .choice-btn.alt .num  { color: var(--ink-dim); }
+  .choice-btn:hover { transform: translate(-1px,-1px); }
+  .choice-btn:active{ transform: translate(2px,2px);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5), inset 0 -2px 0 var(--accent-dark), 0 0 0 #000; }
+  .choice-btn .num {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: rgba(0,0,0,0.55); letter-spacing: 2px;
+  }
+  .choice-btn .text {
+    font-family: 'Galmuri11', monospace; font-weight: bold;
+    font-size: 20px;
+    color: #1a0f0a;
+    letter-spacing: 1.5px;
+  }
+
+  /* phone message card (good ending flair) */
+  .phone-msg {
+    position: absolute;
+    right: 50px; top: 110px;
+    width: 230px;
+    background: var(--panel-2);
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent), 4px 4px 0 #000;
+    padding: 10px 12px;
+    z-index: 4;
+    animation: floatIn 600ms steps(8,end), bob 2.4s steps(8,end) infinite 600ms;
+    pointer-events: none;
+  }
+  @keyframes floatIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; } }
+  @keyframes bob { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-4px); } }
+  .phone-msg .ph-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    border-bottom: 1px dashed var(--line);
+    padding-bottom: 5px; margin-bottom: 6px;
+  }
+  .phone-msg .ph-head .who { color: var(--accent); }
+  .phone-msg .ph-body {
+    font-family: 'Galmuri11', monospace;
+    font-size: 14px; color: var(--ink);
+    line-height: 1.4;
+  }
+  .phone-msg .ph-body .em { color: var(--accent); }
+
+  /* ledger sticker (bad ending flair) */
+  .ledger-sticker {
+    position: absolute;
+    left: 50px; top: 100px;
+    width: 220px;
+    background: #2a0a08;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px var(--red-dark), 4px 4px 0 #000;
+    padding: 10px 12px;
+    z-index: 4;
+    transform: rotate(-3deg);
+    animation: floatIn 600ms steps(8,end);
+    pointer-events: none;
+  }
+  .ledger-sticker .lh {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--red); letter-spacing: 2px;
+    margin-bottom: 6px;
+    border-bottom: 1px dashed var(--red-dark);
+    padding-bottom: 4px;
+  }
+  .ledger-sticker .lb {
+    font-family: 'Galmuri11', monospace;
+    font-size: 14px; color: var(--ink);
+    line-height: 1.5;
+  }
+  .ledger-sticker .stamp-red {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 8px;
+    border: 2px solid var(--red);
+    color: var(--red);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    transform: rotate(-4deg);
+  }
+
+  /* normal: paper memo */
+  .memo-sticker {
+    position: absolute;
+    right: 50px; top: 110px;
+    width: 220px;
+    background: #1a2030;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px var(--blue-dark), 4px 4px 0 #000;
+    padding: 10px 12px;
+    z-index: 4;
+    animation: floatIn 600ms steps(8,end);
+    pointer-events: none;
+  }
+  .memo-sticker .mh {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px; color: var(--blue);
+    letter-spacing: 2px;
+    border-bottom: 1px dashed var(--blue-dark);
+    padding-bottom: 5px; margin-bottom: 6px;
+  }
+  .memo-sticker .mb {
+    font-family: 'Galmuri11', monospace;
+    font-size: 13px; color: var(--ink); line-height: 1.5;
+  }
+  .memo-sticker .warn-tag {
+    display: inline-block;
+    margin-top: 6px; margin-right: 4px;
+    padding: 2px 6px;
+    background: var(--blue-dark); color: var(--ink);
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    letter-spacing: 1px;
+  }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute;
+    left: 30px; right: 30px; bottom: 30px;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px #5a3624,
+      inset 0 0 0 6px var(--panel-2),
+      6px 6px 0 #000;
+    padding: 16px 22px 18px;
+    z-index: 8;
+    height: 200px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed var(--line);
+    padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 40px; height: 40px;
+    background: var(--panel-2); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--accent);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--accent);
+  }
+  .nar-name { font-family: 'Galmuri11', monospace; font-weight: bold; font-size: 17px; color: var(--accent); letter-spacing: 1px; }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    border: 1px solid #5a3624; padding: 2px 6px;
+  }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--accent); }
+  .nar-body {
+    flex: 1;
+    font-family: 'Galmuri11', monospace;
+    font-size: 18px; line-height: 1.5;
+    color: var(--ink);
+    text-wrap: pretty; letter-spacing: 0.5px;
+    overflow: hidden;
+  }
+  .nar-body .em  { color: var(--accent); }
+  .nar-body .red { color: var(--red); }
+  .nar-body .grn { color: var(--green); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 18px;
+    background: var(--accent); vertical-align: -3px; margin-left: 4px;
+    animation: blinkFast 0.55s steps(2,end) infinite;
+  }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 16px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px;
+    color: var(--accent); letter-spacing: 2px;
+    animation: nextBob 0.7s steps(2,end) infinite;
+    user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* fade mask */
+  .fade-mask {
+    position: absolute; inset: 0; background: #000;
+    z-index: 90; pointer-events: none; opacity: 0;
+    transition: opacity 220ms steps(4,end);
+  }
+  .fade-mask.on { opacity: 1; }
+
+  /* helpers */
+  .delta-up   { color: var(--green); }
+  .delta-down { color: var(--red); }
+  .small-en {
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+
+</style>
+</head>
+<body class="ending-good">
+
+<div class="game" id="game" data-screen-label="R · 20턴 정산">
+  <div class="title-plate" id="titlePlate">★ RESULT · 20턴 정산 ★</div>
+
+  <div class="debug-switch">
+    <span class="lbl">DBG</span>
+    <button data-ending="good"   id="dbgG">GOOD</button>
+    <button data-ending="normal" id="dbgN">NORMAL</button>
+    <button data-ending="bad"    id="dbgB">BAD</button>
+  </div>
+
+  <div class="mood" id="mood"></div>
+
+  <div class="screen-tag" id="screenTag">
+    <span class="num" id="tagNum">R1</span>
+    <span class="nm"  id="tagName">엔딩 공개</span>
+    <span class="step" id="tagStep">STEP 1 / 6</span>
+  </div>
+
+  <div class="top-title">★ RESULT · 20턴 정산 ★</div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="narration" id="narration">
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">$</div>
+      <span class="nar-name" id="narName">사채업자 김씨</span>
+      <span class="nar-tag"  id="narTag">DIALOG</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b> / 6</span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <div class="fade-mask" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  SHARED DEMO STATE (localStorage)
+  // ============================================================
+  const DEMO_STATE_KEY = 'stockgame_demo_state_v1';
+  function clearAllGameState() {
+    try { localStorage.removeItem('stockgame_demo_state_v1'); } catch (_) {}
+    try { localStorage.removeItem('stocklife.runtime'); } catch (_) {}
+    try { localStorage.removeItem('stocklife.initMemo'); } catch (_) {}
+  }
+  function loadDemoState() {
+    try {
+      const raw = localStorage.getItem(DEMO_STATE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : null;
+    } catch (_) { return null; }
+  }
+  const DEMO = loadDemoState() || {};
+  const fmtWon = n => '₩' + Math.abs(Number(n) || 0).toLocaleString('ko-KR');
+
+  // ============================================================
+  //  ENDING TYPE — driven by DEMO_STATE.endingType when present
+  // ============================================================
+  let ENDING_TYPE = "good";
+  if (DEMO.endingType === 'happy') ENDING_TYPE = 'good';
+  else if (DEMO.endingType === 'bad') ENDING_TYPE = 'bad';
+  else if (DEMO.endingType === 'normal') ENDING_TYPE = 'normal';
+  // Hide debug switch in normal play (only show if explicitly enabled via ?debug=1)
+  const DEBUG_VIS = /[?&]debug=1\b/.test(location.search);
+
+  // ============================================================
+  //  RESULT DATA
+  // ============================================================
+  const RESULT_DATA = {
+    good: {
+      label: "GOOD END",
+      title: "완전 상환",
+      subtitle: "빚은 끝났고, 월요일은 조용해졌다.",
+      grade: "A",
+      summary: [
+        ["시작 빚",         "₩70,000,000",      "flat"],
+        ["최종 남은 빚",     "₩0",               "up"],
+        ["최종 자산",        "₩18,420,000",      "accent"],
+        ["총 수익률",        "+24.7%",           "up"],
+        ["최고 수익 종목",   "SK하이닉스 +18.2%",  "up"],
+        ["최악 손실 종목",   "솔라나 -7.5%",      "down"],
+        ["뉴스 확인 횟수",   "16회",             "flat"],
+        ["상환 횟수",       "4회",              "flat"],
+        ["최고 스트레스",   "72 / 100",         "flat"],
+        ["최종 신뢰도",     "91 / 100",         "up"],
+      ],
+      summaryNarration: "숫자로 봐도 깔끔합니다. 빚을 모두 갚았고, 투자 자산도 남았습니다.",
+      breakdown: {
+        invest:  { title:"투자 성과",   body:"뉴스를 자주 확인했고, 상승 종목을 비교적 빠르게 포착했습니다.", rating:5 },
+        repay:   { title:"상환 관리",   body:"상환일 전에 현금을 확보해 큰 충돌 없이 빚을 줄였습니다.",       rating:5 },
+        risk:    { title:"리스크 관리", body:"코인 비중을 과도하게 늘리지 않아 스트레스 급등을 피했습니다.", rating:4 },
+      },
+      character: {
+        name: "사채업자 김씨", role: "LOANSHARK",
+        lines: [
+          "박사장, 이제 번호 지워도 돼. 근데 또 빌리러 오진 말고.",
+          "투자보다 어려운 게 약속 지키는 건데, 그걸 했네.",
+          "오늘은 내가 커피 살게. 물론 이자는 안 붙인다.",
+        ],
+      },
+      advice: {
+        stamp:"GOOD END", title:"다음 플레이 목표", titleEn:"NEXT PLAY GOAL",
+        body:"더 낮은 스트레스로 <span class=\"em\">완전 상환</span>에 도전하세요. 채권과 현금 비중을 조절하면 안정적인 플레이가 가능합니다."
+      },
+      revealNarration: "오 박사장. 진짜 갚았네? 나 살짝 감동했다.",
+    },
+
+    normal: {
+      label: "NORMAL END",
+      title: "유예",
+      subtitle: "끝나진 않았지만, 도망치지도 않았다.",
+      grade: "C",
+      summary: [
+        ["시작 빚",         "₩70,000,000",      "flat"],
+        ["최종 남은 빚",     "₩12,800,000",      "down"],
+        ["최종 자산",        "₩9,340,000",       "accent"],
+        ["총 수익률",        "+6.2%",            "up"],
+        ["최고 수익 종목",   "삼성전자 +9.4%",     "up"],
+        ["최악 손실 종목",   "비트코인 -11.2%",   "down"],
+        ["뉴스 확인 횟수",   "9회",              "flat"],
+        ["상환 횟수",       "3회",              "flat"],
+        ["최고 스트레스",   "86 / 100",         "down"],
+        ["최종 신뢰도",     "48 / 100",         "flat"],
+      ],
+      summaryNarration: "빚은 남았지만 완전히 무너지진 않았습니다. 다음 선택에 따라 회복 가능성이 있습니다.",
+      breakdown: {
+        invest:  { title:"투자 성과",   body:"일부 수익은 냈지만, 손실 종목을 늦게 정리했습니다.",          rating:3 },
+        repay:   { title:"상환 관리",   body:"상환은 이어갔지만, 매번 충분한 금액을 보내지는 못했습니다.", rating:3 },
+        risk:    { title:"리스크 관리", body:"위험 자산 비중이 높아 중반 이후 스트레스가 빠르게 쌓였습니다.",rating:2 },
+      },
+      character: {
+        name: "사채업자 김씨", role: "LOANSHARK",
+        lines: [
+          "박사장, 애매하다. 근데 사람은 애매할 때가 제일 현실적이긴 해.",
+          "이번엔 봐준다. 대신 다음 월요일은 좀 덜 떨면서 보자.",
+          "돈은 부족했는데, 도망은 안 갔다. 그건 점수 준다.",
+        ],
+      },
+      advice: {
+        stamp:"NORMAL END", title:"회복 가능성", titleEn:"RECOVERY HINT",
+        body:"상환일 <span class=\"em\">2~3턴 전부터 현금 비중을 확보</span>하세요. 수익률보다 상환 타이밍이 더 중요할 수 있습니다."
+      },
+      revealNarration: "완벽하진 않은데… 그래도 도망은 안 갔네. 그건 인정.",
+    },
+
+    bad: {
+      label: "BAD END",
+      title: "파산",
+      subtitle: "돈은 움직였지만, 빚은 기다려주지 않았다.",
+      grade: "F",
+      summary: [
+        ["시작 빚",         "₩70,000,000",      "flat"],
+        ["최종 남은 빚",     "₩38,450,000",      "down"],
+        ["최종 자산",        "₩6,720,000",       "accent"],
+        ["총 수익률",        "-18.4%",           "down"],
+        ["최고 수익 종목",   "NAVER +5.1%",      "up"],
+        ["최악 손실 종목",   "도지코인 -31.6%",   "down"],
+        ["뉴스 확인 횟수",   "4회",              "down"],
+        ["상환 횟수",       "2회",              "down"],
+        ["최고 스트레스",   "100 / 100",        "down"],
+        ["최종 신뢰도",     "12 / 100",         "down"],
+      ],
+      summaryNarration: "파산은 수익률 하나로 결정되지 않았습니다. 현금 관리, 상환 타이밍, 스트레스 관리가 모두 무너졌습니다.",
+      breakdown: {
+        invest:  { title:"투자 성과",   body:"고위험 자산 손실이 크고, 뉴스 확인 횟수가 부족했습니다.",   rating:1 },
+        repay:   { title:"상환 관리",   body:"상환일에 필요한 현금을 확보하지 못했습니다.",              rating:1 },
+        risk:    { title:"리스크 관리", body:"스트레스가 100에 도달해 투자 지속이 불가능해졌습니다.",    rating:1 },
+      },
+      character: {
+        name: "사채업자 김씨", role: "LOANSHARK",
+        lines: [
+          "에이~ 박사장. 월요일이 그렇게 만만해 보여?",
+          "나도 박사장 자주 보고 싶진 않아. 근데 장부가 자꾸 만나래.",
+          "다음 판엔 수익률보다 상환일 먼저 봐. 이게 진짜 차트야.",
+        ],
+      },
+      advice: {
+        stamp:"BAD END", title:"다음 플레이 힌트", titleEn:"NEXT PLAY HINT",
+        body:"고위험 자산에 <span class=\"em\">전부 걸지 마세요</span>. 뉴스 확인, 현금 확보, 스트레스 관리가 모두 필요합니다."
+      },
+      revealNarration: "에이~ 박사장. 이건 좀 아프다. 주식창은 닫아도 되는데, 빚 장부는 자동 저장이야.",
+    },
+  };
+
+  // ============================================================
+  //  OVERRIDE RESULT_DATA WITH LIVE STATE (happy ending)
+  // ============================================================
+  if (DEMO.endingType === 'happy') {
+    RESULT_DATA.good.label = 'HAPPY END';
+    RESULT_DATA.good.title = '해피엔딩';
+    RESULT_DATA.good.subtitle = '기한 내 상환 완료 — 모든 빚을 갚고 살아남았습니다.';
+    RESULT_DATA.good.summary = [
+      ["최종 턴",      `${DEMO.turn ?? 20} / ${DEMO.maxTurn ?? 20}`,    "flat"],
+      ["시작 빚",       fmtWon(DEMO.initialDebt ?? 100000000),           "flat"],
+      ["최종 부채",     fmtWon(DEMO.finalDebt ?? 0),                     "up"],
+      ["최종 현금",     fmtWon(DEMO.finalCash ?? DEMO.cash ?? 0),         "accent"],
+      ["총 상환액",     fmtWon(DEMO.finalRepaidDebt ?? DEMO.repaidDebt ?? 0), "accent"],
+      ["신뢰도",       `${DEMO.trust ?? 0} / 100`,                       "up"],
+      ["스트레스",     `${DEMO.stress ?? 0} / 100`,                      "flat"],
+    ];
+    RESULT_DATA.good.revealNarration = '기한 내에 모든 빚을 갚았네. 박사장, 진짜 갚았어. <span class="em">해피엔딩이야.</span>';
+    RESULT_DATA.good.summaryNarration = '기한 내 상환을 완료했습니다. 모든 빚을 갚고 살아남았습니다.';
+  }
+
+  // ============================================================
+  //  FLOW
+  // ============================================================
+  const TOTAL_STEPS = 6;
+  let screenIdx = 0;
+  let locked = false;
+  let typingFn = null;
+
+  const $ = id => document.getElementById(id);
+  const stageEl   = () => $('stage');
+  const narBodyEl = () => $('narBody');
+
+  const FLOW = [
+    // ----- R1 : ending reveal -----
+    {
+      id:'R1', name:'엔딩 공개',
+      build(d) {
+        stageEl().innerHTML = renderEndingBadge(d) + renderEndingFlair();
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', tag:'REVEAL',
+          text:`<span class="em">「${d.title}」</span> &nbsp; ${d.revealNarration}`
+        });
+      },
+    },
+    // ----- R2 : final result summary -----
+    {
+      id:'R2', name:'최종 결과 요약',
+      build(d) {
+        stageEl().innerHTML = renderResultCard(d);
+        narration(true, {
+          who:'시스템', portrait:'!', tag:'SUMMARY',
+          text: d.summaryNarration
+        });
+      },
+    },
+    // ----- R3 : performance breakdown -----
+    {
+      id:'R3', name:'성과 분석',
+      build(d) {
+        stageEl().innerHTML = renderBreakdown(d);
+        narration(true, {
+          who:'시스템', portrait:'!', tag:'ANALYSIS',
+          text:`세 가지 영역을 분석했습니다. <span class="em">투자 성과 · 상환 관리 · 리스크 관리</span> — 모두 점수를 매겼습니다.`
+        });
+      },
+    },
+    // ----- R4 : character dialogue -----
+    {
+      id:'R4', name:'사채업자 한 마디',
+      build(d) {
+        stageEl().innerHTML = renderCharacterCard(d);
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', tag:'EPILOGUE',
+          text: d.character.lines[0]
+        });
+      },
+    },
+    // ----- R5 : final advice -----
+    {
+      id:'R5', name:'학습 피드백',
+      build(d) {
+        stageEl().innerHTML = renderAdviceCard(d);
+        narration(true, {
+          who:'시스템', portrait:'?', tag:'ADVICE',
+          text:`<span class="em">「${d.advice.title}」</span> ${stripTags(d.advice.body)}`
+        });
+      },
+    },
+    // ----- R6 : final action -----
+    {
+      id:'R6', name:'다음 단계',
+      build(d) {
+        stageEl().innerHTML = renderFinalScreen(d);
+        narration(true, {
+          who:'시스템', portrait:'★', tag:'END',
+          text:`데모가 끝났습니다. <span class="em">처음부터 다시</span> 하거나, <span class="em">결과를 다시</span> 볼 수 있습니다. 수고하셨습니다.`
+        });
+      },
+    },
+  ];
+
+  // ============================================================
+  //  RENDERERS
+  // ============================================================
+  function renderEndingBadge(d) {
+    return `
+      <div class="ending-badge">
+        <div class="frame">
+          <div class="lbl-en"><span class="accent">${d.label.split(' ')[0]}</span> ${d.label.split(' ')[1]||''}</div>
+          <div class="ttl">${d.title}</div>
+          <div class="sub">${d.subtitle}</div>
+          <div class="grade">FINAL GRADE <span class="g">${d.grade}</span></div>
+        </div>
+      </div>`;
+  }
+  function renderEndingFlair() {
+    if (ENDING_TYPE === 'good') {
+      return `
+        <div class="phone-msg">
+          <div class="ph-head"><span class="who">사채업자 김씨</span><span>09:14</span></div>
+          <div class="ph-body">
+            <span class="em">[상환 완료]</span><br/>
+            장부 닫았다. 박사장 수고했어.<br/>
+            다음 월요일엔 안 와도 돼.
+          </div>
+        </div>`;
+    }
+    if (ENDING_TYPE === 'bad') {
+      return `
+        <div class="ledger-sticker">
+          <div class="lh">▣ DEBT LEDGER</div>
+          <div class="lb">
+            박사장 · 잔여 ₩38,450,000<br/>
+            누락 상환: 2회<br/>
+            비고: 자동 연장
+          </div>
+          <div class="stamp-red">기한 초과</div>
+        </div>`;
+    }
+    if (ENDING_TYPE === 'normal') {
+      return `
+        <div class="memo-sticker">
+          <div class="mh">▣ MEMO · 월요일</div>
+          <div class="mb">
+            남은 빚 있음.<br/>
+            다음 판에 다시 이야기.
+          </div>
+          <span class="warn-tag">유예</span>
+          <span class="warn-tag">중간 평가</span>
+        </div>`;
+    }
+    return '';
+  }
+
+  function renderResultCard(d) {
+    const rows = d.summary.map(([k,v,cls]) =>
+      `<div class="result-row"><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`
+    ).join('');
+    return `
+      <div class="result-card">
+        <div class="rc-head">
+          <span class="ttl">★ FINAL RESULT · 20턴 정산</span>
+          <span class="sub">${d.label} · GRADE ${d.grade}</span>
+        </div>
+        <div class="result-grid">${rows}</div>
+        <div class="grade-badge">
+          <span class="lbl">최종 평가 등급 / FINAL GRADE</span>
+          <span class="grade">${d.grade}</span>
+        </div>
+      </div>`;
+  }
+
+  function renderBreakdown(d) {
+    const icons = ['$','¥','!'];
+    const numbers = ['01','02','03'];
+    const keys = ['invest','repay','risk'];
+    const cards = keys.map((k, i) => {
+      const b = d.breakdown[k];
+      let dots = '';
+      for (let j=1;j<=5;j++) {
+        dots += `<span class="dot ${j<=b.rating?'on':''}"></span>`;
+      }
+      return `
+        <div class="breakdown-card">
+          <div class="bc-head">
+            <div class="bc-ic">${icons[i]}</div>
+            <span class="bc-num">${numbers[i]}</span>
+          </div>
+          <div class="bc-ttl">${b.title}</div>
+          <div class="bc-body">${b.body}</div>
+          <div class="bc-rating">
+            평가 <span class="dots">${dots}</span> <span>${b.rating}/5</span>
+          </div>
+        </div>`;
+    }).join('');
+    return `<div class="breakdown-grid">${cards}</div>`;
+  }
+
+  function renderCharacterCard(d) {
+    return `
+      <div class="character-card">
+        <div class="char-portrait">
+          ${renderPixelMan()}
+          <div class="name">${d.character.name}</div>
+          <div class="role">${d.character.role}</div>
+        </div>
+        <div class="char-lines">
+          ${d.character.lines.map(l => `<div class="char-line">${l}</div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderPixelMan() {
+    /* simple pixel silhouette of a man in a suit, ~12 wide × 18 tall, scaled */
+    const scale = 8;
+    // grid layout — rows of pixel tokens
+    // codes: . = empty, h = hat, s = skin, g = glasses, b = suit, t = tie, e = eye
+    const rows = [
+      "...hhhhhhhh...",
+      "..hhhhhhhhhh..",
+      ".hhhhhhhhhhhh.",
+      "..ssssssssss..",
+      "..ssggggggss..",
+      "..ssgeggegss..",
+      "..ssssssssss..",
+      "..ssssssssss..",
+      ".bbbsstssbbbb.",
+      "bbbbsstssbbbbb",
+      "bbbbbbtsbbbbbb",
+      "bbbbbbtbbbbbbb",
+      "bbbbbbtbbbbbbb",
+      "bbbbbbbbbbbbbb",
+      "bbbb......bbbb",
+      "bbbb......bbbb",
+      ".bbb......bbb.",
+    ];
+    const W = rows[0].length;
+    const H = rows.length;
+    let out = '';
+    for (let y=0;y<H;y++) {
+      for (let x=0;x<W;x++) {
+        const c = rows[y][x];
+        if (c === '.') continue;
+        let cls = '';
+        if (c === 'h') cls = 'hat';
+        else if (c === 'b') cls = 'suit';
+        else if (c === 'g') cls = 'glass';
+        else if (c === 't') cls = 'tie';
+        else if (c === 'e') cls = 'eye';
+        else cls = '';
+        out += `<i class="px ${cls}" style="left:${x*scale}px;top:${y*scale}px;width:${scale}px;height:${scale}px;"></i>`;
+      }
+    }
+    return `<div class="pixel-man" style="width:${W*scale}px;height:${H*scale}px;">${out}</div>`;
+  }
+
+  function renderAdviceCard(d) {
+    return `
+      <div class="advice-card">
+        <div class="stamp">${d.advice.stamp}</div>
+        <div class="ad-head">
+          <div class="ad-ic">?</div>
+          <div>
+            <div class="ad-ttl">${d.advice.title}</div>
+            <div class="ad-en">${d.advice.titleEn}</div>
+          </div>
+        </div>
+        <div class="ad-body">${d.advice.body}</div>
+      </div>`;
+  }
+
+  function renderFinalScreen(d) {
+    return `
+      <div class="final-screen">
+        <div class="ending-badge" style="transform:scale(0.85);transform-origin:center top;">
+          <div class="frame">
+            <div class="lbl-en"><span class="accent">${d.label.split(' ')[0]}</span> ${d.label.split(' ')[1]||''}</div>
+            <div class="ttl" style="font-size:48px;">${d.title}</div>
+          </div>
+        </div>
+        <div class="final-grade-strip">
+          <span class="lbl">FINAL GRADE</span>
+          <span class="g">${d.grade}</span>
+        </div>
+        <div class="choice-strip" style="grid-template-columns: repeat(2, minmax(0,1fr)); max-width: 720px;">
+          <button class="choice-btn" id="btnRestart" type="button">
+            <span class="num">01 · RESTART</span>
+            <span class="text">↻ 처음으로 돌아가기</span>
+          </button>
+          <button class="choice-btn alt" id="btnReplay" type="button">
+            <span class="num">02 · REPLAY</span>
+            <span class="text">▶ 결과 다시보기</span>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function stripTags(s) { return s.replace(/<[^>]+>/g, ''); }
+
+  // ============================================================
+  //  NARRATION / TYPEWRITER
+  // ============================================================
+  function narration(show, info) {
+    const el = $('narration');
+    el.hidden = !show;
+    if (show && info) {
+      const p = $('narPortrait');
+      p.textContent = info.portrait || '$';
+      $('narName').textContent = info.who;
+      $('narTag').textContent  = info.tag || 'DIALOG';
+      typeWriter(info.text);
+    }
+  }
+  function setScreenTag(scr) {
+    $('tagNum').textContent  = scr.id;
+    $('tagName').textContent = scr.name;
+    $('tagStep').textContent = `STEP ${screenIdx+1} / ${TOTAL_STEPS}`;
+    $('narStep').textContent = screenIdx+1;
+  }
+  function typeWriter(html) {
+    locked = true;
+    $('narNext').style.display = 'none';
+    const body = narBodyEl();
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    typingFn = () => {
+      cancelled = true;
+      root.innerHTML = src;
+      cursor.remove();
+      locked = false;
+      $('narNext').style.display = '';
+      typingFn = null;
+    };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) {
+        cursor.remove();
+        locked = false;
+        $('narNext').style.display = '';
+        typingFn = null;
+        return;
+      }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1);
+        i = close + 1;
+      } else {
+        buf += src[i++];
+      }
+      root.innerHTML = buf;
+      setTimeout(tick, 24);
+    }
+    tick();
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  function enter() {
+    const scr = FLOW[screenIdx];
+    setScreenTag(scr);
+    $('narNext').style.display = '';
+    const data = RESULT_DATA[ENDING_TYPE];
+    scr.build(data);
+
+    // wire R6 buttons
+    if (scr.id === 'R6') {
+      const replay = $('btnReplay');
+      if (replay) replay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // 결과 다시보기 — reload current ending page, preserve localStorage
+        window.location.reload();
+      });
+      const restart = $('btnRestart');
+      if (restart) restart.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // 처음으로 돌아가기 — completely clear all game state (active + legacy)
+        clearAllGameState();
+        window.location.href = 'Intro - Debt Setup.html';
+      });
+    }
+  }
+  function nextScreen() {
+    if (screenIdx >= FLOW.length - 1) return; // final screen — handled by buttons
+    screenIdx++;
+    enter();
+  }
+
+  // Click anywhere advances. But: ignore clicks on action buttons in R6.
+  $('game').addEventListener('click', (e) => {
+    // ignore clicks targeting choice buttons / debug switch / links
+    if (e.target.closest('.choice-btn')) return;
+    if (e.target.closest('.debug-switch')) return;
+    if (typingFn) { typingFn(); return; }
+    if (locked) return;
+    nextScreen();
+  });
+
+  // ============================================================
+  //  ENDING SWITCHER (debug)
+  // ============================================================
+  function applyEnding(type) {
+    ENDING_TYPE = type;
+    const game = $('game');
+    document.body.classList.remove('ending-good','ending-normal','ending-bad');
+    game.classList.remove('ending-good','ending-normal','ending-bad');
+    document.body.classList.add('ending-' + type);
+    game.classList.add('ending-' + type);
+    // update debug switch state
+    document.querySelectorAll('.debug-switch button').forEach(b => {
+      b.classList.remove('on','g','n','b');
+      if (b.dataset.ending === type) {
+        b.classList.add('on');
+        b.classList.add(type === 'good' ? 'g' : type === 'normal' ? 'n' : 'b');
+      }
+    });
+    // re-render current screen
+    enter();
+  }
+
+  document.querySelectorAll('.debug-switch button').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      applyEnding(btn.dataset.ending);
+    });
+  });
+
+  // ============================================================
+  //  INIT
+  // ============================================================
+  // Hide debug switch in user-facing play
+  if (!DEBUG_VIS) {
+    const dbg = document.querySelector('.debug-switch');
+    if (dbg) dbg.style.display = 'none';
+  }
+  applyEnding(ENDING_TYPE);
+
+</script>
+</body>
+</html>
