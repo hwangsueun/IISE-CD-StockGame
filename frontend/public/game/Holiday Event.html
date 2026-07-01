@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>주식게임 — 명절 이벤트 · 가족 모임</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #1a120a;
+    --frame: #2a1d10;
+    --ink: #f6ecda;
+    --ink-dim: #cdb088;
+    --ink-faint: #7d5736;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --green: #5ee08a;
+    --green-dark: #166534;
+    --red: #ef4444;
+    --red-bright: #ff5a4a;
+    --red-dark: #7f1d1d;
+    /* 명절 / hanok warm accents */
+    --han: #ff9a52;
+    --han-deep: #c2622a;
+    --han-dark: #3a210e;
+    --cream: #fff1da;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0603;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #1f140a 0%, #0a0603 78%), #0a0603;
+  }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1d10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 80px rgba(255,154,82,0.16);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+
+  /* ---- family gathering background ---- */
+  .room {
+    position: absolute; inset: 0; z-index: 0;
+    background: #d8cdbc;
+    background-image: url("assets/bg_family.png");
+    background-size: cover;
+    background-position: center 30%;
+    image-rendering: pixelated;
+    filter: brightness(0.86) saturate(1.06);
+  }
+  /* warm light wash + vignette so dark UI reads on top */
+  .room::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 42% at 50% 28%, rgba(255,224,180,0.30), transparent 72%),
+      radial-gradient(ellipse 90% 72% at 50% 62%, transparent 26%, rgba(26,14,6,0.62) 100%),
+      linear-gradient(180deg, rgba(26,16,8,0.16) 0%, rgba(26,16,8,0.55) 66%, rgba(12,7,2,0.86) 100%);
+  }
+  .room::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 38px, rgba(0,0,0,0.12) 38px 39px);
+    mix-blend-mode: multiply; opacity: 0.5;
+  }
+
+  /* title plate / nav */
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: #1d130a; border: 3px solid var(--han-deep);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--han); letter-spacing: 2px; z-index: 200;
+    text-shadow: 0 0 6px rgba(255,154,82,0.5);
+  }
+  .nav-strip {
+    position: absolute; top: -28px; right: 24px;
+    display: flex; gap: 6px; z-index: 200;
+  }
+  .nav-strip button {
+    background: #1d130a; border: 3px solid var(--han-deep);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px; cursor: pointer;
+  }
+  .nav-strip button:hover { color: var(--han); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.62) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.10) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+  .crt::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.0) 0 3px, rgba(255,255,255,0.02) 3px 4px);
+    mix-blend-mode: overlay;
+  }
+
+  /* screen indicator */
+  .screen-tag {
+    position: absolute; top: 18px; left: 22px;
+    display: flex; align-items: center; gap: 10px; z-index: 30;
+  }
+  .screen-tag .num {
+    background: var(--han); color: #1d130a;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+  }
+  .screen-tag .nm {
+    background: #1d130a; border: 2px solid var(--han-deep);
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: 6px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--han); letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  /* badge top-right */
+  .datebox {
+    position: absolute; top: 16px; right: 22px; z-index: 30;
+    background: #1d130a; border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--han-deep), 3px 3px 0 #000;
+    padding: 8px 14px; text-align: center;
+  }
+  .datebox .ring {
+    font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--han);
+    text-shadow: 0 0 6px rgba(255,154,82,0.5);
+  }
+  .datebox .lbl {
+    display: block; margin-top: 4px;
+    font-family: 'Press Start 2P', monospace; font-size: 7px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+
+  /* stage */
+  .stage {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 250px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 78px 60px 16px; z-index: 5;
+  }
+
+  /* ---- intro / story card ---- */
+  .intro-card {
+    width: 600px; max-width: 92%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(255,154,82,0.05) 30px 31px),
+      #1d130a;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--han-deep),
+      inset 0 0 0 6px #2a1a0c,
+      8px 8px 0 #000,
+      0 0 34px rgba(255,154,82,0.20);
+    padding: 26px 30px 28px; text-align: center; position: relative;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .intro-card::before {
+    content: "HOLIDAY · 2026"; position: absolute; top: 12px; right: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .intro-card .rings {
+    font-family: 'Press Start 2P', monospace; font-size: 26px; color: var(--han);
+    letter-spacing: 4px; text-shadow: 0 0 10px rgba(255,154,82,0.55); margin-bottom: 14px;
+  }
+  .intro-card .ttl {
+    font-family: 'Galmuri11', monospace; font-size: 34px; color: var(--gold);
+    letter-spacing: 6px; text-shadow: 3px 3px 0 #000; margin-bottom: 6px;
+  }
+  .intro-card .eng {
+    font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--ink-dim);
+    letter-spacing: 4px; margin-bottom: 18px;
+  }
+  .intro-card .divider {
+    height: 0; border-top: 3px double var(--han-deep); margin: 4px 0 18px;
+  }
+  .intro-card .body {
+    font-family: 'Galmuri11', monospace; font-size: 17px; line-height: 1.9;
+    color: var(--ink); letter-spacing: 0.5px; text-wrap: pretty; text-align: left;
+  }
+  .intro-card .body .row {
+    display: flex; gap: 12px; align-items: flex-start; margin: 8px 0;
+    opacity: 0.32; transition: opacity 200ms steps(3,end);
+  }
+  .intro-card .body .row.seen { opacity: 1; }
+  .intro-card .body .bullet { color: var(--han); flex: none; }
+  .intro-card .body .em { color: var(--gold); }
+  @keyframes cardPop { from { opacity:0; transform: translateY(16px) scale(.96);} to {opacity:1; transform:none;} }
+
+  /* ---- result card ---- */
+  .result-card {
+    width: 720px; max-width: 94%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(255,154,82,0.05) 30px 31px),
+      #1d130a;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--han-deep),
+      inset 0 0 0 6px #2a1a0c,
+      8px 8px 0 #000,
+      0 0 34px rgba(255,154,82,0.20);
+    padding: 20px 28px 24px; position: relative;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .result-card::before {
+    content: "RECEIPT · NO. 2026-H09"; position: absolute; top: 10px; right: 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .rc-head {
+    text-align: center; padding-bottom: 14px; margin-bottom: 8px;
+    border-bottom: 3px double var(--han-deep);
+  }
+  .rc-head .rings {
+    display: inline-block; color: var(--han); font-family: 'Press Start 2P', monospace;
+    font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(255,154,82,0.5);
+  }
+  .rc-head .ttl {
+    font-family: 'Press Start 2P', monospace; font-size: 15px;
+    color: var(--gold); letter-spacing: 3px; text-shadow: 2px 2px 0 #000;
+  }
+  .rc-head .sub {
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); letter-spacing: 1px; margin-top: 8px;
+  }
+  .rc-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 13px 4px; border-bottom: 1px dashed #3a2616;
+  }
+  .rc-row .k {
+    font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .rc-row .k small {
+    display: block; font-family: 'Press Start 2P', monospace; font-size: 7px;
+    color: var(--ink-faint); letter-spacing: 2px; margin-top: 4px;
+  }
+  .rc-row .v {
+    font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px; text-align: right;
+  }
+  .rc-row .v.gold { color: var(--gold); font-weight: bold; }
+  .rc-row .v.up   { color: var(--red-bright); font-weight: bold; }
+  .rc-row .v.down { color: var(--green); font-weight: bold; }
+  .rc-row.result {
+    border-bottom: none; padding-top: 14px;
+  }
+  .rc-row.result .v {
+    font-size: 16px; max-width: 62%; line-height: 1.6; text-wrap: pretty;
+  }
+  .rc-row.result .v.up   { color: var(--red-bright); }
+  .rc-row.result .v.down { color: var(--green); }
+  /* big stress verdict banner */
+  .rc-verdict {
+    margin: 6px 0 4px; padding: 16px 10px; text-align: center;
+    border: 3px solid #000; position: relative;
+    font-family: 'Galmuri11', monospace; font-weight: bold;
+  }
+  .rc-verdict .vlabel {
+    display: block; font-family: 'Press Start 2P', monospace; font-size: 8px;
+    letter-spacing: 2px; margin-bottom: 10px;
+  }
+  .rc-verdict .vtext { font-size: 30px; letter-spacing: 4px; text-shadow: 2px 2px 0 #000; }
+  .rc-verdict .varrow { font-family: 'Press Start 2P', monospace; font-size: 22px; margin-right: 10px; }
+  .rc-verdict.down {
+    background: rgba(94,224,138,0.10);
+    box-shadow: inset 0 0 0 2px var(--green-dark), 4px 4px 0 #000;
+  }
+  .rc-verdict.down .vlabel { color: var(--green); }
+  .rc-verdict.down .vtext  { color: var(--green); }
+  .rc-verdict.up {
+    background: rgba(255,90,74,0.10);
+    box-shadow: inset 0 0 0 2px var(--red-dark), 4px 4px 0 #000;
+  }
+  .rc-verdict.up .vlabel { color: var(--red-bright); }
+  .rc-verdict.up .vtext  { color: var(--red-bright); }
+
+  /* ---- confirm button ---- */
+  .confirm-strip {
+    position: absolute; left: 0; right: 0; bottom: 280px;
+    display: flex; justify-content: center; z-index: 7;
+  }
+  .confirm-btn {
+    background: var(--han);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #ffd0a3, inset 0 -7px 0 var(--han-deep), 5px 5px 0 #000;
+    padding: 16px 56px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 22px; color: #1d130a;
+    letter-spacing: 6px; font-weight: bold;
+  }
+  .confirm-btn:hover { background: #ffb275; transform: translate(-1px,-1px); }
+  .confirm-btn:active { transform: translate(2px,2px); box-shadow: inset 0 0 0 2px #ffd0a3, inset 0 -3px 0 var(--han-deep), 2px 2px 0 #000; }
+  .confirm-btn .arr { font-family: 'Press Start 2P', monospace; font-size: 14px; margin-right: 12px; }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute; left: 30px; right: 30px; bottom: 30px;
+    background: #1d130a;
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--han-deep), inset 0 0 0 6px #2a1a0c, 6px 6px 0 #000;
+    padding: 16px 22px 18px; z-index: 8; height: 200px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed #3a2616; padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 42px; height: 42px; background: #2a1a0c; border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--han-deep);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--han);
+  }
+  .nar-name { font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--han); letter-spacing: 1px; }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-dim);
+    letter-spacing: 1px; border: 1px solid var(--han-deep); padding: 2px 6px;
+  }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--han); }
+  .nar-body {
+    flex: 1; font-family: 'Galmuri11', monospace; font-size: 20px; line-height: 1.6;
+    color: var(--ink); text-wrap: pretty; letter-spacing: 0.5px; overflow: hidden;
+  }
+  .nar-body .em  { color: var(--gold); }
+  .nar-body .han { color: var(--han); }
+  .nar-body .red { color: var(--red-bright); }
+  .nar-body .green { color: var(--green); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 19px; background: var(--han);
+    vertical-align: -3px; margin-left: 4px; animation: blinkFast 0.55s steps(2,end) infinite;
+  }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px; color: var(--han);
+    letter-spacing: 2px; animation: nextBob 0.7s steps(2,end) infinite; user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* fade mask */
+  .fade-mask {
+    position: absolute; inset: 0; background: #000; z-index: 90;
+    pointer-events: none; opacity: 1; transition: opacity 420ms steps(6,end);
+  }
+  .fade-mask.off { opacity: 0; }
+  .fade-mask.on  { opacity: 1; pointer-events: all; }
+
+  /* ---- brief auto popup ---- */
+  .popup-mask {
+    position: absolute; inset: 0; z-index: 95;
+    display: grid; place-items: center;
+    background: rgba(8,4,1,0.55);
+  }
+  .popup-mask.hidden { display: none; }
+  .popup-mask.out { animation: maskFade 320ms steps(4,end) forwards; }
+  @keyframes maskFade { to { opacity: 0; } }
+  .popup-card {
+    background: #1d130a; border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--han-deep), inset 0 0 0 6px #2a1a0c,
+      8px 8px 0 #000, 0 0 34px rgba(255,154,82,0.28);
+    padding: 30px 64px; text-align: center;
+    animation: popIn 220ms steps(4,end);
+  }
+  @keyframes popIn { from { opacity:0; transform: scale(.9);} to {opacity:1; transform:none;} }
+  .popup-card .pr {
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--han);
+    letter-spacing: 4px; margin-bottom: 14px; text-shadow: 0 0 8px rgba(255,154,82,0.5);
+  }
+  .popup-card .pt {
+    font-family: 'Galmuri11', monospace; font-size: 40px; color: var(--gold);
+    letter-spacing: 10px; text-shadow: 3px 3px 0 #000;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="game" id="game" data-screen-label="명절 이벤트 · 가족 모임">
+  <div class="title-plate">⌂ 명절 이벤트 ⌂</div>
+  <div class="nav-strip">
+    <button id="replayBtn" title="처음부터 다시보기">↺ 다시보기</button>
+  </div>
+
+  <div class="room" id="room"></div>
+
+  <div class="datebox">
+    <span class="ring">⌂</span>
+    <span class="lbl">HOLIDAY</span>
+  </div>
+
+  <div class="screen-tag">
+    <span class="num" id="tagNum">H1</span>
+    <span class="nm" id="tagName">가족 모임</span>
+    <span class="step" id="tagStep">STEP 1 / 2</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="confirm-strip hidden" id="confirmStrip"></div>
+
+  <div class="narration" id="narration" hidden>
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">⌂</div>
+      <span class="nar-name" id="narName">시스템</span>
+      <span class="nar-tag" id="narTag">SYSTEM</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b> / 2</span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <div class="popup-mask hidden" id="popup">
+    <div class="popup-card">
+      <div class="pr">⌂ ◎ ⌂</div>
+      <div class="pt">가족 모임</div>
+    </div>
+  </div>
+
+  <div class="fade-mask on" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  HOLIDAY (명절) FAMILY GATHERING EVENT — display only.
+  //  Random outcome. No state, no storage, no navigation.
+  // ============================================================
+
+  let locked = false;
+  let typingFn = null;
+  let phase = 'intro';     // 'intro' | 'result'
+  let introIdx = 0;
+  let outcome = null;      // 'down' (스트레스 감소) | 'up' (스트레스 증가)
+
+  const stage   = () => document.getElementById('stage');
+  const confirm = () => document.getElementById('confirmStrip');
+  const narEl   = () => document.getElementById('narration');
+
+  // ============================================================
+  //  Two random flows. The system/message window text differs
+  //  depending on the random stress result. Display only —
+  //  no state, no storage, no navigation.
+  // ============================================================
+  const FLOWS = {
+    // 스트레스 감소 — warm / family-like
+    down: {
+      lines: [
+        '가족들과 따뜻한 식사를 했다.',
+        '오랜만에 응원을 받았다.',
+        '잠시 마음이 편해졌다.'
+      ],
+      narr: [
+        '가족들과 <span class="em">따뜻한 식사</span>를 했다.',
+        '오랜만에 <span class="em">응원</span>을 받았다.',
+        '<span class="green">잠시 마음이 편해졌다.</span>'
+      ],
+      change: '스트레스 ▼ 감소',
+      verdictLabel: 'STRESS DOWN',
+      verdictArrow: '▼',
+      verdictText: '스트레스 감소',
+      result: '가족들의 사랑과 따뜻한 밥을 먹으며 잠시 마음이 편해졌습니다.'
+    },
+    // 스트레스 증가 — uncomfortable / tiring
+    up: {
+      lines: [
+        '친척들의 질문이 이어졌다.',
+        '사촌의 용돈 요구가 있었다.',
+        '오히려 피로가 쌓였다.'
+      ],
+      narr: [
+        '친척들의 <span class="red">질문</span>이 이어졌다.',
+        '사촌의 <span class="red">용돈 요구</span>가 있었다.',
+        '<span class="red">오히려 피로가 쌓였다.</span>'
+      ],
+      change: '스트레스 ▲ 증가',
+      verdictLabel: 'STRESS UP',
+      verdictArrow: '▲',
+      verdictText: '스트레스 증가',
+      result: '사촌의 용돈 요구와 친척들의 질문 때문에 피로가 쌓였습니다.'
+    }
+  };
+
+  // ============================================================
+  //  STEP 1 — system / message window (depends on outcome)
+  // ============================================================
+  function renderIntro() {
+    // intro card removed — keep the room visible and let the bottom
+    // narration window carry the story.
+    stage().innerHTML = '';
+  }
+  function markIntroLine(i) {
+    document.querySelectorAll('.intro-card .body .row').forEach(r => {
+      if (Number(r.dataset.line) <= i) r.classList.add('seen');
+    });
+  }
+
+  function playIntroLine() {
+    markIntroLine(introIdx);
+    narration(true, { who:'시스템', portrait:'⌂', tag:'EVENT', text: FLOWS[outcome].narr[introIdx] });
+  }
+
+  function advanceIntro() {
+    introIdx++;
+    if (introIdx < FLOWS[outcome].narr.length) {
+      playIntroLine();
+    } else {
+      phase = 'result';
+      goResult();
+    }
+  }
+
+  // ============================================================
+  //  STEP 2 — result card (matches the random outcome)
+  // ============================================================
+  function renderResult() {
+    const o = FLOWS[outcome];
+    const cls = outcome; // 'down' | 'up'
+    stage().innerHTML = `
+      <div class="result-card">
+        <div class="rc-head">
+          <div class="rings">⌂ ◎ ⌂</div>
+          <div class="ttl">명절 결과</div>
+          <div class="sub">HOLIDAY · 가족 모임 정산</div>
+        </div>
+        <div class="rc-row">
+          <span class="k">이벤트<small>EVENT</small></span>
+          <span class="v gold">명절 — 가족 모임</span>
+        </div>
+        <div class="rc-row">
+          <span class="k">스트레스 변화<small>STRESS</small></span>
+          <span class="v ${cls}">${o.change}</span>
+        </div>
+        <div class="rc-verdict ${cls}">
+          <span class="vlabel">${o.verdictLabel}</span>
+          <span class="vtext"><span class="varrow">${o.verdictArrow}</span>${o.verdictText}</span>
+        </div>
+        <div class="rc-row result">
+          <span class="k">결과<small>OUTCOME</small></span>
+          <span class="v ${cls}">${o.result}</span>
+        </div>
+      </div>`;
+  }
+
+  function goResult() {
+    const fade = document.getElementById('fade');
+    fade.classList.remove('off'); fade.classList.add('on');
+    setTimeout(() => {
+      document.getElementById('tagNum').textContent  = 'H2';
+      document.getElementById('tagName').textContent = '결과';
+      document.getElementById('tagStep').textContent = 'STEP 2 / 2';
+      document.getElementById('narStep').textContent = '2';
+      renderResult();
+      const tone = outcome === 'down'
+        ? '가족 모임을 마쳤습니다. <span class="green">스트레스가 감소</span>했습니다.'
+        : '가족 모임을 마쳤습니다. <span class="red">스트레스가 증가</span>했습니다.';
+      narration(true, { who:'시스템', portrait:'⌂', tag:'RESULT', text: tone });
+      fade.classList.remove('on'); fade.classList.add('off');
+    }, 220);
+  }
+
+  // ============================================================
+  //  UI HELPERS
+  // ============================================================
+  function narration(show, info) {
+    const el = narEl();
+    el.hidden = !show;
+    if (show && info) {
+      document.getElementById('narPortrait').textContent = info.portrait || '⌂';
+      document.getElementById('narName').textContent = info.who;
+      document.getElementById('narTag').textContent  = info.tag || 'SYSTEM';
+      typeWriter(info.text);
+    }
+  }
+  function typeWriter(html) {
+    locked = true;
+    document.getElementById('narNext').style.display = 'none';
+    const body = document.getElementById('narBody');
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    const finish = () => {
+      root.innerHTML = src; cursor.remove(); locked = false;
+      document.getElementById('narNext').style.display = '';
+      if (typeof onTypedDone === 'function') onTypedDone();
+      typingFn = null;
+    };
+    typingFn = () => { cancelled = true; finish(); };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) { finish(); return; }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1); i = close + 1;
+      } else { buf += src[i++]; }
+      root.innerHTML = buf;
+      setTimeout(tick, 26);
+    }
+    tick();
+  }
+
+  // after the narration finishes typing, reveal the relevant control
+  function onTypedDone() {
+    const next = document.getElementById('narNext');
+    if (phase === 'intro') {
+      // wait for click to advance (▶ 계속 shown by typeWriter)
+      next.textContent = (introIdx < FLOWS[outcome].narr.length - 1) ? '▶ 계속' : '▶ 결과 보기';
+    } else {
+      // final result card — no further action, no choice buttons
+      next.style.display = 'none';
+    }
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  document.getElementById('game').addEventListener('click', e => {
+    if (e.target.closest('.nav-strip')) return;
+    if (e.target.closest('.popup-mask')) return;
+    if (locked && typingFn) { typingFn(); return; }   // skip typing
+    if (phase === 'intro' && !locked) advanceIntro();  // advance story
+  });
+
+  document.getElementById('replayBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    start();
+  });
+
+  function start() {
+    locked = false;
+    phase = 'intro';
+    introIdx = 0;
+    // decide the random stress result up front so messages can match it
+    outcome = Math.random() < 0.5 ? 'down' : 'up';
+    confirm().classList.add('hidden');
+    confirm().innerHTML = '';
+    document.getElementById('tagNum').textContent  = 'H1';
+    document.getElementById('tagName').textContent = '가족 모임';
+    document.getElementById('tagStep').textContent = 'STEP 1 / 2';
+    document.getElementById('narStep').textContent = '1';
+    document.getElementById('narNext').style.display = '';
+    const fade = document.getElementById('fade');
+    fade.classList.add('on'); fade.classList.remove('off');
+    narEl().hidden = true;
+    stage().innerHTML = '';
+
+    const popup = document.getElementById('popup');
+    popup.className = 'popup-mask hidden';
+
+    // 1) lift the black fade, 2) flash the "가족 모임" popup, 3) auto-dismiss,
+    // 4) begin the outcome-matched system messages.
+    setTimeout(() => {
+      fade.classList.remove('on'); fade.classList.add('off');
+      popup.className = 'popup-mask';                 // show popup
+      setTimeout(() => { popup.classList.add('out'); }, 1300);  // fade popup
+      setTimeout(() => {
+        popup.className = 'popup-mask hidden';        // remove popup
+        renderIntro();
+        playIntroLine();
+      }, 1650);
+    }, 260);
+  }
+
+  start();
+</script>
+
+</body>
+</html>
