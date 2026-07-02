@@ -349,9 +349,7 @@ CREATE INDEX idx_prices_date ON asset_prices(trade_date);
 CREATE TABLE stock_price_detail (
   asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
   trade_date DATE NOT NULL,
-  open_price NUMERIC,
-  high_price NUMERIC,
-  low_price  NUMERIC,
+  close_price NUMERIC,
   volume BIGINT,
   foreign_qty BIGINT,
   inst_qty BIGINT,
