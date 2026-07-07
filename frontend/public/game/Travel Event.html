@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>주식게임 — 여행 이벤트</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #08131a;
+    --frame: #102330;
+    --ink: #e8f3f7;
+    --ink-dim: #a7c4d2;
+    --ink-faint: #4f7384;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --green: #4ade80;
+    --green-dark: #166534;
+    --red: #ef4444;
+    --red-bright: #ff5a4a;
+    --red-dark: #7f1d1d;
+    /* travel / sea & sky accents */
+    --sky: #5fd0e6;
+    --sky-deep: #2f8aa3;
+    --sky-dark: #103040;
+    --sand: #f0d9a8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #03090d;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #0b1f2b 0%, #03090d 78%), #03090d;
+  }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #102330, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 80px rgba(95,208,230,0.16);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+
+  /* ---- travel scene background ---- */
+  .room {
+    position: absolute; inset: 0; z-index: 0;
+    background: #bfe0ec;
+    background-image: url("assets/bg_travel.png");
+    background-size: cover;
+    background-position: center 38%;
+    image-rendering: pixelated;
+    filter: brightness(0.84) saturate(1.05);
+  }
+  /* cool light wash + vignette so dark UI reads on top */
+  .room::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 42% at 50% 30%, rgba(190,235,255,0.30), transparent 72%),
+      radial-gradient(ellipse 90% 72% at 50% 62%, transparent 28%, rgba(6,20,28,0.62) 100%),
+      linear-gradient(180deg, rgba(6,20,28,0.16) 0%, rgba(6,20,28,0.55) 66%, rgba(3,12,18,0.84) 100%);
+  }
+  .room::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 38px, rgba(0,0,0,0.12) 38px 39px);
+    mix-blend-mode: multiply; opacity: 0.5;
+  }
+
+  /* title plate / nav */
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: #0e2029; border: 3px solid var(--sky-deep);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--sky); letter-spacing: 2px; z-index: 200;
+    text-shadow: 0 0 6px rgba(95,208,230,0.5);
+  }
+  .nav-strip {
+    position: absolute; top: -28px; right: 24px;
+    display: flex; gap: 6px; z-index: 200;
+  }
+  .nav-strip button {
+    background: #0e2029; border: 3px solid var(--sky-deep);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px; cursor: pointer;
+  }
+  .nav-strip button:hover { color: var(--sky); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.62) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.10) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+  .crt::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.0) 0 3px, rgba(255,255,255,0.02) 3px 4px);
+    mix-blend-mode: overlay;
+  }
+
+  /* screen indicator */
+  .screen-tag {
+    position: absolute; top: 18px; left: 22px;
+    display: flex; align-items: center; gap: 10px; z-index: 30;
+  }
+  .screen-tag .num {
+    background: var(--sky); color: #0e2029;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+  }
+  .screen-tag .nm {
+    background: #0e2029; border: 2px solid var(--sky-deep);
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: 6px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--sky); letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  /* badge top-right */
+  .datebox {
+    position: absolute; top: 16px; right: 22px; z-index: 30;
+    background: #0e2029; border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--sky-deep), 3px 3px 0 #000;
+    padding: 8px 14px; text-align: center;
+  }
+  .datebox .ring {
+    font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--sky);
+    text-shadow: 0 0 6px rgba(95,208,230,0.5);
+  }
+  .datebox .lbl {
+    display: block; margin-top: 4px;
+    font-family: 'Press Start 2P', monospace; font-size: 7px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+
+  /* stage */
+  .stage {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 250px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 78px 60px 16px; z-index: 5;
+  }
+
+  /* ---- story / ticket card ---- */
+  .ticket {
+    width: 600px; max-width: 92%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(95,208,230,0.05) 30px 31px),
+      #0e2029;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--sky-deep),
+      inset 0 0 0 6px #0c2531,
+      8px 8px 0 #000,
+      0 0 34px rgba(95,208,230,0.20);
+    padding: 26px 30px 28px; text-align: center; position: relative;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .ticket::before {
+    content: "BOARDING PASS · 2026"; position: absolute; top: 12px; right: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .ticket .rings {
+    font-family: 'Press Start 2P', monospace; font-size: 26px; color: var(--sky);
+    letter-spacing: 4px; text-shadow: 0 0 10px rgba(95,208,230,0.55); margin-bottom: 14px;
+  }
+  .ticket .ttl {
+    font-family: 'Galmuri11', monospace; font-size: 34px; color: var(--gold);
+    letter-spacing: 6px; text-shadow: 3px 3px 0 #000; margin-bottom: 6px;
+  }
+  .ticket .eng {
+    font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--ink-dim);
+    letter-spacing: 4px; margin-bottom: 18px;
+  }
+  .ticket .divider {
+    height: 0; border-top: 3px double var(--sky-deep); margin: 4px 0 18px;
+  }
+  .ticket .body {
+    font-family: 'Galmuri11', monospace; font-size: 17px; line-height: 1.85;
+    color: var(--ink); letter-spacing: 0.5px; text-wrap: pretty; text-align: left;
+  }
+  .ticket .body .row { display: flex; gap: 12px; align-items: flex-start; margin: 6px 0; }
+  .ticket .body .bullet { color: var(--sky); flex: none; }
+  .ticket .body .em { color: var(--gold); }
+  .ticket .body .red { color: var(--red-bright); }
+  .ticket .body .green { color: var(--green); }
+  @keyframes cardPop { from { opacity:0; transform: translateY(16px) scale(.96);} to {opacity:1; transform:none;} }
+
+  /* ---- choice buttons ---- */
+  .choices {
+    position: absolute; left: 0; right: 0; bottom: 280px;
+    display: flex; justify-content: center; gap: 26px; z-index: 7;
+    opacity: 0; pointer-events: none; transition: opacity 240ms steps(4,end);
+  }
+  .choices.show { opacity: 1; pointer-events: all; }
+  .choice-btn {
+    min-width: 280px;
+    border: 4px solid #000; cursor: pointer;
+    padding: 16px 24px;
+    font-family: 'Galmuri11', monospace; letter-spacing: 3px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: transform 90ms steps(2,end);
+  }
+  .choice-btn .key {
+    font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px;
+  }
+  .choice-btn .name { font-size: 22px; font-weight: bold; }
+  .choice-btn .hint { font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px; }
+  .choice-btn:hover { transform: translate(-1px,-2px); }
+  .choice-btn:active { transform: translate(2px,2px); }
+  .choice-btn.go {
+    background: var(--sky); color: #0e2029;
+    box-shadow: inset 0 0 0 2px #b4eef9, inset 0 -7px 0 var(--sky-deep), 5px 5px 0 #000;
+  }
+  .choice-btn.go .key, .choice-btn.go .hint { color: var(--sky-dark); }
+  .choice-btn.go:hover { background: #7fe0f2; }
+  .choice-btn.stay {
+    background: #16323f; color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--ink-faint), inset 0 -7px 0 #0a1c25, 5px 5px 0 #000;
+  }
+  .choice-btn.stay .key { color: var(--gold); }
+  .choice-btn.stay .hint { color: var(--ink-dim); }
+  .choice-btn.stay:hover { background: #1d4252; }
+
+  /* ---- result card ---- */
+  .result-card {
+    width: 720px; max-width: 94%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(95,208,230,0.05) 30px 31px),
+      #0e2029;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--sky-deep),
+      inset 0 0 0 6px #0c2531,
+      8px 8px 0 #000,
+      0 0 34px rgba(95,208,230,0.20);
+    padding: 20px 28px 24px; position: relative;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .result-card::before {
+    content: "RECEIPT · NO. 2026-T07"; position: absolute; top: 10px; right: 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .rc-head {
+    text-align: center; padding-bottom: 14px; margin-bottom: 8px;
+    border-bottom: 3px double var(--sky-deep);
+  }
+  .rc-head .rings {
+    display: inline-block; color: var(--sky); font-family: 'Press Start 2P', monospace;
+    font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(95,208,230,0.5);
+  }
+  .rc-head .ttl {
+    font-family: 'Press Start 2P', monospace; font-size: 15px;
+    color: var(--gold); letter-spacing: 3px; text-shadow: 2px 2px 0 #000;
+  }
+  .rc-head .sub {
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); letter-spacing: 1px; margin-top: 8px;
+  }
+  .rc-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 13px 4px; border-bottom: 1px dashed #1d4252;
+  }
+  .rc-row .k {
+    font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .rc-row .k small {
+    display: block; font-family: 'Press Start 2P', monospace; font-size: 7px;
+    color: var(--ink-faint); letter-spacing: 2px; margin-top: 4px;
+  }
+  .rc-row .v {
+    font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px; text-align: right;
+  }
+  .rc-row .v.gold { color: var(--gold); font-weight: bold; }
+  .rc-row .v.up   { color: var(--red-bright); font-weight: bold; }
+  .rc-row .v.down { color: var(--green); font-weight: bold; }
+  .rc-row .v.flat { color: var(--ink-dim); font-weight: bold; }
+  .rc-row.result {
+    border-bottom: none; padding-top: 14px;
+  }
+  .rc-row.result .v {
+    font-size: 16px; max-width: 62%; line-height: 1.55; text-wrap: pretty;
+  }
+  .rc-row.result .v.up   { color: var(--red-bright); }
+  .rc-row.result .v.down { color: var(--green); }
+  .rc-row.result .v.flat { color: var(--ink-dim); }
+
+  /* ---- confirm button ---- */
+  .confirm-strip {
+    position: absolute; left: 0; right: 0; bottom: 280px;
+    display: flex; justify-content: center; z-index: 7;
+  }
+  .confirm-btn {
+    background: var(--sky);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #b4eef9, inset 0 -7px 0 var(--sky-deep), 5px 5px 0 #000;
+    padding: 16px 56px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 22px; color: #0e2029;
+    letter-spacing: 6px; font-weight: bold;
+  }
+  .confirm-btn:hover { background: #7fe0f2; transform: translate(-1px,-1px); }
+  .confirm-btn:active { transform: translate(2px,2px); box-shadow: inset 0 0 0 2px #b4eef9, inset 0 -3px 0 var(--sky-deep), 2px 2px 0 #000; }
+  .confirm-btn .arr { font-family: 'Press Start 2P', monospace; font-size: 14px; margin-right: 12px; }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute; left: 30px; right: 30px; bottom: 30px;
+    background: #0e2029;
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--sky-deep), inset 0 0 0 6px #0c2531, 6px 6px 0 #000;
+    padding: 16px 22px 18px; z-index: 8; height: 200px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed #1d4252; padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 42px; height: 42px; background: #0c2531; border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--sky-deep);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--sky);
+  }
+  .nar-name { font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--sky); letter-spacing: 1px; }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-dim);
+    letter-spacing: 1px; border: 1px solid var(--sky-deep); padding: 2px 6px;
+  }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--sky); }
+  .nar-body {
+    flex: 1; font-family: 'Galmuri11', monospace; font-size: 20px; line-height: 1.6;
+    color: var(--ink); text-wrap: pretty; letter-spacing: 0.5px; overflow: hidden;
+  }
+  .nar-body .em  { color: var(--gold); }
+  .nar-body .sky { color: var(--sky); }
+  .nar-body .red { color: var(--red-bright); }
+  .nar-body .green { color: var(--green); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 19px; background: var(--sky);
+    vertical-align: -3px; margin-left: 4px; animation: blinkFast 0.55s steps(2,end) infinite;
+  }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px; color: var(--sky);
+    letter-spacing: 2px; animation: nextBob 0.7s steps(2,end) infinite; user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* fade mask */
+  .fade-mask {
+    position: absolute; inset: 0; background: #000; z-index: 90;
+    pointer-events: none; opacity: 1; transition: opacity 420ms steps(6,end);
+  }
+  .fade-mask.off { opacity: 0; }
+  .fade-mask.on  { opacity: 1; pointer-events: all; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="game" id="game" data-screen-label="여행 이벤트">
+  <div class="title-plate">✈ 여행 이벤트 ✈</div>
+  <div class="nav-strip">
+    <button id="replayBtn" title="처음부터 다시보기">↺ 다시보기</button>
+  </div>
+
+  <div class="room" id="room"></div>
+
+  <div class="datebox">
+    <span class="ring">✈</span>
+    <span class="lbl">TRAVEL</span>
+  </div>
+
+  <div class="screen-tag">
+    <span class="num" id="tagNum">T1</span>
+    <span class="nm" id="tagName">여행 이벤트</span>
+    <span class="step" id="tagStep">STEP 1 / 2</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="choices" id="choices"></div>
+  <div class="confirm-strip hidden" id="confirmStrip"></div>
+
+  <div class="narration" id="narration" hidden>
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">✈</div>
+      <span class="nar-name" id="narName">시스템</span>
+      <span class="nar-tag" id="narTag">SYSTEM</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b> / 2</span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <div class="fade-mask on" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  TRAVEL EVENT — display only.
+  //  No state, no storage, no money deduction, no navigation.
+  // ============================================================
+  const fmt = n => Math.abs(n).toLocaleString('ko-KR') + '원';
+
+  let choice = null;        // 'go' | 'stay'
+  let locked = false;
+  let typingFn = null;
+  let phase = 'choice';     // 'choice' | 'result'
+
+  const stage   = () => document.getElementById('stage');
+  const choices = () => document.getElementById('choices');
+  const confirm = () => document.getElementById('confirmStrip');
+  const narEl   = () => document.getElementById('narration');
+
+  // ============================================================
+  //  STEP 1 — story + choice
+  // ============================================================
+  function renderTicket() {
+    stage().innerHTML = `
+      <div class="ticket">
+        <div class="rings">✈</div>
+        <div class="ttl">여행 이벤트</div>
+        <div class="eng">TIME FOR A TRIP</div>
+        <div class="divider"></div>
+        <div class="body">
+          <div class="row"><span class="bullet">✈</span><span>반복되는 투자와 빚 독촉 속에서 잠시 <span class="sky">떠날 기회</span>가 생겼습니다.</span></div>
+          <div class="row"><span class="bullet">✈</span><span>여행을 가면 비용이 들지만 <span class="green">스트레스가 감소</span>합니다.</span></div>
+          <div class="row"><span class="bullet">✈</span><span>가지 않으면 <span class="em">돈은 아낄 수 있습니다.</span></span></div>
+        </div>
+      </div>`;
+  }
+  function renderChoices() {
+    const c = choices();
+    c.innerHTML = `
+      <button type="button" class="choice-btn go" data-choice="go">
+        <span class="key">［ 1 ］</span>
+        <span class="name">여행을 간다</span>
+        <span class="hint">- 300,000 WON</span>
+      </button>
+      <button type="button" class="choice-btn stay" data-choice="stay">
+        <span class="key">［ 2 ］</span>
+        <span class="name">가지 않는다</span>
+        <span class="hint">SAVE MONEY</span>
+      </button>`;
+    c.querySelectorAll('.choice-btn').forEach(b => {
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        pick(b.dataset.choice);
+      });
+    });
+  }
+
+  function pick(which) {
+    if (locked) return;
+    choice = which;
+    choices().classList.remove('show');
+    phase = 'result';
+    goResult();
+  }
+
+  // ============================================================
+  //  STEP 2 — result card
+  // ============================================================
+  function buildResultData() {
+    if (choice === 'go') {
+      return {
+        choiceLabel: '여행을 간다',
+        fee: 300000,
+        changeText: '스트레스 ▼ 감소',
+        changeCls: 'down',
+        resultText: '잠시 일상에서 벗어나 숨을 돌렸습니다. 스트레스가 낮아졌습니다.',
+        resultCls: 'down'
+      };
+    }
+    return {
+      choiceLabel: '가지 않는다',
+      fee: 0,
+      changeText: '변화 없음',
+      changeCls: 'flat',
+      resultText: '돈은 아꼈지만, 답답한 하루가 계속됩니다.',
+      resultCls: 'flat'
+    };
+  }
+
+  function renderResult() {
+    const d = buildResultData();
+    const feeStr = d.fee === 0 ? '0원' : '- ' + fmt(d.fee);
+    const feeCls = d.fee === 0 ? 'gold' : '';
+    stage().innerHTML = `
+      <div class="result-card">
+        <div class="rc-head">
+          <div class="rings">✈</div>
+          <div class="ttl">여행 결과</div>
+          <div class="sub">TRAVEL · 여행 이벤트 정산</div>
+        </div>
+        <div class="rc-row">
+          <span class="k">선택<small>CHOICE</small></span>
+          <span class="v gold">${d.choiceLabel}</span>
+        </div>
+        <div class="rc-row">
+          <span class="k">여행비<small>TRAVEL COST</small></span>
+          <span class="v ${feeCls}">${feeStr}</span>
+        </div>
+        <div class="rc-row">
+          <span class="k">스트레스 변화<small>STRESS</small></span>
+          <span class="v ${d.changeCls}">${d.changeText}</span>
+        </div>
+        <div class="rc-row result">
+          <span class="k">결과<small>OUTCOME</small></span>
+          <span class="v ${d.resultCls}">${d.resultText}</span>
+        </div>
+      </div>`;
+  }
+
+  function goResult() {
+    const fade = document.getElementById('fade');
+    fade.classList.remove('off'); fade.classList.add('on');
+    setTimeout(() => {
+      document.getElementById('tagNum').textContent  = 'T2';
+      document.getElementById('tagName').textContent = '결과';
+      document.getElementById('tagStep').textContent = 'STEP 2 / 2';
+      document.getElementById('narStep').textContent = '2';
+      renderResult();
+      const d = buildResultData();
+      const tone = d.resultCls === 'down'
+        ? '<span class="green">스트레스가 감소</span>했습니다.'
+        : '<span class="sky">하지만 답답함은 그대로 남았습니다.</span>';
+      narration(true, { who:'시스템', portrait:'✈', tag:'RESULT',
+        text:`<span class="em">${d.choiceLabel}</span>를 선택했습니다. 아래 내역을 확인하세요. ${tone}` });
+      fade.classList.remove('on'); fade.classList.add('off');
+    }, 220);
+  }
+
+  // ============================================================
+  //  UI HELPERS
+  // ============================================================
+  function narration(show, info) {
+    const el = narEl();
+    el.hidden = !show;
+    if (show && info) {
+      document.getElementById('narPortrait').textContent = info.portrait || '✈';
+      document.getElementById('narName').textContent = info.who;
+      document.getElementById('narTag').textContent  = info.tag || 'SYSTEM';
+      typeWriter(info.text);
+    }
+  }
+  function typeWriter(html) {
+    locked = true;
+    document.getElementById('narNext').style.display = 'none';
+    const body = document.getElementById('narBody');
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    const finish = () => {
+      root.innerHTML = src; cursor.remove(); locked = false;
+      document.getElementById('narNext').style.display = '';
+      if (typeof onTypedDone === 'function') onTypedDone();
+      typingFn = null;
+    };
+    typingFn = () => { cancelled = true; finish(); };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) { finish(); return; }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1); i = close + 1;
+      } else { buf += src[i++]; }
+      root.innerHTML = buf;
+      setTimeout(tick, 26);
+    }
+    tick();
+  }
+
+  // after the narration finishes typing, reveal the relevant control
+  function onTypedDone() {
+    if (phase === 'choice') {
+      choices().classList.add('show');
+    } else {
+      showConfirm();
+    }
+  }
+
+  function showConfirm() {
+    const wrap = confirm();
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'confirm-btn';
+    btn.innerHTML = `<span class="arr">▶</span>확인`;
+    // display-only: does nothing for now (no nav, no state change).
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.55';
+      btn.innerHTML = `확인됨`;
+    });
+    wrap.appendChild(btn);
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  document.getElementById('game').addEventListener('click', e => {
+    if (e.target.closest('.choice-btn')) return;
+    if (e.target.closest('.confirm-btn')) return;
+    if (e.target.closest('.nav-strip')) return;
+    if (locked && typingFn) { typingFn(); return; }
+  });
+
+  // keyboard shortcuts for choices (step 1 only)
+  document.addEventListener('keydown', e => {
+    if (choice !== null || locked) return;
+    if (e.key === '1') pick('go');
+    if (e.key === '2') pick('stay');
+  });
+
+  document.getElementById('replayBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    start();
+  });
+
+  function start() {
+    choice = null;
+    locked = false;
+    phase = 'choice';
+    choices().classList.remove('show');
+    choices().innerHTML = '';
+    confirm().classList.add('hidden');
+    confirm().innerHTML = '';
+    document.getElementById('tagNum').textContent  = 'T1';
+    document.getElementById('tagName').textContent = '여행 이벤트';
+    document.getElementById('tagStep').textContent = 'STEP 1 / 2';
+    document.getElementById('narStep').textContent = '1';
+    const fade = document.getElementById('fade');
+    fade.classList.add('on'); fade.classList.remove('off');
+    narEl().hidden = true;
+    stage().innerHTML = '';
+    setTimeout(() => {
+      renderTicket();
+      renderChoices();
+      narration(true, { who:'시스템', portrait:'✈', tag:'EVENT',
+        text:'<span class="sky">여행 이벤트 발생.</span> 잠시 떠날 기회가 생겼습니다. 여행을 갈지 선택하세요.' });
+      fade.classList.remove('on'); fade.classList.add('off');
+    }, 260);
+  }
+
+  start();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>이벤트 — 사채업자의 전화</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #1a0f0a;
+    --frame: #2a1a10;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --gold: #f5c542;
+    --green: #4ade80;
+    --red: #ef4444;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #050302; font-family: 'Galmuri11', monospace; color: var(--ink); overflow: hidden; image-rendering: pixelated; -webkit-font-smoothing: none; }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #1a0f0a 0%, #050302 80%), #050302; }
+
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: var(--bg-deep);
+    border: 6px solid var(--frame);
+    box-shadow: 0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000, 0 24px 60px rgba(0,0,0,0.7);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+
+  /* dim/darkened room background */
+  .stage {
+    position: absolute; inset: 0;
+    background: url('assets/bg_room.png') center/cover no-repeat;
+    image-rendering: pixelated;
+    filter: brightness(0.45) contrast(1.1) hue-rotate(-10deg);
+  }
+  .stage::after {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 35%, rgba(239,68,68,0.18) 0%, rgba(0,0,0,0) 60%),
+      linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.6) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.08) 2px 3px);
+    pointer-events: none;
+    animation: redPulse 2.4s steps(2,end) infinite;
+  }
+  @keyframes redPulse { 0%,100%{opacity:1;} 50%{opacity:0.65;} }
+
+  /* event header banner */
+  .ev-header {
+    position: absolute;
+    top: 24px; left: 50%; transform: translateX(-50%);
+    background: #7f1d1d;
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #ef4444, 4px 4px 0 #000;
+    padding: 8px 22px;
+    display: flex; align-items: center; gap: 12px;
+    z-index: 10;
+    animation: bannerBlink 1.2s steps(2,end) infinite;
+  }
+  @keyframes bannerBlink { 0%,49%{opacity:1;} 50%,100%{opacity:0.85;} }
+  .ev-header .icon { font-family: 'Press Start 2P', monospace; font-size: 16px; color: #fff; }
+  .ev-header .lbl { font-family: 'Press Start 2P', monospace; font-size: 11px; color: var(--gold); letter-spacing: 2px; }
+  .ev-header .nm  { font-family: 'Galmuri11', monospace; font-size: 16px; color: #fff; letter-spacing: 1px; }
+
+  /* phone in center */
+  .phone-wrap {
+    position: absolute;
+    left: 50%; top: 48%;
+    transform: translate(-50%, -50%);
+    width: 480px; height: 480px;
+    z-index: 6;
+    animation: phoneShake 0.18s steps(2,end) infinite alternate;
+    filter: drop-shadow(0 0 24px rgba(239,68,68,0.35));
+  }
+  @keyframes phoneShake {
+    0%   { transform: translate(-50%, -50%) rotate(-1deg); }
+    100% { transform: translate(-52%, -49%) rotate(1deg); }
+  }
+  .phone-wrap img {
+    width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;
+  }
+  /* glow ring around phone */
+  .phone-glow {
+    position: absolute; inset: 0; pointer-events: none;
+    border-radius: 50%;
+    box-shadow: 0 0 0 6px rgba(239,68,68,0.2), 0 0 80px 20px rgba(239,68,68,0.25);
+    animation: ringPulse 1s steps(2,end) infinite;
+  }
+  @keyframes ringPulse { 0%,100%{opacity:.4;} 50%{opacity:.9;} }
+
+  /* phone screen overlay (caller info) */
+  .phone-screen {
+    position: absolute;
+    left: 36%; top: 22%;
+    width: 38%; height: 50%;
+    transform: rotate(-14deg);
+    background: rgba(255,255,255,0.0);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding-top: 12%;
+    pointer-events: none;
+  }
+  .phone-screen .label {
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: #ef4444; letter-spacing: 2px;
+    margin-bottom: 6px;
+    animation: cBlink 0.6s steps(2,end) infinite;
+  }
+  @keyframes cBlink { 0%,49%{opacity:1;} 50%,100%{opacity:0.2;} }
+  .phone-screen .caller {
+    font-family: 'Galmuri11', monospace; font-size: 14px; color: #1a0f0a; letter-spacing: 1px;
+    background: #f5c542; padding: 2px 8px; border: 2px solid #000;
+  }
+  .phone-screen .number {
+    font-family: 'Press Start 2P', monospace; font-size: 7px; color: #1a0f0a; margin-top: 6px;
+    letter-spacing: 1px;
+  }
+  .phone-screen .timer {
+    margin-top: 12px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px; color: #1a0f0a;
+    background: #fff; border: 2px solid #000; padding: 2px 6px;
+  }
+
+  /* status mini-readouts (top-right) */
+  .ev-stats {
+    position: absolute;
+    top: 22px; right: 22px;
+    display: flex; flex-direction: column; gap: 6px;
+    z-index: 10;
+  }
+  .ev-stat-pill {
+    background: #0c0704;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #5a3624, 3px 3px 0 #000;
+    padding: 6px 10px;
+    display: flex; align-items: center; gap: 8px;
+    min-width: 220px;
+  }
+  .ev-stat-pill .ic { font-family: 'Press Start 2P', monospace; font-size: 12px; }
+  .ev-stat-pill .k  { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--ink-dim); flex: 1; }
+  .ev-stat-pill .v  { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--ink); letter-spacing: 1px; }
+  .ev-stat-pill .delta {
+    font-family: 'Press Start 2P', monospace; font-size: 9px; padding: 1px 4px;
+    margin-left: 4px;
+    border: 1px solid #000;
+  }
+  .ev-stat-pill .delta.up   { background: #166534; color: #fff; }
+  .ev-stat-pill .delta.down { background: #7f1d1d; color: #fff; }
+  .ev-stat-pill .delta.neutral { background: #2a1a10; color: var(--ink-dim); }
+
+  /* narration box bottom */
+  .narration {
+    position: absolute;
+    left: 30px; right: 30px; bottom: 30px;
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px #5a3624,
+      inset 0 0 0 6px #2a1a10,
+      6px 6px 0 #000;
+    padding: 18px 24px 20px;
+    z-index: 8;
+    min-height: 200px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed #3d2418;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 44px; height: 44px;
+    background: #2a1a10; border: 2px solid #000;
+    display: grid; place-items: center;
+    box-shadow: inset 0 0 0 1px #5a3624;
+    font-family: 'Press Start 2P', monospace; font-size: 18px; color: var(--red);
+  }
+  .nar-name {
+    font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--gold); letter-spacing: 1px;
+  }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-dim);
+    border: 1px solid #5a3624; padding: 2px 6px; letter-spacing: 1px;
+  }
+  .nar-prog {
+    margin-left: auto;
+    font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .nar-prog b { color: var(--gold); }
+
+  .nar-body {
+    flex: 1;
+    font-family: 'Galmuri11', monospace;
+    font-size: 18px; line-height: 1.6;
+    color: var(--ink);
+    min-height: 70px;
+    text-wrap: pretty;
+    letter-spacing: 0.5px;
+  }
+  .nar-body .em { color: var(--gold); }
+  .nar-body .red { color: var(--red); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 16px;
+    background: var(--gold); vertical-align: -2px; margin-left: 3px;
+    animation: cursorBlink 0.6s steps(2,end) infinite;
+  }
+  @keyframes cursorBlink { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+
+  /* choices */
+  .nar-choices {
+    margin-top: 14px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .choice {
+    background: #1a0f0a;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 1px #5a3624, 3px 3px 0 #000;
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px;
+    text-align: left;
+    transition: transform 80ms steps(2,end);
+  }
+  .choice:hover { transform: translate(-1px,-1px); background: #2a1a10; }
+  .choice:active { transform: translate(2px,2px); box-shadow: inset 0 0 0 1px #5a3624, 0 0 0 #000; }
+  .choice .num {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--gold); letter-spacing: 1px;
+  }
+  .choice .text {
+    font-family: 'Galmuri11', monospace; font-size: 14px;
+    color: var(--ink); line-height: 1.4;
+  }
+  .choice .effects {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-top: 4px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px;
+  }
+  .choice .ef {
+    padding: 2px 5px; border: 1px solid #000;
+  }
+  .ef.trust-up    { background: #166534; color: #fff; }
+  .ef.trust-down  { background: #7f1d1d; color: #fff; }
+  .ef.stress-up   { background: #7f1d1d; color: #fff; }
+  .ef.stress-down { background: #166534; color: #fff; }
+  .ef.money-down  { background: #7f1d1d; color: #fff; }
+  .ef.debt-down   { background: #b8862a; color: #1a0f0a; }
+  .ef.unknown     { background: #2a1a10; color: var(--ink-dim); }
+
+  /* "next" arrow on right */
+  .nar-next {
+    position: absolute;
+    right: 24px; bottom: 22px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px;
+    color: var(--gold); letter-spacing: 2px;
+    animation: nextBob 0.7s steps(2,end) infinite;
+    user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.08) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+
+  .title-plate {
+    position: absolute;
+    top: -28px; left: 24px;
+    background: var(--bg-deep);
+    border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold); letter-spacing: 2px;
+    z-index: 200;
+  }
+
+  /* back to main link */
+  .back-link {
+    position: absolute;
+    top: -28px; right: 24px;
+    background: var(--bg-deep);
+    border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    z-index: 200;
+    text-decoration: none;
+  }
+  .back-link:hover { color: var(--gold); }
+
+  /* ringtone wave */
+  .ring-waves {
+    position: absolute;
+    left: 50%; top: 48%;
+    transform: translate(-50%,-50%);
+    width: 600px; height: 600px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .ring-waves span {
+    position: absolute; inset: 0; border: 2px solid rgba(239,68,68,0.6);
+    border-radius: 50%;
+    animation: ringExpand 2s steps(8,end) infinite;
+  }
+  .ring-waves span:nth-child(2) { animation-delay: 0.6s; }
+  .ring-waves span:nth-child(3) { animation-delay: 1.2s; }
+  @keyframes ringExpand {
+    0% { transform: scale(0.4); opacity: 1; }
+    100% { transform: scale(1.05); opacity: 0; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="game" data-screen-label="01 Loanshark Event">
+  <div class="title-plate">★ EVENT · 사채업자의 전화 ★</div>
+  <a class="back-link" href="Main Screen.html">◀ MAIN</a>
+
+  <!-- darkened room -->
+  <div class="stage"></div>
+
+  <!-- event banner -->
+  <div class="ev-header">
+    <span class="icon">!!</span>
+    <span class="lbl">EVENT</span>
+    <span class="nm">사채업자의 전화</span>
+  </div>
+
+  <!-- live status pills -->
+  <div class="ev-stats">
+    <div class="ev-stat-pill">
+      <span class="ic" style="color:#4ade80;">♥</span>
+      <span class="k">신뢰도</span>
+      <span class="v" id="sTrust">72</span>
+      <span class="delta neutral" id="dTrust">±0</span>
+    </div>
+    <div class="ev-stat-pill">
+      <span class="ic" style="color:#ef4444;">⚡</span>
+      <span class="k">스트레스</span>
+      <span class="v" id="sStress">45</span>
+      <span class="delta neutral" id="dStress">±0</span>
+    </div>
+    <div class="ev-stat-pill">
+      <span class="ic" style="color:#f5c542;">☠</span>
+      <span class="k">남은 빚</span>
+      <span class="v" id="sDebt">6,800만</span>
+      <span class="delta neutral" id="dDebt">±0</span>
+    </div>
+  </div>
+
+  <!-- ringtone waves + phone -->
+  <div class="ring-waves" id="rings"><span></span><span></span><span></span></div>
+  <div class="phone-wrap">
+    <img src="assets/phone.png" alt="phone" />
+    <div class="phone-screen">
+      <div class="label">▶ INCOMING</div>
+      <div class="caller">사채업자 김씨</div>
+      <div class="number">010-XXXX-3949</div>
+      <div class="timer" id="callTimer">00:00</div>
+    </div>
+    <div class="phone-glow"></div>
+  </div>
+
+  <!-- narration box -->
+  <div class="narration">
+    <div class="nar-head">
+      <div class="nar-portrait">☠</div>
+      <span class="nar-name" id="speakerName">사채업자 김씨</span>
+      <span class="nar-tag">통화 중 · LINE 1</span>
+      <span class="nar-prog">대화 <b id="dlgIdx">1</b> / <b id="dlgTotal">5</b></span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-choices" id="choices" hidden></div>
+    <div class="nar-next" id="nextHint">▶ 클릭하여 계속</div>
+  </div>
+
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============== state ==============
+  const STATE = { trust: 72, stress: 45, debt: 6800, money: 12480 };
+  const ORIG = { ...STATE };
+
+  function fmtMan(n) { return n.toLocaleString('ko-KR') + '만'; }
+  function refresh() {
+    document.getElementById('sTrust').textContent = STATE.trust;
+    document.getElementById('sStress').textContent = STATE.stress;
+    document.getElementById('sDebt').textContent = fmtMan(STATE.debt);
+    setDelta('dTrust',  STATE.trust  - ORIG.trust,  false);
+    setDelta('dStress', STATE.stress - ORIG.stress, true);  // stress up = bad
+    setDelta('dDebt',   STATE.debt   - ORIG.debt,   true);  // debt up = bad
+  }
+  function setDelta(id, diff, lowerBetter) {
+    const el = document.getElementById(id);
+    el.classList.remove('up','down','neutral');
+    if (diff === 0) { el.textContent = '±0'; el.classList.add('neutral'); return; }
+    const sign = diff > 0 ? '+' : '';
+    el.textContent = sign + diff;
+    const good = lowerBetter ? diff < 0 : diff > 0;
+    el.classList.add(good ? 'up' : 'down');
+  }
+
+  // ============== call timer ==============
+  let elapsed = 0;
+  setInterval(() => {
+    elapsed++;
+    const m = String(Math.floor(elapsed/60)).padStart(2,'0');
+    const s = String(elapsed%60).padStart(2,'0');
+    document.getElementById('callTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ============== dialog ==============
+  // each step: {type: 'line'|'choice', speaker, text, choices?}
+  const DIALOG = [
+    { type:'line', speaker:'사채업자 김씨',
+      text:'…여보세요? <span class="em">박 사장</span>. 잘 지내고 있나? 약속한 날짜가 언젠지는 알고 있겠지.' },
+    { type:'line', speaker:'사채업자 김씨',
+      text:'<span class="red">남은 빚 6,800만원.</span> 이번 주 안으로 이자라도 들어와야 내가 윗선에 얘기를 해주지.' },
+    { type:'line', speaker:'사채업자 김씨',
+      text:'요즘 주식으로 좀 만진다며? 솔직하게 말해봐. 갚을 의향은 있는 거야?' },
+    { type:'choice', speaker:'당신',
+      text:'…뭐라고 대답할까?',
+      choices: [
+        { num:'01', text:'"이번 주 안에 1,000만 보내드릴게요. 죄송합니다."',
+          effects:[ ['trust','+8','trust-up'], ['stress','+5','stress-up'], ['money','-1000만','money-down'], ['debt','-1000만','debt-down'] ],
+          delta:{trust:+8, stress:+5, money:-1000, debt:-1000},
+          reply:'좋아. 그래야 사람이지. 약속 어기면 어떻게 되는지 알지?' },
+        { num:'02', text:'"조금만… 조금만 더 시간을 주세요. 곧 큰 거래가…"',
+          effects:[ ['trust','-12','trust-down'], ['stress','+15','stress-up'] ],
+          delta:{trust:-12, stress:+15, money:0, debt:0},
+          reply:'…박 사장. 그 말 몇 번째인지 셀 수도 없어. 다음 주에 사람 보낸다.' },
+        { num:'03', text:'(전화를 끊어버린다)',
+          effects:[ ['trust','-25','trust-down'], ['stress','+25','stress-up'], ['unknown','???','unknown'] ],
+          delta:{trust:-25, stress:+25, money:0, debt:0},
+          reply:'…' }
+      ] },
+    { type:'line', speaker:'사채업자 김씨', text:'__REPLY__' }
+  ];
+
+  let step = 0, locked = false, picked = null;
+
+  const narBody = document.getElementById('narBody');
+  const choicesEl = document.getElementById('choices');
+  const nextHint = document.getElementById('nextHint');
+  const speakerName = document.getElementById('speakerName');
+  const dlgIdx = document.getElementById('dlgIdx');
+  document.getElementById('dlgTotal').textContent = DIALOG.length;
+
+  function typeWriter(html, done) {
+    locked = true;
+    narBody.innerHTML = '';
+    // Strip tags for measuring, but render incrementally by chunks
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    const tokens = []; // {text, parent}
+    function walk(node, parent) {
+      node.childNodes.forEach(n => {
+        if (n.nodeType === 3) {
+          for (const ch of n.textContent) tokens.push({ ch, parent });
+        } else {
+          const clone = n.cloneNode(false);
+          parent.appendChild(clone);
+          walk(n, clone);
+        }
+      });
+    }
+    const root = document.createElement('span');
+    narBody.appendChild(root);
+    walk(tmp, root);
+    // reset clones (they were appended); clear and rebuild incrementally
+    narBody.innerHTML = '';
+    const root2 = document.createElement('span');
+    narBody.appendChild(root2);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    narBody.appendChild(cursor);
+
+    // simple linear typing on a flat token list with span ancestry recreated on the fly
+    // For simplicity, just type into a single span with allowed inline tags; use innerHTML chunked
+    // Replacement: walk original HTML char-by-char while preserving tags
+    let i = 0;
+    const src = html;
+    let buf = '';
+    function tick() {
+      if (i >= src.length) {
+        cursor.remove();
+        locked = false;
+        if (done) done();
+        return;
+      }
+      // jump entire tag in one step
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1);
+        i = close + 1;
+      } else {
+        buf += src[i++];
+      }
+      root2.innerHTML = buf;
+      setTimeout(tick, 22);
+    }
+    tick();
+  }
+
+  function showStep() {
+    const s = DIALOG[step];
+    speakerName.textContent = s.speaker;
+    dlgIdx.textContent = step + 1;
+    choicesEl.hidden = true;
+    choicesEl.innerHTML = '';
+    nextHint.style.display = '';
+
+    let txt = s.text;
+    if (txt === '__REPLY__' && picked) txt = picked.reply || '…';
+
+    typeWriter(txt, () => {
+      if (s.type === 'choice') {
+        nextHint.style.display = 'none';
+        choicesEl.hidden = false;
+        s.choices.forEach((c, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'choice';
+          btn.innerHTML = `
+            <span class="num">CHOICE ${c.num}</span>
+            <span class="text">${c.text}</span>
+            <span class="effects">${c.effects.map(([k,v,cls]) => `<span class="ef ${cls}">${labelFor(k)} ${v}</span>`).join('')}</span>
+          `;
+          btn.addEventListener('click', () => pick(c));
+          choicesEl.appendChild(btn);
+        });
+      }
+    });
+  }
+
+  function labelFor(k){
+    return ({trust:'신뢰',stress:'스트레스',money:'재산',debt:'빚',unknown:'?'})[k] || k.toUpperCase();
+  }
+
+  function pick(c) {
+    if (locked) return;
+    picked = c;
+    // apply deltas
+    STATE.trust  = Math.max(0, Math.min(100, STATE.trust + (c.delta.trust||0)));
+    STATE.stress = Math.max(0, Math.min(100, STATE.stress+ (c.delta.stress||0)));
+    STATE.money  = STATE.money + (c.delta.money||0);
+    STATE.debt   = Math.max(0, STATE.debt + (c.delta.debt||0));
+    refresh();
+    advance();
+  }
+
+  function advance() {
+    if (locked) return;
+    if (step < DIALOG.length - 1) {
+      step++;
+      showStep();
+    } else {
+      // end
+      narBody.innerHTML += '<br/><span style="color:#c9a888;font-size:13px;">— 통화 종료 —</span>';
+      nextHint.innerHTML = '◀ 메인으로';
+      nextHint.style.cursor = 'pointer';
+      nextHint.onclick = () => location.href = 'Main Screen.html';
+    }
+  }
+
+  // click anywhere on game to advance (when not on choice step)
+  document.querySelector('.game').addEventListener('click', e => {
+    if (e.target.closest('.choice') || e.target.closest('.back-link')) return;
+    if (DIALOG[step].type === 'choice' && !locked) return; // need to pick
+    if (locked) {
+      // skip typing — fast-forward
+      const src = DIALOG[step].text === '__REPLY__' ? (picked && picked.reply || '…') : DIALOG[step].text;
+      narBody.innerHTML = src;
+      locked = false;
+      if (DIALOG[step].type === 'choice') {
+        // re-trigger reveal of choices
+        showStep();
+      }
+      return;
+    }
+    advance();
+  });
+
+  refresh();
+  showStep();
+</script>
+
+</body>
+</html>

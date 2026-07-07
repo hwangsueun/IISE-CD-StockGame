@@ -87,13 +87,13 @@ async function importStocks(xlsxPath) {
         lastPrice.set(assetId, close);
         priceRows.push([assetId, date, close, changeRate, 'KRW']);
         const vol = volCols.has(c.code) ? row[volCols.get(c.code)] ?? null : null;
-        detailRows.push([assetId, date, vol]);
+        detailRows.push([assetId, date, close, vol]);
       }
     }
     priceCount += await bulkInsert(
       'asset_prices', ['asset_id', 'trade_date', 'close_price', 'change_rate', 'currency'], priceRows
     );
-    await bulkInsert('stock_price_detail', ['asset_id', 'trade_date', 'volume'], detailRows);
+    await bulkInsert('stock_price_detail', ['asset_id', 'trade_date', 'close_price', 'volume'], detailRows);
     console.log(`[import_stocks] ${sheetName}: ${priceRows.length}행`);
   }
 

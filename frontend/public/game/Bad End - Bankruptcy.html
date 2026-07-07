@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>BAD END — 파산</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #050302;
+    --frame: #2a1a10;
+    --frame-red: #4a1410;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --ink-faint: #7c5040;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --green: #4ade80;
+    --red: #ef4444;
+    --red-bright: #ff5a4a;
+    --red-dark: #7f1d1d;
+    --blood: #3a0a08;
+    --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #050201;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #2a0c08 0%, #050201 75%), #050201;
+  }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame-red);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 80px rgba(127,29,29,0.35);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+  /* dark room background with red warning glow */
+  .room {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 60%, rgba(127,29,29,0.35), transparent 70%),
+      radial-gradient(ellipse 40% 25% at 50% 95%, rgba(239,68,68,0.18), transparent 70%),
+      linear-gradient(180deg, #0a0403 0%, #160807 60%, #0a0403 100%);
+  }
+  .room::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,90,74,0.0) 0 40px, rgba(255,90,74,0.03) 40px 41px),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 38px, rgba(0,0,0,0.25) 38px 39px);
+    mix-blend-mode: overlay;
+    opacity: 0.5;
+  }
+  .room::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, transparent 0%, transparent 35%, rgba(127,29,29,0.55) 100%);
+    animation: redPulse 3.4s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+  @keyframes redPulse {
+    0%,100% { opacity: 0.4; }
+    50%     { opacity: 0.85; }
+  }
+
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: #1a0806; border: 3px solid var(--frame-red);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--red-bright); letter-spacing: 2px; z-index: 200;
+    text-shadow: 0 0 6px rgba(255,90,74,0.6);
+  }
+  .nav-strip {
+    position: absolute; top: -28px; right: 24px;
+    display: flex; gap: 6px; z-index: 200;
+  }
+  .nav-strip a, .nav-strip button {
+    background: #1a0806; border: 3px solid var(--frame-red);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    text-decoration: none; cursor: pointer;
+  }
+  .nav-strip a:hover, .nav-strip button:hover { color: var(--gold); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.10) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+  .crt::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.0) 0 3px, rgba(255,255,255,0.02) 3px 4px);
+    mix-blend-mode: overlay;
+  }
+
+  /* screen indicator */
+  .screen-tag {
+    position: absolute;
+    top: 18px; left: 22px;
+    display: flex; align-items: center; gap: 10px;
+    z-index: 30;
+  }
+  .screen-tag .num {
+    background: var(--red); color: #1a0f0a;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+  }
+  .screen-tag .nm {
+    background: #1a0806; border: 2px solid #5a2018;
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: 6px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px;
+  }
+
+  /* stage area (above narration) */
+  .stage {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    bottom: 280px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 60px 20px;
+    z-index: 5;
+  }
+
+  /* shake (for knock) */
+  .shake { animation: screenShake 0.18s steps(2,end) 6; }
+  @keyframes screenShake {
+    0%   { transform: translate(-2px, 1px); }
+    50%  { transform: translate(2px, -1px); }
+    100% { transform: translate(-1px, 2px); }
+  }
+
+  /* center big text */
+  .big-center { text-align: center; animation: fadeUp 0.9s steps(8,end); }
+  .big-center .small { font-family: 'Press Start 2P', monospace; font-size: 11px; color: var(--ink-dim); letter-spacing: 4px; margin-bottom: 14px; }
+  .big-center .big {
+    font-family: 'Galmuri11', monospace; font-size: 44px;
+    color: var(--ink); letter-spacing: 6px; text-shadow: 3px 3px 0 #000;
+  }
+  .big-center .day {
+    font-family: 'Press Start 2P', monospace; font-size: 64px;
+    color: var(--red-bright); letter-spacing: 6px;
+    text-shadow: 4px 4px 0 #000, 0 0 18px rgba(255,90,74,0.6);
+    margin-bottom: 18px;
+  }
+  .big-center .knock {
+    font-family: 'Press Start 2P', monospace; font-size: 38px;
+    color: var(--red-bright); letter-spacing: 8px;
+    text-shadow: 3px 3px 0 #000, 0 0 12px rgba(255,90,74,0.5);
+    animation: knockShake 0.32s steps(2,end) 0s 6;
+  }
+  @keyframes knockShake {
+    0%   { transform: translateX(-3px); }
+    100% { transform: translateX(3px); }
+  }
+  .big-center .sub {
+    margin-top: 14px; font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* ====== BAD TITLE (step B6) ====== */
+  .bad-title { text-align: center; animation: fadeUp 0.9s steps(8,end); }
+  .bad-title .label {
+    font-family: 'Press Start 2P', monospace; font-size: 14px;
+    color: var(--ink-dim); letter-spacing: 8px;
+    margin-bottom: 18px;
+  }
+  .bad-title .main {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 96px; line-height: 1;
+    color: var(--red-bright); letter-spacing: 10px;
+    text-shadow:
+      4px 4px 0 #000,
+      0 0 18px rgba(255,90,74,0.5),
+      0 0 40px rgba(127,29,29,0.6);
+    margin-bottom: 16px;
+    animation: badFlicker 4s steps(8,end) infinite;
+  }
+  @keyframes badFlicker {
+    0%,92%,100% { opacity: 1; }
+    93%         { opacity: 0.4; }
+    94%         { opacity: 1; }
+    95%         { opacity: 0.6; }
+    96%         { opacity: 1; }
+  }
+  .bad-title .kor {
+    font-family: 'Galmuri11', monospace; font-size: 56px;
+    color: var(--ink); letter-spacing: 14px;
+    text-shadow: 3px 3px 0 #000;
+    margin-bottom: 22px;
+  }
+  .bad-title .sub {
+    font-family: 'Galmuri11', monospace; font-size: 19px;
+    color: var(--ink-dim); letter-spacing: 2px;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  /* press hint */
+  .press-hint {
+    position: absolute; left: 50%; bottom: 300px; transform: translateX(-50%);
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold); letter-spacing: 2px;
+    animation: blinkSlow 1s steps(2,end) infinite;
+    z-index: 6;
+  }
+  @keyframes blinkSlow { 0%,49%{opacity:1;} 50%,100%{opacity:0.2;} }
+
+  /* ====== LOANSHARK CHARACTER CARD (B3) ====== */
+  .lshark-wrap {
+    display: flex; align-items: center; gap: 40px;
+    animation: fadeUp 0.7s steps(8,end);
+  }
+  .lshark-sprite {
+    width: 220px; height: 280px;
+    background: #1a0806;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--red-dark),
+      inset 0 0 0 6px #2a1a10,
+      8px 8px 0 #000,
+      0 0 28px rgba(127,29,29,0.5);
+    position: relative;
+    image-rendering: pixelated;
+  }
+  /* pixel-art guy: hat + jacket + tie, all CSS */
+  .lshark-sprite .px {
+    position: absolute;
+    image-rendering: pixelated;
+  }
+  /* background floor shadow */
+  .lshark-sprite .floor {
+    left: 30px; right: 30px; bottom: 18px; height: 8px;
+    background: #000; opacity: 0.6;
+  }
+  /* hat brim */
+  .lshark-sprite .hat-brim {
+    left: 40px; top: 28px; width: 140px; height: 14px;
+    background: #1a1a1a;
+    box-shadow: 0 -2px 0 #0a0a0a, 0 2px 0 #2a2a2a;
+  }
+  /* hat top */
+  .lshark-sprite .hat-top {
+    left: 56px; top: 8px; width: 108px; height: 22px;
+    background: #2a2a2a;
+    box-shadow: inset 0 -4px 0 #1a1a1a, inset 0 3px 0 #3a3a3a;
+  }
+  .lshark-sprite .hat-band {
+    left: 56px; top: 26px; width: 108px; height: 4px;
+    background: var(--red-dark);
+  }
+  /* face */
+  .lshark-sprite .face {
+    left: 70px; top: 42px; width: 80px; height: 60px;
+    background: #d4a679;
+    box-shadow: inset 0 -6px 0 #b8865c, inset -3px 0 0 #b8865c;
+  }
+  /* eyes - one squinted, one open (sly look) */
+  .lshark-sprite .eye-l, .lshark-sprite .eye-r {
+    top: 64px; width: 12px; height: 4px;
+    background: #000;
+  }
+  .lshark-sprite .eye-l { left: 84px; }
+  .lshark-sprite .eye-r { left: 110px; height: 6px; top: 63px; }
+  /* eyebrow */
+  .lshark-sprite .brow-l { left: 84px; top: 58px; width: 12px; height: 3px; background: #1a1a1a; }
+  .lshark-sprite .brow-r { left: 110px; top: 56px; width: 14px; height: 3px; background: #1a1a1a; transform: rotate(-10deg); }
+  /* smile */
+  .lshark-sprite .mouth {
+    left: 90px; top: 84px; width: 24px; height: 6px;
+    background: #5a2018;
+    box-shadow: 6px -3px 0 #5a2018, -6px -3px 0 #5a2018;
+  }
+  .lshark-sprite .tooth {
+    left: 96px; top: 86px; width: 4px; height: 3px; background: var(--gold);
+  }
+  /* neck */
+  .lshark-sprite .neck {
+    left: 92px; top: 96px; width: 36px; height: 14px;
+    background: #b8865c;
+  }
+  /* jacket shoulders */
+  .lshark-sprite .jacket {
+    left: 26px; top: 108px; width: 168px; height: 130px;
+    background: #2a100c;
+    box-shadow: inset 0 -10px 0 #1a0806, inset 4px 0 0 #3a1410, inset -4px 0 0 #1a0806;
+  }
+  /* shirt */
+  .lshark-sprite .shirt {
+    left: 88px; top: 108px; width: 44px; height: 70px;
+    background: #e8d8c0;
+    box-shadow: inset 0 -4px 0 #c8b8a0;
+  }
+  /* red tie */
+  .lshark-sprite .tie-knot {
+    left: 102px; top: 110px; width: 16px; height: 12px;
+    background: var(--red-dark);
+  }
+  .lshark-sprite .tie-body {
+    left: 104px; top: 122px; width: 12px; height: 36px;
+    background: var(--red);
+    clip-path: polygon(0 0, 100% 0, 90% 100%, 50% 110%, 10% 100%);
+  }
+  /* gold chain detail */
+  .lshark-sprite .chain {
+    left: 84px; top: 132px; width: 52px; height: 4px;
+    background: var(--gold);
+    border-radius: 50%;
+    box-shadow: 0 4px 0 var(--gold-dark);
+    transform: scaleY(0.5);
+  }
+  /* arm crossed / hand holding briefcase */
+  .lshark-sprite .arm-l {
+    left: 26px; top: 150px; width: 50px; height: 60px;
+    background: #2a100c;
+    box-shadow: inset 0 -6px 0 #1a0806;
+  }
+  .lshark-sprite .arm-r {
+    left: 144px; top: 150px; width: 50px; height: 60px;
+    background: #2a100c;
+    box-shadow: inset 0 -6px 0 #1a0806;
+  }
+  .lshark-sprite .hand-l { left: 36px; top: 200px; width: 28px; height: 18px; background: #d4a679; }
+  .lshark-sprite .briefcase {
+    left: 14px; top: 218px; width: 70px; height: 38px;
+    background: #5a2018;
+    box-shadow: inset 0 -6px 0 #3a1410, inset 0 3px 0 #7c2820, 4px 4px 0 #000;
+  }
+  .lshark-sprite .briefcase-handle {
+    left: 36px; top: 212px; width: 26px; height: 8px;
+    background: transparent;
+    border-top: 3px solid #1a0806;
+    border-left: 3px solid #1a0806;
+    border-right: 3px solid #1a0806;
+    border-radius: 8px 8px 0 0;
+  }
+  .lshark-sprite .briefcase-buckle {
+    left: 30px; top: 224px; width: 6px; height: 6px;
+    background: var(--gold);
+    box-shadow: 26px 0 0 var(--gold);
+  }
+
+  /* label tag */
+  .lshark-card {
+    width: 380px;
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--red-dark), inset 0 0 0 6px #1a0806, 8px 8px 0 #000;
+    padding: 18px 22px;
+  }
+  .lshark-card .id-num {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 2px; margin-bottom: 6px;
+  }
+  .lshark-card .id-name {
+    font-family: 'Galmuri11', monospace; font-size: 30px;
+    color: var(--red-bright); letter-spacing: 2px;
+    text-shadow: 2px 2px 0 #000;
+    margin-bottom: 14px;
+  }
+  .lshark-card .id-row {
+    display: flex; justify-content: space-between;
+    border-top: 1px dashed #3d2418;
+    padding: 6px 0;
+    font-family: 'Galmuri11', monospace; font-size: 14px;
+  }
+  .lshark-card .id-row .k { color: var(--ink-dim); font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; }
+  .lshark-card .id-row .v { color: var(--ink); }
+
+  /* ====== LEDGER CARD (B4) ====== */
+  .ledger-card {
+    width: 980px; max-width: 96%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 28px, rgba(245,197,66,0.04) 28px 29px),
+      #0e0805;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--gold-dark),
+      inset 0 0 0 6px #2a1a10,
+      8px 8px 0 #000,
+      0 0 32px rgba(245,197,66,0.18);
+    padding: 18px 26px 22px;
+    animation: cardPop 280ms steps(5,end);
+    position: relative;
+  }
+  @keyframes cardPop { from { opacity:0; transform: translateY(16px) scale(.96); } to { opacity:1; transform: none; } }
+  .ledger-card::before {
+    content: "FILE #B-2025-0420";
+    position: absolute; top: 8px; right: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .ledger-card::after {
+    content: "★ 기록 보관 ★";
+    position: absolute; bottom: 8px; left: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .ledger-head {
+    text-align: center;
+    padding-bottom: 10px; margin-bottom: 12px;
+    border-bottom: 3px double #5a3624;
+  }
+  .ledger-head .ttl {
+    font-family: 'Press Start 2P', monospace; font-size: 16px;
+    color: var(--gold); letter-spacing: 4px; text-shadow: 2px 2px 0 #000;
+  }
+  .ledger-head .sub {
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); letter-spacing: 1px; margin-top: 6px;
+  }
+  .ledger-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px 28px;
+    padding-bottom: 10px; margin-bottom: 12px;
+  }
+  .ledger-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 5px 0;
+    border-bottom: 1px dashed #2a1a10;
+  }
+  .ledger-row .k { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .ledger-row .v {
+    font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--ink);
+    font-variant-numeric: tabular-nums; font-weight: bold;
+  }
+  .ledger-row .v.gold { color: var(--gold); text-shadow: 1px 1px 0 #000; }
+  .ledger-row .v.red  { color: var(--red-bright); }
+  .ledger-row .v.dim  { color: var(--ink-dim); }
+  .ledger-row.big .v  { font-size: 20px; }
+
+  .grade-stamp {
+    position: absolute; top: 38%; right: 36px;
+    transform: rotate(-12deg);
+    border: 5px solid var(--red);
+    color: var(--red);
+    font-family: 'Press Start 2P', monospace; font-size: 38px;
+    padding: 10px 22px;
+    letter-spacing: 4px;
+    opacity: 0.7;
+    box-shadow: 0 0 18px rgba(239,68,68,0.4);
+    pointer-events: none;
+  }
+  .grade-stamp .lbl {
+    display: block;
+    font-size: 9px; letter-spacing: 3px;
+    margin-bottom: 4px;
+    color: var(--red);
+  }
+
+  .fail-tags {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #1a0806;
+    border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--red-dark);
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .fail-tags .lbl {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--red-bright); letter-spacing: 2px;
+    margin-right: 4px;
+  }
+  .fail-tag {
+    background: var(--red-dark);
+    border: 2px solid #000;
+    box-shadow: inset 0 -3px 0 #4a0a08, 2px 2px 0 #000;
+    color: #fde0dc;
+    padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    letter-spacing: 1px;
+  }
+
+  /* ====== ANALYSIS CARDS (B5) ====== */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 1080px; max-width: 96%;
+    animation: cardPop 260ms steps(5,end);
+  }
+  .analysis-card {
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #5a3624, inset 0 0 0 6px #2a1a10, 6px 6px 0 #000;
+    padding: 16px 18px;
+    display: flex; flex-direction: column;
+    min-height: 220px;
+  }
+  .analysis-card.hint { box-shadow: inset 0 0 0 2px #166534, inset 0 0 0 6px #0a2a1a, 6px 6px 0 #000; }
+  .analysis-card .num {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--red-bright); letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .analysis-card.hint .num { color: var(--green); }
+  .analysis-card .ttl {
+    font-family: 'Galmuri11', monospace; font-size: 22px;
+    color: var(--gold); letter-spacing: 1px;
+    text-shadow: 2px 2px 0 #000;
+    padding-bottom: 10px; margin-bottom: 10px;
+    border-bottom: 2px dashed #3d2418;
+  }
+  .analysis-card.hint .ttl { color: var(--green); border-bottom-color: #166534; }
+  .analysis-card .body {
+    font-family: 'Galmuri11', monospace; font-size: 15px;
+    line-height: 1.6; color: var(--ink);
+    text-wrap: pretty; letter-spacing: 0.4px;
+  }
+  .analysis-card .badge {
+    margin-top: auto; padding-top: 12px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 2px;
+  }
+
+  /* ====== CHOICE STRIP (B6) ====== */
+  .choice-strip {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 300px;
+    display: flex;
+    gap: 14px; z-index: 6;
+    justify-content: center;
+  }
+  .choice-btn {
+    background: var(--gold);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #fff5cc, inset 0 -6px 0 #b8862a, 4px 4px 0 #000;
+    padding: 14px 22px;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: center;
+    text-decoration: none;
+    min-width: 220px;
+  }
+  .choice-btn:hover { background: #fde68a; transform: translate(-1px,-1px); }
+  .choice-btn.dim {
+    background: #1a0806;
+    box-shadow: inset 0 0 0 2px #5a3624, inset 0 -6px 0 #2a1a10, 4px 4px 0 #000;
+  }
+  .choice-btn.dim:hover { background: #2a1410; }
+  .choice-btn .num  { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #7f1d1d; letter-spacing: 2px; }
+  .choice-btn.dim .num { color: var(--gold); }
+  .choice-btn .text { font-family: 'Galmuri11', monospace; font-size: 18px; color: #1a0f0a; letter-spacing: 1px; }
+  .choice-btn.dim .text { color: var(--ink); }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute;
+    left: 30px; right: 30px; bottom: 30px;
+    background: #0c0704;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--red-dark),
+      inset 0 0 0 6px #2a1a10,
+      6px 6px 0 #000;
+    padding: 16px 22px 18px;
+    z-index: 8;
+    height: 230px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed #3d2418;
+    padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 42px; height: 42px;
+    background: #2a1a10; border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px #5a3624;
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold);
+  }
+  .nar-portrait.sys { color: var(--red-bright); background: #1a0806; box-shadow: inset 0 0 0 1px var(--red-dark); }
+  .nar-portrait.shark { color: var(--gold); background: #1a0806; box-shadow: inset 0 0 0 1px var(--red-dark); }
+  .nar-name { font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--gold); letter-spacing: 1px; }
+  .nar-name.sys { color: var(--red-bright); }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 1px;
+    border: 1px solid #5a3624; padding: 2px 6px;
+  }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--gold); }
+  .nar-body {
+    flex: 1;
+    font-family: 'Galmuri11', monospace;
+    font-size: 19px; line-height: 1.6;
+    color: var(--ink);
+    text-wrap: pretty; letter-spacing: 0.5px;
+    overflow: hidden;
+  }
+  .nar-body .em  { color: var(--gold); }
+  .nar-body .red { color: var(--red-bright); }
+  .nar-body .grn { color: var(--green); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 18px;
+    background: var(--gold); vertical-align: -3px; margin-left: 4px;
+    animation: blinkFast 0.55s steps(2,end) infinite;
+  }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px;
+    color: var(--gold); letter-spacing: 2px;
+    animation: nextBob 0.7s steps(2,end) infinite;
+    user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* fade mask for transitions */
+  .fade-mask {
+    position: absolute; inset: 0; background: #000;
+    z-index: 90; pointer-events: none; opacity: 1;
+    transition: opacity 420ms steps(6,end);
+  }
+  .fade-mask.off { opacity: 0; }
+  .fade-mask.on  { opacity: 1; pointer-events: all; }
+
+  /* utility */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="game" id="game" data-screen-label="BAD END · 파산">
+  <div class="title-plate">★ BAD END · 파산 ★</div>
+  <div class="nav-strip">
+    <button id="resetBtn" title="처음으로">↺ 처음으로</button>
+  </div>
+
+  <div class="room"></div>
+
+  <div class="screen-tag" id="screenTag">
+    <span class="num" id="tagNum">B1</span>
+    <span class="nm" id="tagName">상환 기한 종료</span>
+    <span class="step" id="tagStep">STEP 1 / 6</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+  <div class="press-hint" id="pressHint" hidden>▶ 화면을 클릭하세요</div>
+
+  <div class="choice-strip hidden" id="choices"></div>
+
+  <div class="narration" id="narration" hidden>
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">!</div>
+      <span class="nar-name" id="narName">시스템</span>
+      <span class="nar-tag" id="narTag">SYSTEM</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b> / 6</span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <div class="fade-mask on" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  SHARED DEMO STATE (localStorage)
+  // ============================================================
+  const DEMO_STATE_KEY = 'stockgame_demo_state_v1';
+  function clearAllGameState() {
+    try { localStorage.removeItem('stockgame_demo_state_v1'); } catch (_) {}
+    try { localStorage.removeItem('stocklife.runtime'); } catch (_) {}
+    try { localStorage.removeItem('stocklife.initMemo'); } catch (_) {}
+  }
+  function loadDemoState() {
+    try {
+      const raw = localStorage.getItem(DEMO_STATE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : null;
+    } catch (_) { return null; }
+  }
+  const DEMO = loadDemoState() || {};
+
+  // ============================================================
+  //  ENDING STATE — dummy summary numbers for the bad ending
+  // ============================================================
+  const ENDING_STATE = {
+    day:                  20,
+    startDebt:            70000000,
+    finalRemainingDebt:   38450000,
+    finalAsset:            6720000,
+    totalInvestPnL:       -8280000,
+    repaidRatio:           45.1,    // %
+    maxStress:             100,     // /100
+    finalTrust:            12,      // /100
+    newsChecks:             4,
+    repaymentCount:         2,
+    grade:                'F',
+    failureTags: [
+      '현금 부족',
+      '고위험 자산 집중',
+      '상환 지연',
+      '뉴스 미확인',
+      '스트레스 관리 실패'
+    ],
+    analysis: {
+      top:    '수익률보다 상환일 현금 확보가 더 급했습니다. 자산은 있었지만, 갚을 수 있는 현금이 부족했습니다.',
+      second: '고위험 자산에 너무 오래 노출되었습니다. 손실이 커졌을 때 빠르게 방어하지 못했습니다.',
+      hint:   '다음 플레이에서는 상환일 2~3턴 전부터 현금 비중을 확보하세요. 뉴스와 채권 정보를 활용하면 변동성을 줄일 수 있습니다.'
+    }
+  };
+
+  // ============================================================
+  //  OVERRIDE WITH LIVE STATE (bad ending from final repayment)
+  // ============================================================
+  if (DEMO.endingType === 'bad') {
+    const startDebt = Number(DEMO.initialDebt) || ENDING_STATE.startDebt;
+    const finalDebt = Number(DEMO.finalDebt ?? DEMO.debt) || 0;
+    const finalCash = Number(DEMO.finalCash ?? DEMO.cash) || 0;
+    const repaid    = Number(DEMO.finalRepaidDebt ?? DEMO.repaidDebt) || 0;
+    ENDING_STATE.day                = Number(DEMO.maxTurn) || ENDING_STATE.day;
+    ENDING_STATE.startDebt          = startDebt;
+    ENDING_STATE.finalRemainingDebt = finalDebt;
+    ENDING_STATE.finalAsset         = finalCash;
+    ENDING_STATE.totalInvestPnL     = finalCash - (Number(DEMO.cash) || finalCash);
+    ENDING_STATE.repaidRatio        = startDebt > 0 ? Math.min(100, (repaid / startDebt) * 100) : 0;
+    ENDING_STATE.maxStress          = Number(DEMO.stress) ?? ENDING_STATE.maxStress;
+    ENDING_STATE.finalTrust         = Number(DEMO.trust)  ?? ENDING_STATE.finalTrust;
+  }
+
+  // ============================================================
+  //  FLOW
+  // ============================================================
+  const TOTAL_STEPS = 6;
+  let screenIdx = 0;
+  let locked = false;
+  let typingFn = null;
+
+  const stage   = () => document.getElementById('stage');
+  const choices = () => document.getElementById('choices');
+  const narEl   = () => document.getElementById('narration');
+  const fmt = n => (n < 0 ? '-' : '') + '₩' + Math.abs(n).toLocaleString('ko-KR');
+
+  const FLOW = [
+    // ----- B1: Black fade-in -----
+    {
+      id:'B1', name:'상환 기한 종료',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center">
+            <div class="day">DAY 020</div>
+            <div class="big" style="font-size:32px;color:var(--red-bright);">상환 기한 종료</div>
+            <div class="sub">…계산할 시간이 왔다.</div>
+          </div>`;
+        pressHint(false);
+        narration(true, {
+          who:'시스템', portrait:'!', portraitCls:'sys', nameCls:'sys', tag:'SYSTEM',
+          text:'20턴이 끝났습니다. 그러나 <span class="red">아직 갚지 못한 빚</span>이 남아 있습니다.'
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- B2: Door knock (with shake) -----
+    {
+      id:'B2', name:'현관문 두드림',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center shake">
+            <div class="small">★ 현관 앞 ★</div>
+            <div class="knock">똑. 똑. 똑.</div>
+            <div class="sub">…현관문 앞에 누군가 서 있다.</div>
+          </div>`;
+        pressHint(false);
+        narration(true, {
+          who:'시스템', portrait:'!', portraitCls:'sys', nameCls:'sys', tag:'SYSTEM',
+          text:'<span class="em">익숙한 박자</span>가 문을 두드립니다. 이번에는 전화가 아닙니다.'
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- B3: Loanshark appears -----
+    {
+      id:'B3', name:'사채업자 등장',
+      build() {
+        stage().innerHTML = `
+          <div class="lshark-wrap">
+            <div class="lshark-sprite">
+              <span class="px hat-top"></span>
+              <span class="px hat-brim"></span>
+              <span class="px hat-band"></span>
+              <span class="px face"></span>
+              <span class="px brow-l"></span>
+              <span class="px brow-r"></span>
+              <span class="px eye-l"></span>
+              <span class="px eye-r"></span>
+              <span class="px mouth"></span>
+              <span class="px tooth"></span>
+              <span class="px neck"></span>
+              <span class="px jacket"></span>
+              <span class="px shirt"></span>
+              <span class="px chain"></span>
+              <span class="px tie-knot"></span>
+              <span class="px tie-body"></span>
+              <span class="px arm-l"></span>
+              <span class="px arm-r"></span>
+              <span class="px hand-l"></span>
+              <span class="px briefcase-handle"></span>
+              <span class="px briefcase"></span>
+              <span class="px briefcase-buckle"></span>
+              <span class="px floor"></span>
+            </div>
+            <div class="lshark-card">
+              <div class="id-num">CHARACTER · NPC-04</div>
+              <div class="id-name">사채업자 김씨</div>
+              <div class="id-row"><span class="k">DIRECTION</span><span class="v">동네 사채</span></div>
+              <div class="id-row"><span class="k">MOOD</span><span class="v">기분 좋음 (위험)</span></div>
+              <div class="id-row"><span class="k">CARRYING</span><span class="v">장부 · 계산기</span></div>
+              <div class="id-row"><span class="k">CATCHPHRASE</span><span class="v" style="color:var(--gold)">"월요일이야."</span></div>
+            </div>
+          </div>`;
+        pressHint(false);
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', portraitCls:'shark', tag:'DIALOG',
+          text:'에이~ 박사장. <span class="em">이건 게임이 아니잖아.</span> 주식은 오르락내리락해도, <span class="red">갚을 돈은 그대로</span> 남아있거든.'
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- B4: Bankruptcy settlement card -----
+    {
+      id:'B4', name:'파산 정산서',
+      build() {
+        stage().innerHTML = renderLedgerCard();
+        pressHint(false);
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', portraitCls:'shark', tag:'LEDGER',
+          text:'자, 박사장. 감정 빼고 <span class="em">숫자로 보자</span>. 숫자는 거짓말을 안 하거든. <span class="red">사람은 좀 하더라만.</span>'
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- B5: Failure analysis -----
+    {
+      id:'B5', name:'실패 분석',
+      build() {
+        stage().innerHTML = renderAnalysisCards();
+        pressHint(false);
+        narration(true, {
+          who:'시스템', portrait:'!', portraitCls:'sys', nameCls:'sys', tag:'ANALYSIS',
+          text:'파산은 단순히 수익률이 낮아서 발생하지 않았습니다. <span class="red">상환 시점, 현금 관리, 스트레스 관리</span>가 모두 무너졌습니다.'
+        });
+      },
+      advance: 'click'
+    },
+
+    // ----- B6: Final bad ending screen -----
+    {
+      id:'B6', name:'BAD END',
+      build() {
+        stage().innerHTML = `
+          <div class="bad-title">
+            <div class="label">★ ENDING · F ★</div>
+            <div class="main">BAD END</div>
+            <div class="kor">파산</div>
+            <div class="sub">"돈은 움직였지만, 빚은 기다려주지 않았다."</div>
+          </div>`;
+        narration(true, {
+          who:'사채업자 김씨', portrait:'$', portraitCls:'shark', tag:'OUTRO',
+          text:'에이~ <span class="em">너무 기죽진 마.</span> 다음 판에는 갚을 돈부터 챙겨. 투자보다 무서운 건… <span class="red">월요일이야.</span>'
+        });
+      },
+      advance: 'choice',
+      onTypedDone() { showEndingChoices(); }
+    }
+  ];
+
+  // ============================================================
+  //  RENDERERS
+  // ============================================================
+  function renderLedgerCard() {
+    const s = ENDING_STATE;
+    return `
+      <div class="ledger-card">
+        <div class="ledger-head">
+          <div class="ttl">★ 파산 정산서 ★</div>
+          <div class="sub">BANKRUPTCY SETTLEMENT · DAY ${String(s.day).padStart(3,'0')}</div>
+        </div>
+        <div class="ledger-grid">
+          <div class="ledger-row">
+            <span class="k">시작 빚</span>
+            <span class="v">${fmt(s.startDebt)}</span>
+          </div>
+          <div class="ledger-row big">
+            <span class="k">최종 남은 빚</span>
+            <span class="v red">${fmt(s.finalRemainingDebt)}</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">최종 자산</span>
+            <span class="v gold">${fmt(s.finalAsset)}</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">총 투자 손익</span>
+            <span class="v red">${fmt(s.totalInvestPnL)}</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">상환 완료율</span>
+            <span class="v red">${s.repaidRatio.toFixed(1)} %</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">최고 스트레스</span>
+            <span class="v red">${s.maxStress} / 100</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">최종 신뢰도</span>
+            <span class="v red">${s.finalTrust} / 100</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">뉴스 확인 횟수</span>
+            <span class="v dim">${s.newsChecks} 회</span>
+          </div>
+          <div class="ledger-row">
+            <span class="k">상환 횟수</span>
+            <span class="v dim">${s.repaymentCount} 회</span>
+          </div>
+          <div class="ledger-row big">
+            <span class="k">최종 평가</span>
+            <span class="v red">${s.grade}</span>
+          </div>
+        </div>
+        <div class="fail-tags">
+          <span class="lbl">실패 요인</span>
+          ${s.failureTags.map(t => `<span class="fail-tag">${t}</span>`).join('')}
+        </div>
+        <div class="grade-stamp">
+          <span class="lbl">FINAL</span>
+          ${s.grade}
+        </div>
+      </div>`;
+  }
+
+  function renderAnalysisCards() {
+    const a = ENDING_STATE.analysis;
+    return `
+      <div class="analysis-grid">
+        <div class="analysis-card">
+          <div class="num">PROBLEM #01</div>
+          <div class="ttl">가장 큰 문제</div>
+          <div class="body">${a.top}</div>
+          <div class="badge">▶ CASH MANAGEMENT</div>
+        </div>
+        <div class="analysis-card">
+          <div class="num">PROBLEM #02</div>
+          <div class="ttl">두 번째 문제</div>
+          <div class="body">${a.second}</div>
+          <div class="badge">▶ RISK EXPOSURE</div>
+        </div>
+        <div class="analysis-card hint">
+          <div class="num">HINT</div>
+          <div class="ttl">다음 플레이 힌트</div>
+          <div class="body">${a.hint}</div>
+          <div class="badge">▶ NEXT RUN</div>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  //  UI HELPERS
+  // ============================================================
+  function pressHint(show) { document.getElementById('pressHint').hidden = !show; }
+  function narration(show, info) {
+    const el = narEl();
+    el.hidden = !show;
+    if (show && info) {
+      const p = document.getElementById('narPortrait');
+      p.textContent = info.portrait || '!';
+      p.className = 'nar-portrait ' + (info.portraitCls || '');
+      const nm = document.getElementById('narName');
+      nm.textContent = info.who;
+      nm.className = 'nar-name ' + (info.nameCls || '');
+      document.getElementById('narTag').textContent  = info.tag || 'DIALOG';
+      typeWriter(info.text);
+    }
+  }
+  function setScreenTag(scr) {
+    document.getElementById('tagNum').textContent  = scr.id;
+    document.getElementById('tagName').textContent = scr.name;
+    document.getElementById('tagStep').textContent = `STEP ${screenIdx+1} / ${TOTAL_STEPS}`;
+    document.getElementById('narStep').textContent = screenIdx+1;
+  }
+  function typeWriter(html) {
+    locked = true;
+    document.getElementById('narNext').style.display = 'none';
+    const body = document.getElementById('narBody');
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    typingFn = () => {
+      cancelled = true;
+      root.innerHTML = src;
+      cursor.remove();
+      locked = false;
+      document.getElementById('narNext').style.display = '';
+      if (FLOW[screenIdx].onTypedDone) FLOW[screenIdx].onTypedDone();
+      typingFn = null;
+    };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) {
+        cursor.remove();
+        locked = false;
+        document.getElementById('narNext').style.display = '';
+        if (FLOW[screenIdx].onTypedDone) FLOW[screenIdx].onTypedDone();
+        typingFn = null;
+        return;
+      }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1);
+        i = close + 1;
+      } else {
+        buf += src[i++];
+      }
+      root.innerHTML = buf;
+      setTimeout(tick, 24);
+    }
+    tick();
+  }
+
+  // ----- B6 ending choice buttons -----
+  function showEndingChoices() {
+    const wrap = choices();
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = '';
+
+    // 처음으로 돌아가기
+    const restart = document.createElement('button');
+    restart.type = 'button';
+    restart.className = 'choice-btn';
+    restart.innerHTML = `<span class="num">◆ RESTART</span><span class="text">처음으로 돌아가기</span>`;
+    restart.addEventListener('click', e => {
+      e.stopPropagation();
+      clearAllGameState();
+      window.location.href = 'Intro - Debt Setup.html';
+    });
+    wrap.appendChild(restart);
+
+    // 결과 다시보기 — reload current ending page, preserve localStorage
+    const replay = document.createElement('button');
+    replay.type = 'button';
+    replay.className = 'choice-btn dim';
+    replay.innerHTML = `<span class="num">◆ REPLAY</span><span class="text">결과 다시보기</span>`;
+    replay.addEventListener('click', e => {
+      e.stopPropagation();
+      window.location.reload();
+    });
+    wrap.appendChild(replay);
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  function enter() {
+    const scr = FLOW[screenIdx];
+    setScreenTag(scr);
+    choices().classList.add('hidden');
+    choices().innerHTML = '';
+    document.getElementById('narNext').style.display = '';
+    // run a brief fade in/out between steps
+    const fade = document.getElementById('fade');
+    fade.classList.remove('off');
+    fade.classList.add('on');
+    setTimeout(() => {
+      scr.build();
+      fade.classList.remove('on');
+      fade.classList.add('off');
+    }, screenIdx === 0 ? 280 : 200);
+  }
+  function nextScreen() {
+    if (screenIdx >= FLOW.length - 1) return;
+    screenIdx++;
+    enter();
+  }
+  function goToScreen(idx) {
+    screenIdx = Math.max(0, Math.min(FLOW.length - 1, idx));
+    enter();
+  }
+
+  document.getElementById('game').addEventListener('click', e => {
+    if (e.target.closest('.choice-btn')) return;
+    if (e.target.closest('.nav-strip')) return;
+    if (locked) { if (typingFn) typingFn(); return; }
+    const scr = FLOW[screenIdx];
+    if (scr.advance === 'click') nextScreen();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    clearAllGameState();
+    window.location.href = 'Intro - Debt Setup.html';
+  });
+
+  // initial fade-in start
+  enter();
+</script>
+
+</body>
+</html>

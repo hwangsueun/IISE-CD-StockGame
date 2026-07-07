@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>미니게임 2 — 교수님의 수상한 제안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #1a0f0a;
+    --frame: #2a1a10;
+    --panel: #3d2418;
+    --panel-light: #5a3624;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --gold: #f5c542;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+  /* ===== 게임 스테이지 ===== */
+  #stage {
+    position: relative; width: 100%; height: 100%;
+    background: #000;
+    image-rendering: pixelated;
+    user-select: none;
+    overflow: hidden;
+  }
+  /* 배경은 선명본과 블러본을 겹쳐두고 opacity로 자연스럽게 전환한다.
+     dragon_bgr 파일이 없을 경우 기존 professor_bgr 파일을 보조 배경으로 사용한다. */
+  #stage::before,
+  #stage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-repeat: no-repeat, no-repeat;
+    background-size: 100% 100%, 100% 100%;
+    background-position: center, center;
+    image-rendering: pixelated;
+    pointer-events: none;
+    z-index: 0;
+  }
+  #stage::before {
+    background-image: url('assets/dragon_bgr.png'), url('assets/professor_bgr.png');
+    opacity: 1;
+  }
+  #stage::after {
+    background-image: url('assets/dragon_bgr_blur.png'), url('assets/professor_bgr_blur.png');
+    opacity: 0;
+    transition: opacity 1200ms ease-in-out;
+  }
+  /* professor_intro_img가 올라온 뒤, 그리고 게임 시작 후에는 블러 배경으로 부드럽게 전환 */
+  #stage.intro-blur::after,
+  #stage.playing::after { opacity: 1; }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 6.4%;
+    background: #000;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 3%;
+    padding: 0 2.2%;
+    z-index: 500;
+    pointer-events: none;
+    opacity: 0;
+  }
+  #stage.playing #hud { opacity: 1; }
+  #hud .txt {
+    font-family: 'Press Start 2P', monospace;
+    color: #fff;
+    font-size: clamp(12px, 2.4vh, 26px);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 #333;
+    white-space: nowrap;
+  }
+  #hudLives .heart { color: var(--red); }
+  #hudLives .heart.off { color: #3a3a3a; }
+
+  /* ===== 교수님 (상단에서 좌우로 움직이며 제안을 떨어뜨림) ===== */
+  #prof, #prof2 {
+    position: absolute; left: 0; top: 0;
+    image-rendering: pixelated;
+    will-change: transform;
+    pointer-events: none;
+    z-index: 120;
+    display: none;
+  }
+  #stage.playing #prof { display: block; }
+  #stage.playing #prof2.active { display: block; }
+
+  /* ===== 플레이어 ===== */
+  #player {
+    position: absolute; left: 0; bottom: 3%;
+    image-rendering: pixelated;
+    will-change: transform;
+    pointer-events: none;
+    z-index: 150;
+    display: none;
+  }
+  #stage.playing #player { display: block; }
+  #player.hurt { animation: blink 160ms steps(2, end) infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+
+  /* ===== 수상한 제안 메시지 ===== */
+  .msg {
+    position: absolute; left: 0; top: 0;
+    /* 메시지 블록 이미지를 제거하고, 글자만 떨어지도록 표시 */
+    background: none;
+    image-rendering: pixelated;
+    display: inline-block;
+    font-family: 'Galmuri11', monospace;
+    font-weight: bold;
+    color: #fff4c2;
+    text-align: center;
+    word-break: keep-all;
+    line-height: 1.18;
+    will-change: transform;
+    pointer-events: none;
+    z-index: 130;
+    padding: 2px 4px;
+    /* 글자 테두리를 이전보다 얇게 조정 */
+    text-shadow:
+      2px 2px 0 #000,
+      -1px 1px 0 #000,
+      1px -1px 0 #000,
+      -1px -1px 0 #000,
+      0 0 7px rgba(245,197,66,0.35);
+    filter: drop-shadow(0 2px 0 rgba(0,0,0,0.75));
+  }
+
+  /* 피함 +점수 플로터 */
+  .floater {
+    position: absolute;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 13px; color: var(--gold);
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none; z-index: 600;
+    animation: floatUp 700ms steps(7, end) forwards;
+  }
+  .floater.bad { color: var(--red); font-family: 'Galmuri11', monospace; font-size: 18px; }
+  @keyframes floatUp {
+    from { transform: translateY(0); opacity: 1; }
+    to   { transform: translateY(-46px); opacity: 0; }
+  }
+
+  /* 피격 시 화면 흔들림 */
+  #stage.shake { animation: shake 260ms steps(4, end); }
+  @keyframes shake {
+    25% { transform: translate(-8px, 4px); }
+    50% { transform: translate(6px, -6px); }
+    75% { transform: translate(-4px, 2px); }
+  }
+
+  /* ===== 인트로 (교수님 뒤통수가 아래에서 떠오름) ===== */
+  #introHead {
+    position: absolute; left: 50%; bottom: 0;
+    width: min(52vw, 78vh);
+    transform: translateX(-50%) translateY(100%);
+    image-rendering: pixelated;
+    z-index: 950;
+    pointer-events: none;
+    filter: drop-shadow(0 -6px 24px rgba(0,0,0,0.7));
+  }
+  #introHead.rise {
+    animation: headRise 1400ms steps(14, end) forwards;
+  }
+  @keyframes headRise {
+    from { transform: translateX(-50%) translateY(100%); }
+    to   { transform: translateX(-50%) translateY(22%); }
+  }
+  #stage.playing #introHead { display: none; }
+
+  #introTitle {
+    position: absolute; left: 50%; top: 12%;
+    transform: translateX(-50%) scale(0);
+    z-index: 960;
+    width: min(92vw, 760px);
+    text-align: center;
+    word-break: keep-all;
+    pointer-events: none;
+  }
+  #introTitle.show { animation: titlePop 600ms steps(6, end) 900ms forwards; }
+  @keyframes titlePop {
+    from { transform: translateX(-50%) scale(0); }
+    70%  { transform: translateX(-50%) scale(1.15); }
+    to   { transform: translateX(-50%) scale(1); }
+  }
+  #introTitle .mini-tag {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px; color: #fff; letter-spacing: 3px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #introTitle h1 {
+    font-family: 'Galmuri11', monospace;
+    font-size: clamp(30px, 6vw, 58px); color: var(--gold);
+    letter-spacing: 3px; margin-top: 14px;
+    text-shadow: 3px 3px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+  }
+  #introTitle p {
+    font-family: 'Galmuri11', monospace;
+    font-size: clamp(14px, 1.8vw, 19px); color: var(--ink);
+    margin-top: 12px; line-height: 1.7;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #stage.playing #introTitle { display: none; }
+
+  /* 인트로 시작 버튼 (타이틀 아래) */
+  #introStart {
+    position: absolute; left: 50%; top: 58%;
+    transform: translateX(-50%);
+    z-index: 970;
+    opacity: 0;
+    transition: opacity 300ms steps(3, end);
+    pointer-events: none;
+  }
+  #introStart.show { opacity: 1; pointer-events: auto; }
+  #stage.playing #introStart { display: none; }
+
+  /* ===== 오버레이 (종료) ===== */
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.66);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .overlay[hidden] { display: none; }
+  .window {
+    width: 560px; max-width: 92%;
+    background: var(--bg-deep);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 8px 8px 0 #000;
+    padding: 26px 30px 30px;
+    text-align: center;
+    image-rendering: pixelated;
+  }
+  .window .mini-tag {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px; color: var(--ink-dim); letter-spacing: 2px;
+  }
+  .window h1 {
+    font-family: 'Galmuri11', monospace;
+    font-size: 30px; color: var(--gold);
+    letter-spacing: 2px; margin: 12px 0 14px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .window p {
+    font-family: 'Galmuri11', monospace;
+    font-size: 15px; color: var(--ink); line-height: 1.8;
+  }
+  .window .dim { color: var(--ink-dim); font-size: 13px; }
+  .btn {
+    display: inline-block; margin-top: 22px;
+    background: var(--panel); border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), 4px 4px 0 #000;
+    color: var(--gold); padding: 13px 34px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 18px; letter-spacing: 2px;
+  }
+  .btn:hover { background: var(--panel-light); }
+  .btn:active { transform: translate(3px,3px); box-shadow: inset 0 0 0 2px var(--panel-light), 1px 1px 0 #000; }
+  .result-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin: 18px 0 4px;
+  }
+  .result-cell {
+    background: var(--frame); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light);
+    padding: 12px 6px;
+  }
+  .result-cell .l { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--ink-dim); }
+  .result-cell .v { font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold); margin-top: 8px; }
+
+  /* 메인으로 돌아가기 */
+  #backBtn {
+    position: absolute; right: 14px; bottom: 12px; z-index: 900;
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); text-decoration: none;
+    background: rgba(26,15,10,0.75); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light);
+    padding: 7px 12px;
+  }
+  #backBtn:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hud">
+    <span class="txt">SCORE: <span id="hudScore">0000</span></span>
+    <span class="txt" id="hudLives"></span>
+    <span class="txt">TIME: <span id="hudTime">0</span></span>
+  </div>
+
+  <a id="backBtn" href="Main Screen.html">◀ 메인으로</a>
+
+  <!-- 인트로: 교수님 뒤통수 + 타이틀 -->
+  <img id="introHead" src="assets/professor_intro_img.png" alt="교수님" draggable="false" />
+  <div id="introTitle">
+    <div class="mini-tag">MINIGAME 02</div>
+    <h1>교수님의 수상한 제안</h1>
+    <p>교수님이 <b style="color:var(--gold)">수상한 제안</b>을 던지기 시작했다…!<br>
+    <span style="color:var(--ink-dim)">← → 이동 · 길게 누르면 달리기 · 제안에 맞으면 안 됩니다 (목숨 3개)</span></p>
+  </div>
+  <button class="btn" id="introStart">▶ 게임 시작</button>
+
+  <!-- 게임 요소 -->
+  <img id="prof" src="assets/dragon_close.png" alt="교수님" draggable="false" />
+  <img id="prof2" src="assets/dragon_close.png" alt="두 번째 교수님" draggable="false" />
+  <img id="player" src="assets/slow.png" alt="플레이어" draggable="false" />
+
+  <!-- 종료 오버레이 -->
+  <div class="overlay" id="endOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag">GAME OVER</div>
+      <h1 id="endTitle">제안을 수락하고 말았다…</h1>
+      <div class="result-grid">
+        <div class="result-cell"><div class="l">버틴 시간</div><div class="v" id="rTime">0초</div></div>
+        <div class="result-cell"><div class="l">피한 제안</div><div class="v" id="rDodged">0</div></div>
+        <div class="result-cell"><div class="l">점수</div><div class="v" id="rScore">0</div></div>
+      </div>
+      <p class="dim" id="rankMsg"></p>
+      <button class="btn" id="retryBtn">↺ 다시 도전</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ===== 튜닝 값 =====
+  var LIVES = 3;
+  var WALK_SPEED = 340;        // px/s
+  var RUN_SPEED = 640;         // px/s
+  var RUN_HOLD_MS = 230;       // 이 시간 이상 꾹 누르면 달리기
+  var WALK_FRAME_MS = 150;     // 걷기 애니메이션 프레임 간격
+  var PLAYER_H_RATIO = 0.16;   // 화면 높이 대비 플레이어 키
+  var PROF_W_RATIO = 0.13;     // 화면 너비 대비 교수님 머리 크기
+  var HURT_INVINCIBLE_MS = 1300;
+
+  // 걷기: slow(기본) → walk2 → walk3 반복. 달리기: run 단일 프레임
+  var WALK_FRAMES = ['assets/slow.png', 'assets/walk2.png', 'assets/walk3.png'];
+  var RUN_FRAME = 'assets/run.png';
+
+  // 수상한 제안 목록
+  var PROPOSALS = [
+    '대학원 안 갈래?',
+    '내 연구실로 와',
+    'A+ 보장한다',
+    '논문 1저자 줄게',
+    '석박통합 어때?',
+    '장학금 추천서 써줄게',
+    '커피 한 잔 어때?',
+    '랩실 구경만 해봐',
+    '이번 방학에 시간 있나?',
+    '자네 재능이 아깝군',
+    '등록금 걱정 없게 해주지',
+    '인건비 챙겨줄게'
+  ];
+
+  var stage = document.getElementById('stage');
+  var hudScore = document.getElementById('hudScore');
+  var hudTime = document.getElementById('hudTime');
+  var hudLives = document.getElementById('hudLives');
+  var profEl = document.getElementById('prof');
+  var prof2El = document.getElementById('prof2');
+  var playerEl = document.getElementById('player');
+
+  var playing = false;
+  var lives, score, dodged, elapsed;
+  var msgs = [];               // { el, x, y, w, h, vy }
+  var loopId = null, lastTs = 0;
+
+  // 플레이어 상태
+  var px = 0, pw = 0, ph = 0;
+  var facing = 1;              // 1: 오른쪽(기본 이미지 방향), -1: 왼쪽
+  var keyL = false, keyR = false;
+  var holdStart = 0;           // 현재 방향키를 누르기 시작한 시각
+  var walkT = 0, walkFrame = 0;
+  var invincibleUntil = 0;
+
+  // 교수님 상태: 10초 뒤 두 번째 교수님(용)이 등장
+  var dragons = [];   // { el, active, appearAt, x, targetX, w, h, dropTimer, mouthTimer, bias, topOffset }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  // ===== 인트로 연출 =====
+  var introHead = document.getElementById('introHead');
+  var introTitle = document.getElementById('introTitle');
+  var introStart = document.getElementById('introStart');
+  function playIntro() {
+    stage.classList.remove('intro-blur');
+    introHead.classList.add('rise');       // 뒤통수가 아래에서 떠오름
+    introTitle.classList.add('show');      // 게임 이름 등장
+    // professor_intro_img가 화면에 등장한 뒤, 선명 배경이 블러 배경으로 자연스럽게 전환됨
+    setTimeout(function () { stage.classList.add('intro-blur'); }, 950);
+    setTimeout(function () { introStart.classList.add('show'); }, 1800);
+  }
+
+  // ===== 입력 =====
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      if (!keyL) { keyL = true; holdStart = performance.now(); }
+      facing = -1;
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      if (!keyR) { keyR = true; holdStart = performance.now(); }
+      facing = 1;
+    }
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keyL = false;
+    else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keyR = false;
+    // 남아있는 키 방향으로 시선 정리
+    if (keyL && !keyR) facing = -1;
+    if (keyR && !keyL) facing = 1;
+  });
+
+  // ===== 플레이어 =====
+  function layoutPlayer() {
+    var H = stage.clientHeight;
+    ph = H * PLAYER_H_RATIO;
+    // 이미지 비율 유지 (로드 전이면 대략 1:1)
+    var ratio = (playerEl.naturalWidth && playerEl.naturalHeight)
+      ? playerEl.naturalWidth / playerEl.naturalHeight : 0.9;
+    pw = ph * ratio;
+    playerEl.style.height = ph + 'px';
+    playerEl.style.width = 'auto';
+  }
+
+  function movePlayer(dt, now) {
+    var moving = keyL !== keyR;   // 한쪽만 눌렸을 때만 이동
+    var running = moving && (now - holdStart >= RUN_HOLD_MS);
+    var speed = running ? RUN_SPEED : WALK_SPEED;
+
+    if (moving) {
+      px += (keyR ? 1 : -1) * speed * dt;
+      px = clamp(px, 0, stage.clientWidth - pw);
+    }
+
+    // 스프라이트: 달리기 > 걷기 애니메이션 > 서있기(slow)
+    if (moving && running) {
+      if (playerEl.getAttribute('src') !== RUN_FRAME) playerEl.src = RUN_FRAME;
+    } else if (moving) {
+      walkT += dt * 1000;
+      if (walkT >= WALK_FRAME_MS) {
+        walkT = 0;
+        walkFrame = (walkFrame + 1) % WALK_FRAMES.length;
+        playerEl.src = WALK_FRAMES[walkFrame];
+      }
+    } else {
+      walkT = 0; walkFrame = 0;
+      if (playerEl.getAttribute('src') !== WALK_FRAMES[0]) playerEl.src = WALK_FRAMES[0];
+    }
+
+    // 기본 이미지가 오른쪽을 봄 → 왼쪽 이동 시 좌우 반전
+    var flip = facing === -1 ? ' scaleX(-1)' : '';
+    playerEl.style.transform = 'translateX(' + px + 'px)' + flip;
+  }
+
+  // ===== 교수님 =====
+  function resetDragons() {
+    dragons = [
+      {
+        el: profEl,
+        active: true,
+        appearAt: 0,
+        x: 0,
+        targetX: 0,
+        w: 0,
+        h: 0,
+        dropTimer: 700,
+        mouthTimer: 0,
+        bias: -stage.clientWidth * 0.14,
+        topOffset: 0
+      },
+      {
+        el: prof2El,
+        active: false,
+        appearAt: 10,
+        x: 0,
+        targetX: 0,
+        w: 0,
+        h: 0,
+        dropTimer: 0,
+        mouthTimer: 0,
+        bias: stage.clientWidth * 0.14,
+        topOffset: stage.clientHeight * 0.035
+      }
+    ];
+    prof2El.classList.remove('active');
+    prof2El.style.transform = 'translate(-9999px,-9999px)';
+  }
+
+  function layoutProf() {
+    var W = stage.clientWidth;
+    var profW = W * PROF_W_RATIO;
+    var ratio = (profEl.naturalHeight && profEl.naturalWidth)
+      ? profEl.naturalHeight / profEl.naturalWidth : 0.75;
+    var profH = profW * ratio;
+
+    dragons.forEach(function (d, idx) {
+      d.w = profW;
+      d.h = profH;
+      d.bias = (idx === 0 ? -1 : 1) * stage.clientWidth * 0.14;
+      d.topOffset = idx === 0 ? 0 : stage.clientHeight * 0.035;
+      d.el.style.width = profW + 'px';
+      d.el.style.height = 'auto';
+    });
+  }
+
+  function activateDragon(d, idx) {
+    if (d.active || elapsed < d.appearAt) return;
+    d.active = true;
+    d.el.classList.add('active');
+    // 두 번째 용은 오른쪽 위에서 자연스럽게 합류
+    d.x = idx === 0 ? 20 : Math.max(0, stage.clientWidth - d.w - 20);
+    d.targetX = d.x;
+    d.dropTimer = 450;
+    d.mouthTimer = 0;
+  }
+
+  function moveDragon(d, dt, idx) {
+    activateDragon(d, idx);
+    if (!d.active) return;
+
+    var W = stage.clientWidth;
+    var wander = W * 0.22;
+    // 플레이어 근처를 따라가되, 두 용이 완전히 겹치지 않도록 좌/우 편향을 줌
+    if (Math.abs(d.x - d.targetX) < 30) {
+      var playerCenter = px + pw / 2 - d.w / 2;
+      d.targetX = clamp(
+        playerCenter + rand(-wander, wander) + d.bias,
+        0, W - d.w
+      );
+    }
+    var profSpeed = (140 + elapsed * 4 + idx * 26) * dt;
+    d.x += clamp(d.targetX - d.x, -profSpeed, profSpeed);
+
+    // 입 벌리기(제안 투척) 연출: 던진 직후 잠깐 open
+    d.el.src = d.mouthTimer > 0 ? 'assets/dragon_open.png' : 'assets/dragon_close.png';
+    if (d.mouthTimer > 0) d.mouthTimer -= dt * 1000;
+
+    // 원본이 왼쪽을 보는 이미지 → 플레이어가 오른쪽에 있으면 반전
+    var playerMid = px + pw / 2;
+    var flip = playerMid > d.x + d.w / 2 ? ' scaleX(-1)' : '';
+    var top = stage.clientHeight * 0.075 + d.topOffset;
+    d.el.style.transform = 'translate(' + d.x + 'px,' + top + 'px)' + flip;
+  }
+
+  // ===== 수상한 제안 메시지 =====
+  function spawnMsg(d) {
+    var W = stage.clientWidth, H = stage.clientHeight;
+    var maxW = clamp(W * 0.18, 150, 260);
+    var el = document.createElement('div');
+    el.className = 'msg';
+    el.textContent = PROPOSALS[Math.floor(Math.random() * PROPOSALS.length)];
+    el.style.maxWidth = maxW + 'px';
+    el.style.fontSize = Math.round(clamp(H * 0.03, 24, 36)) + 'px';
+
+    // 글자 실제 크기를 기준으로 충돌 판정이 되도록 먼저 화면 밖에 배치해 측정
+    el.style.transform = 'translate(-9999px,-9999px)';
+    stage.appendChild(el);
+    var rect = el.getBoundingClientRect();
+    var w = rect.width || maxW;
+    var h = rect.height || Math.round(H * 0.045);
+
+    // 각 교수님 입 근처에서 글자만 떨어짐
+    var x = clamp(d.x + d.w / 2 - w / 2 + rand(-maxW * 0.35, maxW * 0.35), 0, W - w);
+    var y = H * 0.075 + d.topOffset + d.h * 0.7;
+    var vy = (H * 0.32) * (1 + elapsed * 0.022);   // 시간이 갈수록 빨라짐
+    var m = { el: el, x: x, y: y, w: w, h: h, vy: vy };
+    el.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    msgs.push(m);
+    d.mouthTimer = 350;   // 입 벌리기
+  }
+
+  function removeMsg(m) {
+    if (m.el.parentNode) m.el.parentNode.removeChild(m.el);
+    var i = msgs.indexOf(m);
+    if (i >= 0) msgs.splice(i, 1);
+  }
+
+  // ===== 충돌 =====
+  function playerRect() {
+    var H = stage.clientHeight;
+    var groundBottom = H * 0.03;
+    // 판정은 스프라이트보다 살짝 좁게
+    var padX = pw * 0.18, padY = ph * 0.08;
+    return {
+      l: px + padX,
+      r: px + pw - padX,
+      t: H - groundBottom - ph + padY,
+      b: H - groundBottom
+    };
+  }
+
+  function hitPlayer(now) {
+    lives -= 1;
+    updateHud();
+    invincibleUntil = now + HURT_INVINCIBLE_MS;
+    playerEl.classList.add('hurt');
+    stage.classList.add('shake');
+    setTimeout(function () { stage.classList.remove('shake'); }, 280);
+    setTimeout(function () { playerEl.classList.remove('hurt'); }, HURT_INVINCIBLE_MS);
+
+    var f = document.createElement('div');
+    f.className = 'floater bad';
+    f.textContent = '앗, 들어버렸다!';
+    f.style.left = px + 'px';
+    f.style.top = (stage.clientHeight - ph - stage.clientHeight * 0.08) + 'px';
+    stage.appendChild(f);
+    setTimeout(function () { f.remove(); }, 720);
+
+    if (lives <= 0) end();
+  }
+
+  // ===== 루프 =====
+  function tick() {
+    if (!playing) return;
+    var now = performance.now();
+    var dt = Math.min(50, now - lastTs) / 1000;   // 탭 전환 등 점프 방지
+    lastTs = now;
+    elapsed += dt;
+
+    movePlayer(dt, now);
+
+    // 교수님 1마리로 시작하고, 10초가 지나면 2마리가 동시에 제안을 뱉음
+    dragons.forEach(function (d, idx) {
+      moveDragon(d, dt, idx);
+      if (!d.active) return;
+
+      // 제안 투척 간격: 0.95초 → 최소 0.38초까지 점점 짧아짐
+      d.dropTimer -= dt * 1000;
+      if (d.dropTimer <= 0) {
+        spawnMsg(d);
+        d.dropTimer = Math.max(380, 950 - elapsed * 14) * rand(0.8, 1.25);
+      }
+    });
+
+    var H = stage.clientHeight;
+    var pr = playerRect();
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      var m = msgs[i];
+      m.y += m.vy * dt;
+      m.el.style.transform = 'translate(' + m.x + 'px,' + m.y + 'px)';
+
+      // 충돌 (무적시간엔 통과)
+      if (now >= invincibleUntil &&
+          m.x < pr.r && m.x + m.w > pr.l &&
+          m.y < pr.b && m.y + m.h > pr.t) {
+        removeMsg(m);
+        hitPlayer(now);
+        continue;
+      }
+
+      // 바닥에 닿으면 피한 것으로 처리
+      if (m.y > H) {
+        removeMsg(m);
+        dodged += 1;
+        score += 30;
+      }
+    }
+
+    score += dt * 10;   // 버틴 시간 점수
+    updateHud();
+  }
+
+  function updateHud() {
+    hudScore.textContent = String(Math.floor(score)).padStart(4, '0');
+    hudTime.textContent = Math.floor(elapsed);
+    var hearts = '';
+    for (var i = 0; i < LIVES; i++) {
+      hearts += '<span class="heart' + (i < lives ? '' : ' off') + '">♥</span>';
+    }
+    hudLives.innerHTML = hearts;
+  }
+
+  // ===== 시작 / 종료 =====
+  function start() {
+    msgs.slice().forEach(removeMsg);
+    lives = LIVES; score = 0; dodged = 0; elapsed = 0;
+    keyL = false; keyR = false; facing = 1;
+    walkT = 0; walkFrame = 0; invincibleUntil = 0;
+    resetDragons();
+
+    stage.classList.add('intro-blur');
+    stage.classList.add('playing');
+    document.getElementById('endOverlay').hidden = true;
+
+    layoutPlayer();
+    layoutProf();
+    px = (stage.clientWidth - pw) / 2;
+    dragons[0].x = dragons[0].targetX = (stage.clientWidth - dragons[0].w) / 2;
+    dragons[1].x = dragons[1].targetX = Math.max(0, stage.clientWidth - dragons[1].w - 20);
+    playerEl.src = WALK_FRAMES[0];
+    updateHud();
+
+    playing = true;
+    lastTs = performance.now();
+    clearInterval(loopId);
+    loopId = setInterval(tick, 1000 / 60);
+  }
+
+  function end() {
+    if (!playing) return;
+    playing = false;
+    clearInterval(loopId);
+
+    var t = Math.floor(elapsed);
+    document.getElementById('rTime').textContent = t + '초';
+    document.getElementById('rDodged').textContent = dodged + '개';
+    document.getElementById('rScore').textContent = String(Math.floor(score)).padStart(4, '0');
+    var msg = t >= 60 ? '교수님이 제안을 포기했습니다. 전설의 회피왕!'
+            : t >= 40 ? '훌륭한 몸놀림! 교수님이 아쉬워합니다.'
+            : t >= 20 ? '아슬아슬… 다음 학기가 걱정됩니다.'
+            : '…축하합니다. 대학원 합격입니다?!';
+    document.getElementById('rankMsg').textContent = msg;
+    document.getElementById('endOverlay').hidden = false;
+  }
+
+  // 리사이즈 대응
+  window.addEventListener('resize', function () {
+    if (!playing) return;
+    layoutPlayer();
+    layoutProf();
+    px = clamp(px, 0, stage.clientWidth - pw);
+  });
+
+  document.getElementById('introStart').addEventListener('click', start);
+  document.getElementById('retryBtn').addEventListener('click', start);
+
+  playIntro();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>미니게임 1 — 왝슨을 잡아라 v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #1a0f0a;
+    --frame: #2a1a10;
+    --panel: #3d2418;
+    --panel-light: #5a3624;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --gold: #f5c542;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+  /* ===== 게임 스테이지 ===== */
+  #stage {
+    position: relative; width: 100%; height: 100%;
+    /* 배경 상단에 SCORE/TIME 밴드가 그려져 있어 100%/100%로 늘려 위치를 고정하고,
+       실제 값은 같은 자리(#hud)에 얹어 표시한다 */
+    background: url('assets/boong_bg.png') no-repeat;
+    background-size: 100% 100%;
+    image-rendering: pixelated;
+    cursor: crosshair;
+    user-select: none;
+  }
+
+  /* ===== HUD (배경에 박힌 SCORE: 0000 / TIME: 60 밴드를 실시간 값으로 덮음) ===== */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 6.4%;
+    background: #000;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 3%;
+    padding: 0 2.2%;
+    z-index: 500;
+    pointer-events: none;
+  }
+  #hud .txt {
+    font-family: 'Press Start 2P', monospace;
+    color: #fff;
+    font-size: clamp(14px, 2.6vh, 28px);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 #333;
+    white-space: nowrap;
+  }
+  /* 가로 타이머 바 — 남은 시간이 실시간으로 줄어드는 게 보임 */
+  #timerBar {
+    flex: 1; max-width: 46%;
+    height: 46%;
+    border: 3px solid #fff;
+    box-shadow: 2px 2px 0 #333;
+    background: #1a0f0a;
+    padding: 3px;
+  }
+  #timerFill {
+    height: 100%; width: 100%;
+    background: var(--gold);
+    transition: none;
+  }
+  #timerFill.danger { background: #ef4444; }
+
+  /* ===== 새 (왝슨) ===== */
+  .bird {
+    position: absolute; left: 0; top: 0;
+    image-rendering: pixelated;
+    will-change: transform;
+    cursor: crosshair;
+    -webkit-user-drag: none;
+  }
+  .bird.caught {
+    transition: transform 320ms steps(6, end), opacity 320ms steps(6, end);
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+
+  /* 포획 점수 플로터 */
+  .floater {
+    position: absolute;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px; color: var(--gold);
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none; z-index: 600;
+    animation: floatUp 700ms steps(7, end) forwards;
+  }
+  @keyframes floatUp {
+    from { transform: translateY(0); opacity: 1; }
+    to   { transform: translateY(-46px); opacity: 0; }
+  }
+  /* 빗나감 표시 */
+  .missfx {
+    position: absolute; width: 18px; height: 18px;
+    border: 3px solid rgba(244,228,204,0.65);
+    transform: translate(-50%,-50%);
+    pointer-events: none; z-index: 550;
+    animation: missPop 260ms steps(4, end) forwards;
+  }
+  @keyframes missPop { from { opacity: 1; } to { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } }
+
+  /* ===== 오버레이 (시작/종료) ===== */
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.66);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .overlay[hidden] { display: none; }
+  .window {
+    width: 560px; max-width: 92%;
+    background: var(--bg-deep);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 8px 8px 0 #000;
+    padding: 26px 30px 30px;
+    text-align: center;
+    image-rendering: pixelated;
+  }
+  .window .mini-tag {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px; color: var(--ink-dim); letter-spacing: 2px;
+  }
+  .window h1 {
+    font-family: 'Galmuri11', monospace;
+    font-size: 30px; color: var(--gold);
+    letter-spacing: 2px; margin: 12px 0 14px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .window p {
+    font-family: 'Galmuri11', monospace;
+    font-size: 15px; color: var(--ink); line-height: 1.8;
+  }
+  .window .dim { color: var(--ink-dim); font-size: 13px; }
+  .btn {
+    display: inline-block; margin-top: 22px;
+    background: var(--panel); border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), 4px 4px 0 #000;
+    color: var(--gold); padding: 13px 34px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 18px; letter-spacing: 2px;
+  }
+  .btn:hover { background: var(--panel-light); }
+  .btn:active { transform: translate(3px,3px); box-shadow: inset 0 0 0 2px var(--panel-light), 1px 1px 0 #000; }
+  .result-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin: 18px 0 4px;
+  }
+  .result-cell {
+    background: var(--frame); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light);
+    padding: 12px 6px;
+  }
+  .result-cell .l { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--ink-dim); }
+  .result-cell .v { font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold); margin-top: 8px; }
+
+  /* 메인으로 돌아가기 */
+  #backBtn {
+    position: absolute; right: 14px; bottom: 12px; z-index: 900;
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); text-decoration: none;
+    background: rgba(26,15,10,0.75); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light);
+    padding: 7px 12px;
+  }
+  #backBtn:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hud">
+    <span class="txt">SCORE: <span id="hudScore">0000</span></span>
+    <div id="timerBar" aria-label="남은 시간">
+      <div id="timerFill"></div>
+    </div>
+    <span class="txt">TIME: <span id="hudTime">5</span></span>
+  </div>
+
+  <a id="backBtn" href="Main Screen.html">◀ 메인으로</a>
+
+  <!-- 시작 오버레이 -->
+  <div class="overlay" id="startOverlay">
+    <div class="window">
+      <div class="mini-tag">MINIGAME 01</div>
+      <h1>왝슨을 잡아라!</h1>
+      <p>연못 위를 날아다니는 <b style="color:var(--gold)">왝슨</b>을 클릭해서 포획하세요.</p>
+      <p class="dim">작고 빠른 왝슨일수록 점수가 높습니다 · 제한시간 5초</p>
+      <button class="btn" id="startBtn">▶ 게임 시작</button>
+    </div>
+  </div>
+
+  <!-- 종료 오버레이 -->
+  <div class="overlay" id="endOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag">TIME OVER</div>
+      <h1 id="endTitle">포획 종료!</h1>
+      <div class="result-grid">
+        <div class="result-cell"><div class="l">포획</div><div class="v" id="rCaught">0</div></div>
+        <div class="result-cell"><div class="l">점수</div><div class="v" id="rScore">0</div></div>
+        <div class="result-cell"><div class="l">명중률</div><div class="v" id="rAcc">0%</div></div>
+      </div>
+      <p class="dim" id="rankMsg"></p>
+      <button class="btn" id="retryBtn">↺ 다시 도전</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var GAME_SECONDS = 5;       // 제한시간 5초
+  var MAX_BIRDS = 9;          // 동시에 떠다니는 왝슨 수
+  var MIN_SIZE = 42, MAX_SIZE = 110;
+
+  var stage = document.getElementById('stage');
+  var hudScore = document.getElementById('hudScore');
+  var hudTime = document.getElementById('hudTime');
+  var timerFill = document.getElementById('timerFill');
+
+  // { el, x, y, vx, vy, speed, size, amp, freq, phase, curveAmp, curveFreq, phase2, tiltAmp, tiltFreq, phase3, t, alive }
+  var birds = [];
+  var score = 0, caught = 0, misses = 0;
+  var timeLeft = GAME_SECONDS;
+  var playing = false;
+  var loopId = null, lastTs = 0, startTs = 0;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  function normalize(dx, dy) {
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    return { x: dx / len, y: dy / len };
+  }
+
+  // ---- 새 생성: 좌우 75%, 위아래 25%. 단, 궤적은 직선이 아니라 새처럼 살짝 흔들리게 설정 ----
+  function spawnBird() {
+    var size = Math.round(rand(MIN_SIZE, MAX_SIZE));
+    var W = stage.clientWidth, H = stage.clientHeight;
+    var hudH = H * 0.064;
+    var minY = hudH + 10;
+    var maxY = H - size - 20;
+    var minX = 0;
+    var maxX = W - size;
+
+    // 방향 비율: 좌우 이동 75%, 위아래 이동 25%
+    // 0:왼쪽→오른쪽, 1:오른쪽→왼쪽, 2:위→아래, 3:아래→위
+    var edgeRoll = Math.random();
+    var edge = edgeRoll < 0.75
+      ? (Math.random() < 0.5 ? 0 : 1)
+      : (Math.random() < 0.5 ? 2 : 3);
+
+    var startX, startY, targetX, targetY;
+    if (edge === 0) {
+      startX = -size - 40;
+      startY = rand(minY, maxY);
+      targetX = W + size + 40;
+      // 가로 이동이 많지만 완전 수평선은 아니게, 완만한 높이 변화 부여
+      targetY = clamp(startY + rand(-H * 0.30, H * 0.30), minY, maxY);
+    } else if (edge === 1) {
+      startX = W + size + 40;
+      startY = rand(minY, maxY);
+      targetX = -size - 40;
+      targetY = clamp(startY + rand(-H * 0.30, H * 0.30), minY, maxY);
+    } else if (edge === 2) {
+      startX = rand(minX, maxX);
+      startY = hudH - size - 40;
+      // 위아래 이동도 살짝 비스듬히 흐르게 해서 일직선 느낌 감소
+      targetX = clamp(startX + rand(-W * 0.34, W * 0.34), minX, maxX);
+      targetY = H + size + 40;
+    } else {
+      startX = rand(minX, maxX);
+      startY = H + size + 40;
+      targetX = clamp(startX + rand(-W * 0.34, W * 0.34), minX, maxX);
+      targetY = hudH - size - 40;
+    }
+
+    var dir = normalize(targetX - startX, targetY - startY);
+    var speed = rand(430, 860) * (0.85 + (size / MAX_SIZE) * 0.35);
+
+    var el = document.createElement('img');
+    el.src = 'assets/bird.png';
+    el.className = 'bird';
+    el.draggable = false;
+    el.style.width = size + 'px';
+    el.style.zIndex = 100 + size;
+
+    var b = {
+      el: el,
+      size: size,
+      x: startX,
+      y: startY,
+      vx: dir.x * speed,
+      vy: dir.y * speed,
+      speed: speed,
+      // 빠른 날갯짓처럼 작은 흔들림 + 큰 곡선 흔들림을 같이 사용
+      amp: rand(8, 26),
+      freq: rand(4.0, 7.5),
+      phase: rand(0, Math.PI * 2),
+      curveAmp: edge < 2 ? rand(18, 48) : rand(16, 40),
+      curveFreq: rand(0.75, 1.55),
+      phase2: rand(0, Math.PI * 2),
+      tiltAmp: rand(4, 10),
+      tiltFreq: rand(2.0, 4.4),
+      phase3: rand(0, Math.PI * 2),
+      t: 0,
+      alive: true
+    };
+
+    el.addEventListener('pointerdown', function (e) {
+      e.stopPropagation();
+      if (!playing || !b.alive) return;
+      catchBird(b, e.clientX, e.clientY);
+    });
+
+    stage.appendChild(el);
+    birds.push(b);
+    draw(b);
+  }
+
+  function draw(b) {
+    // 진행 방향에 수직인 방향으로 작은 날갯짓 흔들림 + 큰 곡선 흔들림을 합쳐 자연스러운 비행 궤적 생성
+    var wingWobble = Math.sin(b.t * b.freq + b.phase) * b.amp;
+    var curveWobble = Math.sin(b.t * b.curveFreq + b.phase2) * b.curveAmp;
+    var nx = -b.vy / b.speed;
+    var ny = b.vx / b.speed;
+    var drawX = b.x + nx * (wingWobble + curveWobble);
+    var drawY = b.y + ny * (wingWobble + curveWobble);
+
+    // 새가 날아가며 몸을 살짝 기울이는 느낌
+    var tilt = clamp((b.vy / b.speed) * 18 + Math.sin(b.t * b.tiltFreq + b.phase3) * b.tiltAmp, -18, 18);
+
+    // bird.png 원본이 왼쪽을 보고 있음 → 오른쪽으로 이동할 때 좌우 반전
+    var flip = b.vx > 0 ? ' scaleX(-1)' : '';
+    b.el.style.transform = 'translate(' + drawX + 'px,' + drawY + 'px)' + flip + ' rotate(' + tilt + 'deg)';
+  }
+
+  function removeBird(b) {
+    b.alive = false;
+    if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
+    var i = birds.indexOf(b);
+    if (i >= 0) birds.splice(i, 1);
+  }
+
+  // ---- 포획 ----
+  function catchBird(b, cx, cy) {
+    b.alive = false;
+    caught += 1;
+    // 작은(먼) 왝슨일수록 고득점: 3단계
+    var pts = b.size < 66 ? 200 : (b.size < 90 ? 150 : 100);
+    score += pts;
+    updateHud();
+
+    b.el.classList.add('caught');
+    b.el.style.transform += ' rotate(540deg) scale(0.1)';
+    setTimeout(function () { removeBird(b); }, 330);
+
+    var f = document.createElement('div');
+    f.className = 'floater';
+    f.textContent = '+' + pts;
+    f.style.left = (cx - 20) + 'px';
+    f.style.top = (cy - 30) + 'px';
+    stage.appendChild(f);
+    setTimeout(function () { f.remove(); }, 720);
+  }
+
+  // ---- 빗나감 ----
+  stage.addEventListener('pointerdown', function (e) {
+    if (!playing) return;
+    misses += 1;
+    var m = document.createElement('div');
+    m.className = 'missfx';
+    m.style.left = e.clientX + 'px';
+    m.style.top = e.clientY + 'px';
+    stage.appendChild(m);
+    setTimeout(function () { m.remove(); }, 280);
+  });
+
+  // ---- 루프 ----
+  function tick() {
+    if (!playing) return;
+    var ts = performance.now();
+    var dt = Math.min(50, ts - lastTs) / 1000;  // 탭 전환 등 점프 방지
+    lastTs = ts;
+
+    var elapsed = (ts - startTs) / 1000;
+    var remaining = Math.max(0, GAME_SECONDS - elapsed);
+
+    var W = stage.clientWidth, H = stage.clientHeight;
+    var hudH = H * 0.064;
+    for (var i = birds.length - 1; i >= 0; i--) {
+      var b = birds[i];
+      if (!b.alive) continue;
+      b.t += dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      draw(b);
+
+      // 어느 방향으로든 화면 밖으로 완전히 벗어나면 제거
+      if (b.x > W + b.size * 2 || b.x < -b.size * 2 ||
+          b.y > H + b.size * 2 || b.y < hudH - b.size * 2) {
+        removeBird(b);
+      }
+    }
+
+    while (birds.length < MAX_BIRDS) spawnBird();
+
+    timeLeft = Math.ceil(remaining);
+    updateHud(remaining);
+
+    if (remaining <= 0) end();
+  }
+
+  function updateHud(remainingSeconds) {
+    var remaining = typeof remainingSeconds === 'number' ? remainingSeconds : timeLeft;
+    var pct = clamp(remaining / GAME_SECONDS, 0, 1) * 100;
+
+    hudScore.textContent = String(score).padStart(4, '0');
+    hudTime.textContent = Math.ceil(clamp(remaining, 0, GAME_SECONDS));
+    timerFill.style.width = pct + '%';
+    timerFill.classList.toggle('danger', pct <= 30);
+  }
+
+  // ---- 시작 / 종료 ----
+  function start() {
+    // 초기화
+    birds.slice().forEach(removeBird);
+    score = 0; caught = 0; misses = 0; timeLeft = GAME_SECONDS;
+    updateHud(GAME_SECONDS);
+    document.getElementById('startOverlay').hidden = true;
+    document.getElementById('endOverlay').hidden = true;
+
+    playing = true;
+    for (var i = 0; i < MAX_BIRDS; i++) spawnBird();
+
+    // 초반부터 화면에 골고루 보이도록 일부는 화면 안쪽에서 시작
+    birds.forEach(function (b, idx) {
+      if (idx % 2 === 0) {
+        b.x = rand(0, stage.clientWidth - b.size);
+        b.y = rand(stage.clientHeight * 0.12, stage.clientHeight - b.size);
+      }
+      draw(b);
+    });
+
+    startTs = performance.now();
+    lastTs = startTs;
+    clearInterval(loopId);
+    loopId = setInterval(tick, 1000 / 60);
+  }
+
+  function end() {
+    if (!playing) return;
+    playing = false;
+    clearInterval(loopId);
+    updateHud(0);
+
+    var shots = caught + misses;
+    var acc = shots ? Math.round(caught / shots * 100) : 0;
+    document.getElementById('rCaught').textContent = caught + '마리';
+    document.getElementById('rScore').textContent = String(score).padStart(4, '0');
+    document.getElementById('rAcc').textContent = acc + '%';
+    var msg = caught >= 18 ? '왝슨 마스터! 짧은 시간 안에 엄청 잡았습니다.'
+            : caught >= 10 ? '숙련된 사냥꾼이군요.'
+            : caught >= 5  ? '견습 포획꾼. 조금 더 연습하세요.'
+            : '…왝슨이 비웃으며 날아갑니다.';
+    document.getElementById('rankMsg').textContent = msg;
+    document.getElementById('endOverlay').hidden = false;
+  }
+
+  document.getElementById('startBtn').addEventListener('click', start);
+  document.getElementById('retryBtn').addEventListener('click', start);
+})();
+</script>
+</body>
+</html>

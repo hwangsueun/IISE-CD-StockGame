@@ -1,6 +1,10 @@
 // API 클라이언트 — 서버 REST 엔드포인트 1:1 래퍼 (ARCHITECTURE.md §8)
 // 컴포넌트는 이 모듈만 통해 서버와 통신한다.
+// VITE_USE_MOCK=true 면 백엔드 없이 mockApi(디자인팀 dev mock)로 동작한다 (파일 하단).
+import { mockApi } from './mockApi.js';
+
 const BASE = import.meta.env.VITE_API_BASE || '';
+const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'false') === 'true';
 
 /** 로그인 토큰 (게스트면 null). authStore가 setToken으로 관리 */
 let authToken = localStorage.getItem('antsurvival_token') || null;
@@ -34,7 +38,7 @@ const post = (p, b) => request('POST', p, b);
 const put = (p, b) => request('PUT', p, b);
 const del = (p) => request('DELETE', p);
 
-export const api = {
+const httpApi = {
   // 회원관리 (기능명세서 §회원)
   register: (username, password, nickname) =>
     post('/api/auth/register', { username, password, nickname }),
@@ -117,3 +121,50 @@ export const api = {
     get(`/api/community/${assetId}${date ? `?date=${date}` : ''}`),
   getPostComments: (postId) => get(`/api/community/post/${postId}/comments`),
 };
+
+// ---------------------------------------------------------------------
+// dev mock 스위치 (VITE_USE_MOCK=true): 백엔드 없이 프론트 개발 (mockApi.js)
+// 메서드명이 다른 것은 아래에서 어댑터로 매핑한다. mock에 없는 신규 기능
+// (회원/부업/급등주/손익/로그)은 명시적으로 에러를 던진다 — 조용한 오동작 방지.
+// ---------------------------------------------------------------------
+const notMocked = (name) => () =>
+  Promise.reject(new Error(`[mock] ${name}은(는) mock 미구현입니다. VITE_USE_MOCK=false로 백엔드에 붙이세요.`));
+
+const mockAdapter = {
+  ...mockApi,
+  // 이름/시그니처 매핑 (mockApi -> 본편 api 계약)
+  getState: (sid) => mockApi.getGame(sid),
+  trade: (sid, payload) => mockApi.trade(sid, payload),
+  repay: (sid, amount) => mockApi.repay(sid, { amount }),
+  resolveEvent: (sid, eventLogId, choice) => mockApi.resolveEvent(sid, { eventLogId, choice }),
+  listAssets: ({ type, sort } = {}) => mockApi.getAssets({ type, sort }),
+  getAssetDetail: (assetId) => mockApi.getAsset(assetId),
+  getPriceSeries: (assetId, from, to) => mockApi.getAssetPrices(assetId, { from, to }),
+  getNews: (date) => mockApi.getNews(date),
+  getAssetNews: (date, assetId) => mockApi.getNewsByAsset(date, assetId),
+  getCommunityPosts: (assetId) => mockApi.getCommunity(assetId),
+  getPostComments: (postId) => mockApi.getComments(postId),
+  getMemos: () => mockApi.getMemo(),
+  createMemo: (sid, date, content) => mockApi.createMemo(sid, { date, content }),
+  updateMemo: (sid, memoId, content) => mockApi.updateMemo(sid, memoId, { content }),
+  deleteMemo: (sid, memoId) => mockApi.deleteMemo(sid, memoId),
+  getWeeklyReport: notMocked('주간 리포트'),
+  getMonthlyReport: notMocked('월간 리포트'),
+  getFinalReport: notMocked('최종 리포트'),
+  getRepayHistory: notMocked('상환 이력'),
+  getPendingEvents: () => Promise.resolve([]),
+  // 신규 기능: mock 미구현 (백엔드 필요)
+  register: notMocked('회원가입'),
+  login: notMocked('로그인'),
+  logout: () => Promise.resolve(null),
+  me: notMocked('프로필'),
+  getSideJobStatus: notMocked('부업'),
+  playSideJob: notMocked('부업'),
+  getSideJobHistory: notMocked('부업 이력'),
+  getActiveSurge: () => Promise.resolve(null),
+  buySurge: notMocked('급등주 매수'),
+  getRealizedPnl: notMocked('실현손익'),
+  getGameLog: notMocked('게임 로그'),
+};
+
+export const api = USE_MOCK ? mockAdapter : httpApi;

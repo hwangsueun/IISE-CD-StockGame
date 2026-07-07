@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>주식게임 — 기절 이벤트</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #1a0f0a;
+    --frame: #2a1a10;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --ink-faint: #7c5040;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --green: #4ade80;
+    --green-dark: #166534;
+    --red: #ef4444;
+    --red-bright: #ff5a4a;
+    --red-dark: #7f1d1d;
+    /* hospital cool accents */
+    --med: #7fd4e8;
+    --med-deep: #2a6f86;
+    --med-dark: #103641;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #050201;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #0c1418 0%, #050201 78%), #050201;
+  }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 80px rgba(127,180,200,0.18);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+
+  /* ---- hospital ceiling background (you are lying in the bed) ---- */
+  .room {
+    position: absolute; inset: 0; z-index: 0;
+    background: #d8dde0;
+    background-image: url("assets/bg_hospital_ceiling.png");
+    background-size: cover;
+    background-position: center 30%;
+    image-rendering: pixelated;
+    filter: blur(0px) brightness(0.92);
+    transition: filter 1.1s steps(8,end);
+  }
+  .room.waking { filter: blur(9px) brightness(0.5); }
+  /* cool sterile light wash + vignette so dark UI reads on top */
+  .room::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 45% at 60% 42%, rgba(255,255,255,0.30), transparent 70%),
+      radial-gradient(ellipse 90% 70% at 50% 60%, transparent 30%, rgba(10,20,26,0.55) 100%),
+      linear-gradient(180deg, rgba(10,18,24,0.20) 0%, rgba(10,18,24,0.55) 70%, rgba(6,12,16,0.78) 100%);
+  }
+  .room::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 38px, rgba(0,0,0,0.12) 38px 39px);
+    mix-blend-mode: multiply; opacity: 0.5;
+  }
+
+  /* ---- eyelid blink (waking up) ---- */
+  .lids { position: absolute; inset: 0; z-index: 60; pointer-events: none; }
+  .lids .top, .lids .bot {
+    position: absolute; left: 0; right: 0; height: 50%;
+    background: #000;
+  }
+  .lids .top { top: 0; transform-origin: top; }
+  .lids .bot { bottom: 0; transform-origin: bottom; }
+  .lids.blink .top { animation: lidTop 2.4s steps(1,end) forwards; }
+  .lids.blink .bot { animation: lidBot 2.4s steps(1,end) forwards; }
+  @keyframes lidTop {
+    0%   { transform: scaleY(1); }
+    25%  { transform: scaleY(0.18); }   /* crack open */
+    40%  { transform: scaleY(0.85); }   /* heavy blink shut */
+    60%  { transform: scaleY(0.10); }
+    100% { transform: scaleY(0); }      /* fully open */
+  }
+  @keyframes lidBot {
+    0%   { transform: scaleY(1); }
+    25%  { transform: scaleY(0.18); }
+    40%  { transform: scaleY(0.85); }
+    60%  { transform: scaleY(0.10); }
+    100% { transform: scaleY(0); }
+  }
+
+  /* title plate / nav */
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: #0e1a1f; border: 3px solid var(--med-deep);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--med); letter-spacing: 2px; z-index: 200;
+    text-shadow: 0 0 6px rgba(127,212,232,0.5);
+  }
+  .nav-strip {
+    position: absolute; top: -28px; right: 24px;
+    display: flex; gap: 6px; z-index: 200;
+  }
+  .nav-strip button {
+    background: #0e1a1f; border: 3px solid var(--med-deep);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px; cursor: pointer;
+  }
+  .nav-strip button:hover { color: var(--med); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.62) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.10) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+  .crt::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.0) 0 3px, rgba(255,255,255,0.02) 3px 4px);
+    mix-blend-mode: overlay;
+  }
+
+  /* screen indicator */
+  .screen-tag {
+    position: absolute; top: 18px; left: 22px;
+    display: flex; align-items: center; gap: 10px; z-index: 30;
+  }
+  .screen-tag .num {
+    background: var(--med); color: #06181e;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+  }
+  .screen-tag .nm {
+    background: #0c1418; border: 2px solid var(--med-deep);
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: 6px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--med); letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  /* heart-rate strip top-right */
+  .vitals {
+    position: absolute; top: 16px; right: 22px; z-index: 30;
+    background: #06141a; border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--med-deep), 3px 3px 0 #000;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .vitals .ecg { width: 150px; height: 40px; display: block; }
+  .vitals .ecg polyline {
+    fill: none; stroke: var(--med); stroke-width: 3;
+    filter: drop-shadow(0 0 4px rgba(127,212,232,0.7));
+    stroke-dasharray: 600; stroke-dashoffset: 600;
+    animation: ecgSweep 2.2s linear infinite;
+  }
+  @keyframes ecgSweep { to { stroke-dashoffset: 0; } }
+  .vitals .bpm {
+    font-family: 'Press Start 2P', monospace; font-size: 13px;
+    color: var(--med); letter-spacing: 1px;
+    text-shadow: 0 0 6px rgba(127,212,232,0.5);
+  }
+  .vitals .bpm small {
+    display: block; font-size: 7px; color: var(--ink-dim); letter-spacing: 1px; margin-top: 3px;
+  }
+  .vitals .heart {
+    color: var(--med); font-family: 'Press Start 2P', monospace; font-size: 12px;
+    animation: pulse 1s steps(2,end) infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.25);opacity:.7;} }
+
+  /* stage */
+  .stage {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 250px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 60px 20px; z-index: 5;
+  }
+
+  /* shake */
+  .shake { animation: screenShake 0.18s steps(2,end) 7; }
+  @keyframes screenShake {
+    0%   { transform: translate(-3px, 1px); }
+    50%  { transform: translate(3px, -2px); }
+    100% { transform: translate(-1px, 2px); }
+  }
+
+  /* center text block */
+  .big-center { text-align: center; animation: fadeUp 0.7s steps(8,end); }
+  .big-center .small {
+    font-family: 'Press Start 2P', monospace; font-size: 11px;
+    color: var(--med); letter-spacing: 5px; margin-bottom: 16px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .big-center .faint {
+    font-family: 'Press Start 2P', monospace; font-size: 84px; line-height: 1;
+    color: var(--red-bright); letter-spacing: 8px;
+    text-shadow: 4px 4px 0 #000, 0 0 24px rgba(255,90,74,0.6);
+    animation: faintFlicker 0.5s steps(2,end) 5;
+  }
+  @keyframes faintFlicker { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  .big-center .kr {
+    font-family: 'Galmuri11', monospace; font-size: 46px;
+    color: var(--ink); letter-spacing: 8px; text-shadow: 3px 3px 0 #000;
+    margin-top: 10px;
+  }
+  .big-center .day {
+    font-family: 'Press Start 2P', monospace; font-size: 72px;
+    color: var(--med); letter-spacing: 4px;
+    text-shadow: 4px 4px 0 #000, 0 0 18px rgba(127,212,232,0.5);
+    margin-bottom: 10px;
+  }
+  .big-center .sub {
+    margin-top: 16px; font-family: 'Galmuri11', monospace; font-size: 18px;
+    color: var(--ink-dim); letter-spacing: 1px; text-shadow: 1px 1px 0 #000;
+  }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform:none; } }
+
+  /* ---- stress meter (limit / reset) ---- */
+  .stress-block { text-align: center; animation: fadeUp 0.6s steps(8,end); }
+  .stress-block .lbl {
+    font-family: 'Press Start 2P', monospace; font-size: 11px;
+    color: var(--ink-dim); letter-spacing: 3px; margin-bottom: 16px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .stress-block .num {
+    font-family: 'Press Start 2P', monospace; font-size: 92px; line-height: 1;
+    letter-spacing: 2px; text-shadow: 4px 4px 0 #000; margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stress-block .num.hot { color: var(--red-bright); text-shadow: 4px 4px 0 #000, 0 0 24px rgba(255,90,74,0.6); }
+  .stress-block .num.cool { color: var(--med); text-shadow: 4px 4px 0 #000, 0 0 22px rgba(127,212,232,0.55); }
+  .gauge-big {
+    width: 560px; height: 34px; margin: 0 auto;
+    background: #06141a; border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #0e2630;
+    display: flex; padding: 3px; gap: 3px;
+  }
+  .gauge-big .cell { flex: 1; background: #0e2630; height: 100%; }
+  .gauge-big .cell.on.hot  { background: var(--red); box-shadow: inset 0 -4px 0 var(--red-dark); }
+  .gauge-big .cell.on.cool { background: var(--med); box-shadow: inset 0 -4px 0 var(--med-deep); }
+  .stress-block .tag {
+    margin-top: 18px; font-family: 'Galmuri11', monospace; font-size: 16px;
+    letter-spacing: 1px; text-shadow: 1px 1px 0 #000;
+  }
+  .stress-block .tag.hot { color: var(--red-bright); }
+  .stress-block .tag.cool { color: var(--med); }
+
+  /* ---- result card (hospital bill) ---- */
+  .bill-card {
+    width: 720px; max-width: 94%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(127,212,232,0.05) 30px 31px),
+      #07151a;
+    border: 4px solid #000;
+    box-shadow:
+      inset 0 0 0 2px var(--med-deep),
+      inset 0 0 0 6px #0a232b,
+      8px 8px 0 #000,
+      0 0 34px rgba(127,212,232,0.20);
+    padding: 20px 28px 24px; position: relative;
+    animation: cardPop 280ms steps(5,end);
+  }
+  @keyframes cardPop { from { opacity:0; transform: translateY(16px) scale(.96);} to {opacity:1; transform:none;} }
+  .bill-card::before {
+    content: "RECEIPT · NO. 2026-0424"; position: absolute; top: 10px; right: 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .bill-head {
+    text-align: center; padding-bottom: 14px; margin-bottom: 14px;
+    border-bottom: 3px double var(--med-deep);
+  }
+  .bill-head .cross {
+    display: inline-block; color: var(--med); font-family: 'Press Start 2P', monospace;
+    font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(127,212,232,0.5);
+  }
+  .bill-head .ttl {
+    font-family: 'Press Start 2P', monospace; font-size: 16px;
+    color: var(--med); letter-spacing: 4px; text-shadow: 2px 2px 0 #000;
+  }
+  .bill-head .sub {
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); letter-spacing: 1px; margin-top: 8px;
+  }
+  .bill-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 13px 4px; border-bottom: 1px dashed #16323c;
+  }
+  .bill-row .k {
+    font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--ink-dim); letter-spacing: 1px;
+  }
+  .bill-row .k small {
+    display: block; font-family: 'Press Start 2P', monospace; font-size: 7px;
+    color: var(--ink-faint); letter-spacing: 2px; margin-top: 4px;
+  }
+  .bill-row .v {
+    font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px; text-align: right;
+  }
+  .bill-row .v .arrow { color: var(--ink-faint); margin: 0 8px; font-family: 'Press Start 2P', monospace; font-size: 12px; }
+  .bill-row .v .from { color: var(--red-bright); }
+  .bill-row .v .to   { color: var(--med); font-weight: bold; }
+  .bill-row .v.cool  { color: var(--med); font-weight: bold; }
+  .bill-row.total {
+    margin-top: 8px; padding-top: 16px; border-bottom: none; border-top: 3px double var(--med-deep);
+  }
+  .bill-row.total .k { color: var(--ink); font-size: 18px; }
+  .bill-row.total .v {
+    font-family: 'Press Start 2P', monospace; font-size: 22px; color: var(--red-bright);
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  /* ---- confirm button ---- */
+  .confirm-strip {
+    position: absolute; left: 0; right: 0; bottom: 280px;
+    display: flex; justify-content: center; z-index: 7;
+  }
+  .confirm-btn {
+    background: var(--med);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #d6f3fb, inset 0 -7px 0 var(--med-deep), 5px 5px 0 #000;
+    padding: 16px 56px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 22px; color: #06181e;
+    letter-spacing: 6px; font-weight: bold;
+  }
+  .confirm-btn:hover { background: #a9e6f4; transform: translate(-1px,-1px); }
+  .confirm-btn:active { transform: translate(2px,2px); box-shadow: inset 0 0 0 2px #d6f3fb, inset 0 -3px 0 var(--med-deep), 2px 2px 0 #000; }
+  .confirm-btn .arr { font-family: 'Press Start 2P', monospace; font-size: 14px; margin-right: 12px; }
+
+  /* press hint */
+  .press-hint {
+    position: absolute; left: 50%; bottom: 270px; transform: translateX(-50%);
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--med); letter-spacing: 2px;
+    animation: blinkSlow 1s steps(2,end) infinite; z-index: 6;
+  }
+  @keyframes blinkSlow { 0%,49%{opacity:1;} 50%,100%{opacity:0.2;} }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute; left: 30px; right: 30px; bottom: 30px;
+    background: #07151a;
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--med-deep), inset 0 0 0 6px #0a232b, 6px 6px 0 #000;
+    padding: 16px 22px 18px; z-index: 8; height: 200px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px dashed #16323c; padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .nar-portrait {
+    width: 42px; height: 42px; background: #0c1418; border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--med-deep);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--med);
+  }
+  .nar-name { font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--med); letter-spacing: 1px; }
+  .nar-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-dim);
+    letter-spacing: 1px; border: 1px solid var(--med-deep); padding: 2px 6px;
+  }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--med); }
+  .nar-body {
+    flex: 1; font-family: 'Galmuri11', monospace; font-size: 20px; line-height: 1.6;
+    color: var(--ink); text-wrap: pretty; letter-spacing: 0.5px; overflow: hidden;
+  }
+  .nar-body .em  { color: var(--med); }
+  .nar-body .red { color: var(--red-bright); }
+  .nar-body .cursor {
+    display: inline-block; width: 10px; height: 19px; background: var(--med);
+    vertical-align: -3px; margin-left: 4px; animation: blinkFast 0.55s steps(2,end) infinite;
+  }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px; color: var(--med);
+    letter-spacing: 2px; animation: nextBob 0.7s steps(2,end) infinite; user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  /* fade mask */
+  .fade-mask {
+    position: absolute; inset: 0; background: #000; z-index: 90;
+    pointer-events: none; opacity: 1; transition: opacity 420ms steps(6,end);
+  }
+  .fade-mask.off { opacity: 0; }
+  .fade-mask.on  { opacity: 1; pointer-events: all; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="game" id="game" data-screen-label="기절 이벤트 · 병원 이송">
+  <div class="title-plate">＋ 기절 이벤트 ＋</div>
+  <div class="nav-strip">
+    <button id="replayBtn" title="처음부터 다시보기">↺ 다시보기</button>
+  </div>
+
+  <div class="room" id="room"></div>
+
+  <div class="vitals">
+    <span class="heart">♥</span>
+    <svg class="ecg" viewBox="0 0 150 40" preserveAspectRatio="none">
+      <polyline points="0,20 22,20 28,20 34,8 40,33 46,20 70,20 76,20 82,4 90,36 98,20 150,20"></polyline>
+    </svg>
+    <span class="bpm">72<small>BPM</small></span>
+  </div>
+
+  <div class="screen-tag">
+    <span class="num" id="tagNum">H1</span>
+    <span class="nm" id="tagName">기절</span>
+    <span class="step" id="tagStep">STEP 1 / 6</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+  <div class="press-hint" id="pressHint" hidden>▶ 화면을 클릭하세요</div>
+
+  <div class="confirm-strip hidden" id="confirmStrip"></div>
+
+  <div class="narration" id="narration" hidden>
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">＋</div>
+      <span class="nar-name" id="narName">시스템</span>
+      <span class="nar-tag" id="narTag">SYSTEM</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b> / 6</span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <!-- eyelid wake overlay -->
+  <div class="lids" id="lids"><div class="top"></div><div class="bot"></div></div>
+
+  <div class="fade-mask on" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  EVENT RESULT — display only. No state, no storage, no nav.
+  // ============================================================
+  const RESULT = {
+    stressFrom: 100,
+    stressTo:   0,
+    days:       3,
+    bill:       300000
+  };
+  const fmt = n => Math.abs(n).toLocaleString('ko-KR') + '원';
+
+  // ============================================================
+  //  FLOW
+  // ============================================================
+  const TOTAL_STEPS = 6;
+  let screenIdx = 0;
+  let locked = false;
+  let typingFn = null;
+
+  const stage   = () => document.getElementById('stage');
+  const confirm = () => document.getElementById('confirmStrip');
+  const narEl   = () => document.getElementById('narration');
+
+  const FLOW = [
+    // ----- H1: faint trigger -----
+    {
+      id:'H1', name:'기절',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center shake">
+            <div class="small">★ EVENT ★</div>
+            <div class="faint">FAINT</div>
+            <div class="kr">기 절</div>
+            <div class="sub">…눈앞이 새카매진다.</div>
+          </div>`;
+        narration(true, { who:'시스템', portrait:'!', tag:'SYSTEM',
+          text:'<span class="red">기절 이벤트 발생.</span> 극심한 스트레스에 눈앞이 흐려집니다.' });
+      },
+      advance:'click'
+    },
+
+    // ----- H2: stress at limit -----
+    {
+      id:'H2', name:'스트레스 한계',
+      build() {
+        stage().innerHTML = `
+          <div class="stress-block">
+            <div class="lbl">STRESS LEVEL</div>
+            <div class="num hot">100</div>
+            ${gaugeHTML(10,'hot')}
+            <div class="tag hot">▲ 한계치 도달 — 더 이상 버틸 수 없습니다</div>
+          </div>`;
+        narration(true, { who:'시스템', portrait:'!', tag:'SYSTEM',
+          text:'<span class="red">스트레스가 한계치에 도달했습니다.</span> 몸이 신호를 보냈지만, 이미 늦었습니다.' });
+      },
+      advance:'click'
+    },
+
+    // ----- H3: carried to hospital -----
+    {
+      id:'H3', name:'병원 이송',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center">
+            <div class="small">＋ EMERGENCY ＋</div>
+            <div class="kr" style="color:var(--med);text-shadow:3px 3px 0 #000,0 0 18px rgba(127,212,232,0.5);">병원 이송</div>
+            <div class="sub">의식을 잃은 채, 사이렌 소리가 멀어진다…</div>
+          </div>`;
+        narration(true, { who:'시스템', portrait:'＋', tag:'SYSTEM',
+          text:'의식을 잃고 <span class="em">병원으로 이송되었습니다.</span>' });
+      },
+      advance:'click'
+    },
+
+    // ----- H4: stress reset (wake up) -----
+    {
+      id:'H4', name:'스트레스 초기화',
+      build() {
+        stage().innerHTML = `
+          <div class="stress-block">
+            <div class="lbl">STRESS · RESET</div>
+            <div class="num cool" id="resetNum">100</div>
+            <div class="gauge-big" id="resetGauge"></div>
+            <div class="tag cool">▼ 충분한 휴식 — 스트레스 지수 초기화</div>
+          </div>`;
+        renderGauge('resetGauge', 10, 'cool');
+        animateReset();
+        narration(true, { who:'시스템', portrait:'＋', tag:'RECOVER',
+          text:'안정을 되찾았습니다. <span class="em">스트레스 지수가 초기화</span>되었습니다.' });
+      },
+      advance:'click'
+    },
+
+    // ----- H5: 3 days passed -----
+    {
+      id:'H5', name:'3일 경과',
+      build() {
+        stage().innerHTML = `
+          <div class="big-center">
+            <div class="small">TIME PASSED</div>
+            <div class="day">+ 3 DAYS</div>
+            <div class="kr">3일 경과</div>
+            <div class="sub">시장은 당신을 기다려주지 않았다.</div>
+          </div>`;
+        narration(true, { who:'시스템', portrait:'＋', tag:'TIME',
+          text:'입원으로 <span class="em">3일이 경과</span>했습니다. 그동안 거래는 진행되지 않았습니다.' });
+      },
+      advance:'click'
+    },
+
+    // ----- H6: hospital bill + result card -----
+    {
+      id:'H6', name:'병원비 청구',
+      build() {
+        stage().innerHTML = renderBill();
+        narration(true, { who:'시스템', portrait:'＋', tag:'BILL',
+          text:'퇴원 수속과 함께 <span class="red">병원비가 청구되었습니다.</span> 아래 내역을 확인하세요.' });
+      },
+      advance:'confirm',
+      onTypedDone() { showConfirm(); }
+    }
+  ];
+
+  // ============================================================
+  //  RENDERERS
+  // ============================================================
+  function gaugeHTML(n, cls) {
+    let cells = '';
+    for (let i = 0; i < n; i++) cells += `<span class="cell on ${cls}"></span>`;
+    return `<div class="gauge-big">${cells}</div>`;
+  }
+  function renderGauge(id, onCount, cls) {
+    const g = document.getElementById(id);
+    if (!g) return;
+    g.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+      const c = document.createElement('span');
+      c.className = 'cell' + (i < onCount ? ' on ' + cls : '');
+      g.appendChild(c);
+    }
+  }
+  function animateReset() {
+    let v = RESULT.stressFrom;
+    const numEl = document.getElementById('resetNum');
+    const tick = () => {
+      if (!document.getElementById('resetNum')) return;
+      v -= 4;
+      if (v <= RESULT.stressTo) v = RESULT.stressTo;
+      numEl.textContent = v;
+      renderGauge('resetGauge', Math.round(v / 10), 'cool');
+      if (v > RESULT.stressTo) setTimeout(tick, 28);
+    };
+    setTimeout(tick, 320);
+  }
+  function renderBill() {
+    const r = RESULT;
+    return `
+      <div class="bill-card">
+        <div class="bill-head">
+          <div class="cross">＋ ＋ ＋</div>
+          <div class="ttl">병원비 청구서</div>
+          <div class="sub">HOSPITALIZATION · 응급 입원 정산</div>
+        </div>
+        <div class="bill-row">
+          <span class="k">스트레스<small>STRESS</small></span>
+          <span class="v"><span class="from">${r.stressFrom}</span><span class="arrow">▶</span><span class="to">${r.stressTo}</span></span>
+        </div>
+        <div class="bill-row">
+          <span class="k">경과 시간<small>TIME PASSED</small></span>
+          <span class="v cool">${r.days}일</span>
+        </div>
+        <div class="bill-row total">
+          <span class="k">병원비<small>MEDICAL FEE</small></span>
+          <span class="v">- ${fmt(r.bill)}</span>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  //  UI HELPERS
+  // ============================================================
+  function narration(show, info) {
+    const el = narEl();
+    el.hidden = !show;
+    if (show && info) {
+      const p = document.getElementById('narPortrait');
+      p.textContent = info.portrait || '＋';
+      document.getElementById('narName').textContent = info.who;
+      document.getElementById('narTag').textContent  = info.tag || 'SYSTEM';
+      typeWriter(info.text);
+    }
+  }
+  function setScreenTag(scr) {
+    document.getElementById('tagNum').textContent  = scr.id;
+    document.getElementById('tagName').textContent = scr.name;
+    document.getElementById('tagStep').textContent = `STEP ${screenIdx+1} / ${TOTAL_STEPS}`;
+    document.getElementById('narStep').textContent = screenIdx+1;
+  }
+  function typeWriter(html) {
+    locked = true;
+    document.getElementById('narNext').style.display = 'none';
+    const body = document.getElementById('narBody');
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    const finish = () => {
+      root.innerHTML = src; cursor.remove(); locked = false;
+      document.getElementById('narNext').style.display = '';
+      if (FLOW[screenIdx].onTypedDone) FLOW[screenIdx].onTypedDone();
+      typingFn = null;
+    };
+    typingFn = () => { cancelled = true; finish(); };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) { finish(); return; }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1); i = close + 1;
+      } else { buf += src[i++]; }
+      root.innerHTML = buf;
+      setTimeout(tick, 26);
+    }
+    tick();
+  }
+
+  function showConfirm() {
+    const wrap = confirm();
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'confirm-btn';
+    btn.innerHTML = `<span class="arr">▶</span>확인`;
+    // display-only: no navigation, no state change.
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.55';
+      btn.innerHTML = `확인됨`;
+    });
+    wrap.appendChild(btn);
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  function enter() {
+    const scr = FLOW[screenIdx];
+    setScreenTag(scr);
+    confirm().classList.add('hidden');
+    confirm().innerHTML = '';
+    document.getElementById('narNext').style.display = '';
+    const fade = document.getElementById('fade');
+    fade.classList.remove('off'); fade.classList.add('on');
+    setTimeout(() => {
+      scr.build();
+      fade.classList.remove('on'); fade.classList.add('off');
+    }, screenIdx === 0 ? 200 : 200);
+  }
+  function nextScreen() {
+    if (screenIdx >= FLOW.length - 1) return;
+    screenIdx++;
+    enter();
+  }
+
+  document.getElementById('game').addEventListener('click', e => {
+    if (e.target.closest('.confirm-btn')) return;
+    if (e.target.closest('.nav-strip')) return;
+    if (locked) { if (typingFn) typingFn(); return; }
+    if (FLOW[screenIdx].advance === 'click') nextScreen();
+  });
+
+  document.getElementById('replayBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    screenIdx = 0;
+    startWake();
+  });
+
+  // ---- waking-up intro (eyelid blink + de-blur), then begin flow ----
+  function startWake() {
+    const room = document.getElementById('room');
+    const lids = document.getElementById('lids');
+    const fade = document.getElementById('fade');
+    confirm().classList.add('hidden'); confirm().innerHTML = '';
+    narEl().hidden = true;
+    stage().innerHTML = '';
+    // reset
+    room.classList.add('waking');
+    lids.classList.remove('blink');
+    fade.classList.add('on'); fade.classList.remove('off');
+    void lids.offsetWidth; // reflow to restart animation
+    // lift the black fade quickly so blink reads over the ceiling
+    setTimeout(() => { fade.classList.remove('on'); fade.classList.add('off'); }, 120);
+    lids.classList.add('blink');
+    setTimeout(() => { room.classList.remove('waking'); }, 1100);
+    // begin the message flow once eyes are open
+    setTimeout(() => { enter(); }, 2500);
+  }
+
+  startWake();
+</script>
+
+</body>
+</html>

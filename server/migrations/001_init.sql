@@ -40,12 +40,11 @@ CREATE INDEX idx_prices_date ON asset_prices(trade_date);
 -- 3. 타입별 상세 시세
 -- ---------------------------------------------------------------------
 -- 원천: data-pipeline/data/raw/stock/stock_price-volume_npq.xlsx (DataGuide)
+-- DataGuide 원천에 OHLC가 없어 종가만 둔다 (팀 합의, origin 4218509)
 CREATE TABLE stock_price_detail (
   asset_id   VARCHAR(30) NOT NULL REFERENCES assets(asset_id),
   trade_date DATE NOT NULL,
-  open_price NUMERIC,
-  high_price NUMERIC,
-  low_price  NUMERIC,
+  close_price NUMERIC,
   volume     BIGINT,
   foreign_net_qty BIGINT,                       -- 외국인 순매수 수량 (npq 시트)
   inst_net_qty    BIGINT,                       -- 기관 순매수 수량

@@ -327,7 +327,7 @@ erDiagram
 |---|---|---|---|---|
 | `assets` | `asset_id` | - | `asset_type`, `code`, `name`, `masked_name`, `sector`, `currency` | 모든 자산의 기준 테이블 |
 | `asset_prices` | `(asset_id, trade_date)` | `asset_id` | `close_price`, `change_rate`, `currency` | 거래/평가 공통 가격 |
-| `stock_price_detail` | `(asset_id, trade_date)` | `asset_id` | OHLCV, 수급, 유동주식, 시총 | 주식 상세 차트/정보용 |
+| `stock_price_detail` | `(asset_id, trade_date)` | `asset_id` | 종가, 거래량, 수급, 유동주식, 시총 | 주식 상세 차트/정보용 (DataGuide 원천에 OHLC 없음 — 종가만) |
 | `bond_price_detail` | `(asset_id, trade_date)` | `asset_id` | `yield_rate`, `price_index` | 채권은 수익률과 가격지수를 분리 |
 | `coin_price_detail` | `(asset_id, trade_date)` | `asset_id` | `market_cap`, `volume_usd` | 코인은 USD 원천 데이터를 보존 |
 | `stock_financials` | `(asset_id, fiscal_year, half)` | `asset_id` | 매출, 영업이익, 순이익, 부채, 현금, 재고 | 반기별 재무제표 |
