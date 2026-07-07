@@ -73,13 +73,16 @@ async function getSessionState(sessionId) {
  * 승패 판정. next-turn / repay 후 호출된다.
  * - 성공: 부채 전액 상환 (debt <= 0)
  * - 실패: 240턴 종료 후 미상환, 또는 신뢰도 0
+ * turnLimitReached: 240턴을 "마친 뒤"의 최종 판정에서만 true.
+ * 240턴에 도착한 시점은 마지막 거래일이 아직 남아 있으므로(12개월차 상환 가능)
+ * 턴 초과 실패를 적용하지 않는다.
  * @returns {'active'|'success'|'failed'}
  */
-async function evaluateEndCondition(client, session) {
+async function evaluateEndCondition(client, session, { turnLimitReached = false } = {}) {
   let status = 'active';
   if (Number(session.debt) <= 0) status = 'success';
   else if (session.trust <= C.TRUST_FAIL_THRESHOLD) status = 'failed';
-  else if (session.current_turn >= C.TOTAL_TURNS) status = 'failed';
+  else if (turnLimitReached) status = 'failed';
 
   if (status !== 'active') {
     await client.query(

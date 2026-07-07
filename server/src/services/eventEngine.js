@@ -209,11 +209,13 @@ function buildOmenHint() {
 
 /**
  * 턴 진행 시 이벤트 발생 판단 + 적용 (turnService 트랜잭션 안에서 호출)
- * 우선순위: 기절(E) > 독촉전화(C) > 급등주(C) > 경조사/명절(D) > 스터디(B) > 여행
+ * 우선순위: 기절(E) > 명절(D) > 독촉전화(C) > 급등주(C) > 경조사(D) > 스터디(B) > 여행
+ * 명절은 달력 확정 이벤트라 랜덤 이벤트보다 앞에 둔다 — 발동 윈도우(직전~이번 거래일)가
+ * 한 턴뿐이라, EVENT_MAX_PER_TURN에 밀리면 그 명절이 영영 소실되기 때문.
  */
 async function rollTurnEvents(client, session, ctx) {
   const fired = [];
-  const order = ['faint', 'loan_shark_call', 'surge_stock', 'condolence', 'holiday', 'invest_study', 'travel'];
+  const order = ['faint', 'holiday', 'loan_shark_call', 'surge_stock', 'condolence', 'invest_study', 'travel'];
 
   for (const type of order) {
     if (fired.length >= C.EVENT_MAX_PER_TURN && type !== 'faint') continue; // 기절은 한도 무시하고 항상 판정

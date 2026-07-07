@@ -99,7 +99,7 @@ async function advanceTurn(sessionId) {
           [sessionId, session.stress, session.trust]
         );
       }
-      const status = await gameService.evaluateEndCondition(client, session);
+      const status = await gameService.evaluateEndCondition(client, session, { turnLimitReached: true });
       return { finished: true, status, missedRepayment };
     }
 
