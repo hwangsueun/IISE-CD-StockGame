@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16
+    container_name: antsurvival_db
+    environment:
+      POSTGRES_DB: antsurvival
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/migrations:/docker-entrypoint-initdb.d
+
+  api:
+    build: ./server
+    container_name: antsurvival_api
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://admin:password@db:5432/antsurvival
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+      GAME_START_RANGE: 2013-01-02..2023-12-31
+    volumes:
+      - ./server/seeds:/app/seeds
+      - ./data:/app/data
+
+volumes:
+  pgdata:

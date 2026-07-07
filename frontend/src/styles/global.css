@@ -1,0 +1,151 @@
+/* ANT SURVIVAL 기본 스타일 — 디자인 시안 적용 전 기능 확인용 최소 스타일 */
+/* TODO(frontend): 방 배경/픽셀아트 등 디자인 시안 반영 */
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  background: #16181d;
+  color: #e8eaef;
+}
+button { cursor: pointer; font: inherit; }
+
+.up { color: #e2504c; }
+.down { color: #3b6fd4; }
+.flat { color: #8a8f98; }
+.error-text { color: #e2504c; font-size: 0.85rem; }
+.loading-screen { display: grid; place-items: center; height: 100vh; }
+
+/* --- 인트로 --- */
+.intro-page { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; }
+.intro-title { font-size: 3rem; margin: 0; letter-spacing: 0.1em; }
+.intro-sub { color: #8a8f98; }
+.difficulty-grid { display: flex; gap: 12px; }
+.difficulty-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 20px 28px;
+  background: #232630; border: 2px solid transparent; border-radius: 12px; color: inherit;
+}
+.difficulty-card.selected { border-color: #e8a33d; }
+.btn-primary {
+  padding: 12px 32px; background: #e8a33d; color: #16181d;
+  border: none; border-radius: 8px; font-weight: 700;
+}
+.btn-primary:disabled { opacity: 0.5; }
+
+/* --- 메인 --- */
+.main-page { max-width: 960px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; min-height: 100vh; }
+.status-bar { display: flex; gap: 20px; background: #232630; padding: 12px 16px; border-radius: 12px; flex-wrap: wrap; }
+.status-item { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.status-item label { color: #8a8f98; font-size: 0.8rem; }
+.status-item.debt span { color: #e2504c; }
+.gauge { width: 80px; height: 8px; background: #16181d; border-radius: 4px; overflow: hidden; }
+.gauge-fill { height: 100%; }
+.gauge-fill.stress { background: #e2504c; }
+.gauge-fill.trust { background: #4caf7d; }
+
+.main-center { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.date-chip { color: #8a8f98; display: flex; gap: 8px; align-items: center; }
+.repay-badge { background: #e2504c; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; }
+.lock-badge { background: #555; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; }
+.headline {
+  text-align: left; background: #232630; border: none; color: inherit;
+  padding: 14px 16px; border-radius: 12px; font-size: 1.05rem;
+}
+
+.menu-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.menu-bar button { background: #232630; border: none; color: inherit; padding: 12px 18px; border-radius: 10px; }
+.menu-bar .btn-repay { background: #e2504c; color: #fff; }
+.btn-next-turn {
+  align-self: flex-end; padding: 14px 36px; background: #4caf7d; color: #16181d;
+  border: none; border-radius: 10px; font-weight: 700; font-size: 1.05rem;
+}
+.btn-next-turn:disabled { opacity: 0.5; }
+
+/* --- 뉴스 --- */
+.news-panel ul, .news-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.news-item { display: flex; align-items: center; gap: 8px; }
+.news-tag { background: #333845; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; color: #aab; }
+.news-headline { background: none; border: none; color: inherit; text-align: left; padding: 4px 0; }
+.news-asset { color: #e8a33d; font-style: normal; }
+.news-empty { color: #8a8f98; }
+.news-hidden { color: #e2504c; font-size: 0.85rem; }
+.news-strong { color: #e8a33d; margin-left: 6px; }
+.news-date { color: #8a8f98; font-size: 0.8rem; margin-right: 8px; }
+.news-article p { line-height: 1.6; }
+.news-dir.positive { color: #e2504c; }
+.news-dir.negative { color: #3b6fd4; }
+
+/* --- 모달 --- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: grid; place-items: center; z-index: 10;
+}
+.modal {
+  background: #232630; border-radius: 14px; width: min(480px, 92vw);
+  max-height: 84vh; overflow-y: auto; padding: 0 20px 20px;
+}
+.modal-wide { width: min(720px, 94vw); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #232630; padding: 16px 0 8px; }
+.modal-header h2 { margin: 0; font-size: 1.15rem; }
+.modal-close { background: none; border: none; color: #8a8f98; font-size: 1rem; }
+
+.filter-bar { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; align-items: center; }
+.filter-bar button { background: #16181d; border: 1px solid #333845; color: #aab; padding: 6px 14px; border-radius: 999px; }
+.filter-bar button.active { background: #e8a33d; color: #16181d; border-color: #e8a33d; }
+.filter-bar .spacer { flex: 1; }
+.filter-bar .btn-buy { background: #e2504c; color: #fff; border: none; }
+.filter-bar .btn-sell { background: #3b6fd4; color: #fff; border: none; }
+.filter-bar.sub button { padding: 4px 10px; font-size: 0.8rem; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.data-table th, .data-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid #333845; }
+.data-table th:first-child, .data-table td:first-child { text-align: left; }
+.data-table tbody tr { cursor: pointer; }
+.data-table tbody tr:hover { background: #2a2e3a; }
+
+.info-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.info-list.horizontal { flex-direction: row; gap: 24px; }
+.info-list div { display: flex; justify-content: space-between; gap: 12px; }
+.info-list dt { color: #8a8f98; }
+.info-list dd { margin: 0; font-weight: 600; }
+
+.field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 0.9rem; color: #8a8f98; }
+.field input, textarea {
+  background: #16181d; border: 1px solid #333845; color: #e8eaef;
+  padding: 10px; border-radius: 8px; font: inherit; width: 100%;
+}
+textarea { min-height: 80px; resize: vertical; }
+.est-amount { font-size: 0.95rem; }
+.quick-buttons { display: flex; gap: 8px; margin: 8px 0; }
+.quick-buttons button { background: #333845; border: none; color: #aab; padding: 6px 12px; border-radius: 6px; }
+
+/* --- 포트폴리오 --- */
+.weight-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 8px 0 4px; background: #16181d; }
+.weight-legend { display: flex; gap: 14px; font-size: 0.8rem; color: #8a8f98; margin-bottom: 12px; }
+.weight-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+
+/* --- 이벤트 --- */
+.event-overlay { z-index: 20; }
+.event-popup { padding: 20px; text-align: center; }
+.event-prompt { font-size: 1.05rem; margin: 16px 0; }
+.event-choices { display: flex; flex-direction: column; gap: 8px; }
+.event-choices button { background: #333845; border: none; color: inherit; padding: 12px; border-radius: 8px; }
+.event-choices button:hover { background: #e8a33d; color: #16181d; }
+
+/* --- 차트/종토방/리포트 --- */
+.price-chart { background: #16181d; border-radius: 8px; }
+.chart-label { fill: #8a8f98; font-size: 10px; }
+.chart-empty { color: #8a8f98; padding: 40px; text-align: center; }
+.community-board ul { list-style: none; padding: 0; margin: 0; }
+.community-post > button { width: 100%; text-align: left; background: none; border: none; color: inherit; padding: 10px 4px; border-bottom: 1px solid #333845; display: flex; flex-direction: column; gap: 4px; }
+.post-meta { color: #8a8f98; font-size: 0.78rem; }
+.post-body { padding: 10px; background: #1b1e26; border-radius: 8px; margin: 6px 0; }
+.comment-list { list-style: none; padding: 8px 0 0; margin: 0; border-top: 1px dashed #333845; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+.weekly-comment { border-left: 3px solid #e8a33d; margin: 12px 0; padding: 8px 14px; color: #cdd1da; }
+
+/* --- 결과 --- */
+.result-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 14px; }
+.result-stats { display: flex; flex-direction: column; gap: 10px; background: #232630; padding: 20px 28px; border-radius: 12px; min-width: 320px; }
+.result-stats div { display: flex; justify-content: space-between; gap: 30px; }
+.result-stats dt { color: #8a8f98; }
+.result-stats dd { margin: 0; font-weight: 700; }

@@ -65,59 +65,69 @@
 
 ## 4. 레포 구조
 
-최종 구현 폴더 구조는 아래를 기준으로 한다.
+**스캐폴드 구현 완료 (2026-07-07).** 아래 구조가 레포에 실제로 존재하며, 파일마다 담당 로직의 시그니처와 TODO가 채워져 있다.
 
 ```
-antsurvival/
+IISE-CD-StockGame/
 ├── ARCHITECTURE.md
-├── docker-compose.yml
+├── docker-compose.yml            # postgres:16 + api (migrations 자동 실행)
 ├── server/
 │   ├── Dockerfile
-│   ├── package.json
-│   ├── .env.example
+│   ├── package.json              # express, pg, cors, dotenv, xlsx
+│   ├── .env.example              # DATABASE_URL, GAME_START_RANGE, DATA_DIR
 │   ├── migrations/
-│   │   └── 001_init.sql
+│   │   └── 001_init.sql          # 24테이블 전체 DDL + 채권/거시지표 시드
 │   ├── seeds/
-│   │   └── import_news.js
+│   │   ├── import_all.js         # 오케스트레이터 (--stub 지원)
+│   │   ├── stub.js               # 합성 개발 데이터 (29자산/300거래일/뉴스/종토방)
+│   │   ├── import_stocks.js      # DataGuide xlsx -> assets/asset_prices/stock_price_detail
+│   │   ├── import_macro.js       # macro_context_daily.csv (wide->long)
+│   │   ├── import_bonds.js       # 국고채 수익률 -> 가격지수 변환 적재
+│   │   ├── import_coins.js       # 코인 USD 시세 -> usdkrw 환산 적재
+│   │   ├── import_news.js        # 뉴스 4종 JSONL (NEWS_DATA_CONTRACT 계약)
+│   │   ├── import_community.js   # 디시 posts/comments_ready CSV
+│   │   └── lib/                  # csv.js, jsonl.js, db.js(bulkInsert)
 │   └── src/
-│       ├── index.js
-│       ├── db.js
-│       ├── config/
-│       │   └── constants.js
-│       ├── routes/
-│       │   ├── game.js
-│       │   ├── assets.js
-│       │   ├── macro.js
-│       │   ├── news.js
-│       │   ├── community.js
-│       │   ├── portfolio.js
-│       │   ├── event.js
-│       │   ├── repayment.js
-│       │   └── memo.js
-│       ├── controllers/
+│       ├── index.js              # express 부트스트랩, /health
+│       ├── db.js                 # pg pool, withTransaction, DATE 문자열 파서
+│       ├── config/constants.js   # 모든 밸런싱 상수 (턴/부채/월급/스트레스/이벤트)
+│       ├── utils/                # errors, asyncHandler, clamp
+│       ├── routes/               # game, assets, macro, news, community,
+│       │                         # portfolio, event, repayment, memo (9파일)
+│       ├── controllers/          # 라우트별 검증/위임 (8파일)
 │       └── services/
-│           ├── turnSelector.js
-│           ├── pricingService.js
-│           ├── tradeService.js
-│           ├── valuationService.js
-│           ├── eventEngine.js
-│           ├── stressPolicy.js
-│           ├── trustPolicy.js
-│           ├── repaymentService.js
-│           ├── reportService.js
-│           └── maskingService.js
+│           ├── gameService.js    # 세션 생성/상태/승패판정/결산
+│           ├── turnSelector.js   # 시작일 선택, 240거래일 생성
+│           ├── turnService.js    # 턴 데이터 조회 + next-turn 오케스트레이션
+│           ├── pricingService.js # 현재가/기간시세/목록/타입별 상세
+│           ├── tradeService.js   # 거래 검증/체결/평단/실현손익 (행잠금)
+│           ├── valuationService.js # 총자산/보유평가/자산군 비중
+│           ├── stressPolicy.js   # 뉴스 제한/기절/생활비 스트레스
+│           ├── trustPolicy.js    # 독촉전화 확률/상환 효과
+│           ├── repaymentService.js # 월말 상환 (20턴 주기)
+│           ├── eventEngine.js    # EVENT_DEFS 레지스트리, 즉시/선택형 이벤트
+│           ├── newsService.js    # 뉴스 노출 제한 + news_exposure 기록
+│           ├── macroService.js   # 거시지표 조회
+│           ├── communityService.js # 종토방 읽기
+│           ├── memoService.js    # 캘린더 메모 CRUD
+│           ├── reportService.js  # 주간/월간/최종 리포트 + 스냅샷
+│           └── maskingService.js # 가명 치환/조사 보정 유틸
 └── frontend/
-    ├── package.json
-    ├── vite.config.js
+    ├── package.json              # react 19, zustand, vite
+    ├── vite.config.js            # /api -> :3001 프록시
     ├── index.html
     └── src/
-        ├── main.jsx
-        ├── App.jsx
-        ├── api/client.js
-        ├── pages/
-        ├── components/
-        ├── state/gameStore.js
-        └── styles/global.css
+        ├── main.jsx / App.jsx    # 인트로 -> 메인 -> 결과 화면 전환
+        ├── api/client.js         # 전 엔드포인트 1:1 래퍼
+        ├── state/gameStore.js    # zustand: 세션/턴/모달/이벤트 상태
+        ├── utils/format.js       # 원화/퍼센트/등락 표기
+        ├── pages/                # IntroPage, MainPage, ResultPage
+        ├── components/           # StatusBar, NewsPanel, NewsModal, MarketModal,
+        │                         # AssetDetailModal(차트/뉴스/종토방/정보),
+        │                         # TradeModal, PortfolioModal, CalendarModal,
+        │                         # RepaymentModal, ReportModal, EventPopup,
+        │                         # CommunityBoard, PriceChart(SVG), Modal
+        └── styles/global.css     # 디자인 시안 적용 전 기능 확인용
 ```
 
 ## 5. Docker / 실행 환경
@@ -156,22 +166,43 @@ volumes:
 개발 실행:
 
 ```bash
-docker-compose up -d
-docker exec antsurvival_api node seeds/import_news.js --stub
+docker compose up -d                       # DB(+migration) & API
+docker exec antsurvival_api node seeds/import_all.js --stub   # 개발용 스텁 적재
 curl http://localhost:3001/health
-cd frontend && npm run dev
+cd frontend && npm install && npm run dev  # http://localhost:5173 (/api 프록시)
 ```
 
-환경변수:
+API를 로컬 노드로 띄울 때: `cd server && npm install && npm run dev`, 스텁 적재는 `npm run seed:stub`.
+실데이터 적재: `DATA_DIR=<data-pipeline 경로> npm run seed` (§6-0 인벤토리 파일 필요).
+
+환경변수 (`server/.env.example` 참조):
 
 ```bash
 DATABASE_URL=postgresql://admin:password@localhost:5432/antsurvival
 PORT=3001
 CORS_ORIGIN=http://localhost:5173
-GAME_START_RANGE=2013-01-01..2023-12-31
+GAME_START_RANGE=2013-01-02..2023-12-31
+DATA_DIR=/path/to/data-pipeline
 ```
 
 ## 6. 데이터 파이프라인
+
+### 6-0. 최종 데이터 인벤토리 (2026-07-07 확인, 적재기 구현 완료)
+
+게임 DB에 들어가는 최종 산출물과 실제 경로. `DATA_DIR` = `data-pipeline` 체크아웃 루트(또는 Drive 다운로드 폴더).
+
+| 데이터 | 실제 파일 (DATA_DIR 기준) | 스키마 요점 | 적재기 |
+|---|---|---|---|
+| 뉴스 4종 (13,497건) | `news_generator/data/interim/game_publish_calendar/*.game.jsonl` (Drive `game_news_data/` 동일본) | **NEWS_DATA_CONTRACT.md 확정 계약.** `news_lines: string[]`, `game_publish_date` 기준 턴 배치 | `import_news.js` |
+| 주식 시세/거래량 | `data/raw/stock/stock_price-volume_npq.xlsx` (DataGuide, 시트 13-17/18-22/23) | wide 포맷, 코드 `A000660`형, 종가(원)/거래량(주). npq 시트=수급(TODO) | `import_stocks.js` |
+| 거시지표 (34종) | `market_indicator/data/processed/macro_context_daily.csv` | wide 일별. 컬럼명 = `macro_indicators.indicator_code` | `import_macro.js` |
+| 국고채 수익률 | `bond_universe/data/kr_treasury_yields_long.csv` | `date,series(KTB_3Y/KTB_10Y),yield_pct` | `import_bonds.js` |
+| 회사채 금리 | macro CSV 내 `corp_aa_minus_3y_rate`, `corp_bbb_minus_3y_rate` | 수익률 -> 가격지수 변환 후 거래가 산출 | `import_bonds.js` |
+| 코인 메타/시세 | `crypto_universe/data/processed/coin_universe_selected.csv`, `coin_history_selected.csv` | USD 원천 보존, 거래가는 `usdkrw` 환산 KRW | `import_coins.js` |
+| 종토방 | `npc_generator/data/processed/dci_posts_ready.csv`, `dci_comments_ready.csv` | `gall_id`별 게시글/댓글. 갤러리->종목 매핑표 필요(TODO) | `import_community.js` |
+| 주식 재무/밸류에이션 | (DataGuide 반기 재무 — 파일 미확정) | `stock_financials`/`stock_valuation` 스키마 준비됨 | TODO |
+
+미확정/잔여: ① 거시뉴스 전기간 재생성본 교체(스키마 불변, Drive 파일만 교체) ② 마스킹 사전(별칭->정식명->가명) ③ 갤러리-종목 매핑 ④ 반기 재무 원본 ⑤ npq 수급 시트 매핑.
 
 | 데이터 | 소스 | 적재/변환 기준 |
 |---|---|---|
@@ -203,14 +234,21 @@ GAME_START_RANGE=2013-01-01..2023-12-31
 
 ## 7. DB 스키마
 
-최종 스키마는 23개 테이블이다. 자산 타입별 가격 구조가 달라 공통 거래/평가 테이블과 타입별 상세 테이블을 분리한다. 이 DDL을 `server/migrations/001_init.sql`의 기준으로 사용한다.
+최종 스키마는 **24개 테이블**이다 (기존 23 + `session_snapshots`). 자산 타입별 가격 구조가 달라 공통 거래/평가 테이블과 타입별 상세 테이블을 분리한다.
 
-문서 운영 기준:
+**실행 가능한 전체 DDL은 [`server/migrations/001_init.sql`](server/migrations/001_init.sql)이 단일 기준이다.** 이 문서에는 테이블 그룹, 핵심 관계, 설계 원칙만 남긴다. DB 변경은 migration 파일을 먼저 수정하고, 이 문서는 변경 의도와 구조 요약만 갱신한다.
 
-- 현재는 레포에 실제 migration 파일이 없고 설계 기준을 하나로 모으는 단계라 전체 DDL을 이 문서에 포함한다.
-- 구현 스캐폴드가 생기면 실행 가능한 SQL은 `server/migrations/001_init.sql`로 옮긴다.
-- 그 이후 `ARCHITECTURE.md`에는 테이블 그룹, 핵심 관계, 설계 원칙, migration 파일 링크만 남긴다.
-- DB 변경은 migration 파일을 먼저 수정하고, 이 문서는 변경 의도와 구조 요약만 갱신한다.
+**초안 대비 확정 변경 (최종 데이터 정합, 2026-07-07):**
+
+1. **`news` 테이블을 NEWS_DATA_CONTRACT.md와 1:1로 재설계.** 초안의 `headline/body/sentiment/SERIAL id` 구조를 폐기하고 계약 필드를 그대로 컬럼화했다: `news_id VARCHAR PK`(계약의 news_id/article_id), `category`(market_sector·market_macro·stock_disclosure·annual_earnings·split_article), `news_lines JSONB`(완성형 기사 문장 배열), `publish_date`/`game_publish_date` 분리, 거시용 `event_type/direction/strength/market/sector/macro_asset_label`, 종목용 `stock_code/asset_id/event_family/claim_level/bundle_id`, 연간실적용 `business_year/date_basis/fs_div`, 분할기사용 `article_type/source_custom_id/source_rcept_no/material_reason`. 턴 배치·인덱스는 전부 `game_publish_date` 기준.
+2. **`community_posts`에 원천 컬럼 추가**: `source_post_id`, `gall_id`, `view_count`, `dislike_count` (dci_posts_ready.csv 정합).
+3. **`coin_price_detail`은 USD 원천 보존** (`price_usd`, `market_cap_usd`, `volume_usd`), 거래가는 `asset_prices`에 KRW 환산 적재.
+4. **`coin_info`를 실데이터 컬럼으로** (`first_observed_date`, `last_observed_date`, `max_market_cap`, `survived_to_2023`).
+5. **`macro_indicators`에 `display_order`, `is_game_visible` 추가** — macro CSV 34개 컬럼 중 게임 노출 10종 선별.
+6. **`game_sessions`에 `monthly_living_cost` 추가** (기획서 월급/생활비), 금액 컬럼은 `BIGINT`.
+7. **`event_log`에 `resolved` 추가** — 선택형 이벤트의 선택 대기/완료 구분.
+8. **`session_snapshots` 신설** — daily/weekly/monthly/final 자산 스냅샷. 주간 평가·월간 리포트·엔딩 추이 차트의 원천.
+9. 스트레스 100 기절의 행동제한은 `action_locked_until_turn`으로 구현 (해당 턴까지 거래 차단).
 
 ### 7-1. DB 담당자 작업 기준
 
@@ -236,7 +274,7 @@ DB 구조를 짤 때는 아래 순서로 확정한다.
 | 뉴스 | `news`, `news_tags` | 날짜/자산/태그 기반 뉴스 | ETL |
 | 종토방 | `community_posts`, `community_comments` | 읽기 전용 NPC 반응 | ETL |
 | 게임 진행 | `game_sessions`, `game_turns`, `holdings`, `trades` | 세션 상태, 날짜, 보유, 거래 | API |
-| 상태/기록 | `repayments`, `event_log`, `memos`, `news_exposure` | 상환, 이벤트, 메모, 뉴스 노출 이력 | API |
+| 상태/기록 | `repayments`, `event_log`, `memos`, `news_exposure`, `session_snapshots` | 상환, 이벤트, 메모, 뉴스 노출, 자산 스냅샷 | API |
 
 ### 7-3. 핵심 관계
 
@@ -287,7 +325,7 @@ erDiagram
 | `coin_info` | `asset_id` | `asset_id` | `symbol`, `market_cap_tier`, 생존 여부 | 코인 정적 정보 |
 | `macro_indicators` | `indicator_code` | - | `display_name`, `unit` | 거시지표 코드북 |
 | `macro_daily` | `(indicator_code, trade_date)` | `indicator_code` | `value` | 날짜별 거시지표 |
-| `news` | `id` | `asset_id` nullable | `news_date`, `news_type`, `headline`, `sentiment`, `event_family` | 모든 뉴스 통합 |
+| `news` | `news_id` (계약 ID) | `asset_id` nullable | `category`, `game_publish_date`, `news_lines`, `direction`, `strength`, `event_family` | 뉴스 4종 통합, 계약 1:1 |
 | `news_tags` | `(news_id, tag_type, tag)` | `news_id` | `tag_type`, `tag` | 자산/섹터/카테고리 태그 |
 | `community_posts` | `id` | `asset_id` | `post_date`, `npc_nickname`, `title`, `body`, `sentiment` | 종토방 게시글 |
 | `community_comments` | `id` | `post_id` | `npc_nickname`, `body`, `sentiment` | 종토방 댓글 |
@@ -314,292 +352,9 @@ erDiagram
 - `trades(session_id, turn_number)`: 세션별 거래 이력
 - `event_log(session_id, turn_number)`: 턴별 이벤트 로그
 
-### 7-6. 초안 DDL
+### 7-6. DDL
 
-아래 SQL은 DB 담당자가 migration을 만들 때 사용할 초안이다. 구현 파일이 생기면 이 블록을 그대로 유지하지 말고 `server/migrations/001_init.sql`로 옮긴 뒤, 이 문서에는 요약만 남긴다.
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- 공통 자산
-CREATE TABLE assets (
-  asset_id    VARCHAR(20) PRIMARY KEY,
-  asset_type  VARCHAR(10) NOT NULL CHECK (asset_type IN ('stock','bond','coin')),
-  code        VARCHAR(20),
-  name        VARCHAR(100) NOT NULL,
-  masked_name VARCHAR(100),
-  sector      VARCHAR(50),
-  currency    VARCHAR(3) NOT NULL DEFAULT 'KRW',
-  is_active   BOOLEAN NOT NULL DEFAULT TRUE
-);
-CREATE INDEX idx_assets_type ON assets(asset_type);
-
--- 거래/평가 공통 시세
-CREATE TABLE asset_prices (
-  asset_id    VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  trade_date  DATE NOT NULL,
-  close_price NUMERIC NOT NULL,
-  change_rate NUMERIC,
-  currency    VARCHAR(3) NOT NULL DEFAULT 'KRW',
-  PRIMARY KEY (asset_id, trade_date)
-);
-CREATE INDEX idx_prices_date ON asset_prices(trade_date);
-
--- 타입별 상세 시세
-CREATE TABLE stock_price_detail (
-  asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  trade_date DATE NOT NULL,
-  open_price NUMERIC,
-  high_price NUMERIC,
-  low_price  NUMERIC,
-  volume BIGINT,
-  foreign_qty BIGINT,
-  inst_qty BIGINT,
-  indiv_qty BIGINT,
-  shares_outstanding BIGINT,
-  market_cap NUMERIC,
-  PRIMARY KEY (asset_id, trade_date)
-);
-
-CREATE TABLE bond_price_detail (
-  asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  trade_date DATE NOT NULL,
-  yield_rate NUMERIC,
-  price_index NUMERIC,
-  PRIMARY KEY (asset_id, trade_date)
-);
-
-CREATE TABLE coin_price_detail (
-  asset_id   VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  trade_date DATE NOT NULL,
-  market_cap NUMERIC,
-  volume_usd NUMERIC,
-  PRIMARY KEY (asset_id, trade_date)
-);
-
--- 타입별 정보
-CREATE TABLE stock_financials (
-  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  fiscal_year INT NOT NULL,
-  half SMALLINT NOT NULL CHECK (half IN (1,2)),
-  revenue NUMERIC,
-  operating_income NUMERIC,
-  net_income NUMERIC,
-  total_debt NUMERIC,
-  cash_equivalents NUMERIC,
-  inventory NUMERIC,
-  PRIMARY KEY (asset_id, fiscal_year, half)
-);
-
-CREATE TABLE stock_valuation (
-  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  fiscal_year INT NOT NULL,
-  half SMALLINT NOT NULL CHECK (half IN (1,2)),
-  revenue_growth NUMERIC,
-  op_margin NUMERIC,
-  net_margin NUMERIC,
-  debt_ratio NUMERIC,
-  per NUMERIC,
-  pbr NUMERIC,
-  psr NUMERIC,
-  ev_ebitda NUMERIC,
-  roe NUMERIC,
-  roa NUMERIC,
-  eps NUMERIC,
-  bps NUMERIC,
-  sps NUMERIC,
-  market_cap NUMERIC,
-  PRIMARY KEY (asset_id, fiscal_year, half)
-);
-
-CREATE TABLE bond_info (
-  asset_id VARCHAR(20) PRIMARY KEY REFERENCES assets(asset_id),
-  bond_type VARCHAR(20),
-  credit_rating VARCHAR(10),
-  maturity VARCHAR(10)
-);
-
-CREATE TABLE coin_info (
-  asset_id VARCHAR(20) PRIMARY KEY REFERENCES assets(asset_id),
-  symbol VARCHAR(20),
-  market_cap_tier VARCHAR(20),
-  listing_year INT,
-  delisting_year INT,
-  survived_to_2023 BOOLEAN
-);
-
--- 거시
-CREATE TABLE macro_indicators (
-  indicator_code VARCHAR(30) PRIMARY KEY,
-  display_name VARCHAR(50),
-  unit VARCHAR(20)
-);
-
-CREATE TABLE macro_daily (
-  indicator_code VARCHAR(30) NOT NULL REFERENCES macro_indicators(indicator_code),
-  trade_date DATE NOT NULL,
-  value NUMERIC,
-  PRIMARY KEY (indicator_code, trade_date)
-);
-
--- 뉴스
-CREATE TABLE news (
-  id SERIAL PRIMARY KEY,
-  news_date DATE NOT NULL,
-  news_type VARCHAR(30) NOT NULL CHECK (
-    news_type IN ('macro','stock','market','earnings','stock_split','stock_react')
-  ),
-  asset_id VARCHAR(20) REFERENCES assets(asset_id),
-  headline VARCHAR(300) NOT NULL,
-  body TEXT,
-  sentiment VARCHAR(20) CHECK (sentiment IN ('positive','negative','neutral')),
-  event_family VARCHAR(50),
-  is_masked BOOLEAN NOT NULL DEFAULT TRUE
-);
-CREATE INDEX idx_news_date ON news(news_date);
-CREATE INDEX idx_news_type_date ON news(news_type, news_date);
-CREATE INDEX idx_news_asset_date ON news(asset_id, news_date);
-
-CREATE TABLE news_tags (
-  news_id INT NOT NULL REFERENCES news(id) ON DELETE CASCADE,
-  tag_type VARCHAR(20) NOT NULL CHECK (tag_type IN ('asset','sector','category','importance')),
-  tag VARCHAR(50) NOT NULL,
-  PRIMARY KEY (news_id, tag_type, tag)
-);
-
--- 종토방
-CREATE TABLE community_posts (
-  id SERIAL PRIMARY KEY,
-  post_date DATE NOT NULL,
-  asset_id VARCHAR(20) REFERENCES assets(asset_id),
-  npc_nickname VARCHAR(50),
-  title VARCHAR(300),
-  body TEXT,
-  recommend_count INT DEFAULT 0,
-  sentiment VARCHAR(20) CHECK (sentiment IN ('positive','negative','neutral'))
-);
-CREATE INDEX idx_posts_asset_date ON community_posts(asset_id, post_date);
-
-CREATE TABLE community_comments (
-  id SERIAL PRIMARY KEY,
-  post_id INT NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
-  npc_nickname VARCHAR(50),
-  body TEXT NOT NULL,
-  sentiment VARCHAR(20) CHECK (sentiment IN ('positive','negative','neutral'))
-);
-
--- 플레이어 세션
-CREATE TABLE game_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMP DEFAULT NOW(),
-  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','success','failed')),
-  difficulty VARCHAR(10) CHECK (difficulty IN ('easy','normal','hard')),
-  start_date DATE,
-  current_turn INT NOT NULL DEFAULT 1 CHECK (current_turn BETWEEN 1 AND 240),
-  action_locked_until_turn INT NOT NULL DEFAULT 0,
-  initial_cash INT NOT NULL DEFAULT 50000000,
-  debt_initial INT NOT NULL,
-  cash INT NOT NULL,
-  debt INT NOT NULL,
-  stress INT NOT NULL DEFAULT 0 CHECK (stress BETWEEN 0 AND 100),
-  trust INT NOT NULL DEFAULT 100 CHECK (trust BETWEEN 0 AND 100),
-  final_cash INT
-);
-
-CREATE TABLE game_turns (
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  turn_number INT NOT NULL CHECK (turn_number BETWEEN 1 AND 240),
-  trade_date DATE NOT NULL,
-  PRIMARY KEY (session_id, turn_number),
-  UNIQUE (session_id, trade_date)
-);
-CREATE INDEX idx_game_turns_date ON game_turns(trade_date);
-
-CREATE TABLE holdings (
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  quantity NUMERIC NOT NULL CHECK (quantity >= 0),
-  avg_price NUMERIC NOT NULL,
-  PRIMARY KEY (session_id, asset_id)
-);
-
-CREATE TABLE trades (
-  id SERIAL PRIMARY KEY,
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  turn_number INT NOT NULL CHECK (turn_number BETWEEN 1 AND 240),
-  asset_id VARCHAR(20) NOT NULL REFERENCES assets(asset_id),
-  trade_type VARCHAR(4) NOT NULL CHECK (trade_type IN ('buy','sell')),
-  quantity NUMERIC NOT NULL CHECK (quantity > 0),
-  price NUMERIC NOT NULL,
-  amount NUMERIC NOT NULL,
-  realized_pnl NUMERIC,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-CREATE INDEX idx_trades_session_turn ON trades(session_id, turn_number);
-
-CREATE TABLE repayments (
-  id SERIAL PRIMARY KEY,
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  month_index INT NOT NULL CHECK (month_index BETWEEN 1 AND 12),
-  due_amount INT NOT NULL,
-  paid_amount INT NOT NULL,
-  ratio NUMERIC,
-  trust_delta INT,
-  stress_delta INT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE (session_id, month_index)
-);
-
-CREATE TABLE event_log (
-  id SERIAL PRIMARY KEY,
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  turn_number INT NOT NULL CHECK (turn_number BETWEEN 1 AND 240),
-  event_type VARCHAR(30) NOT NULL,
-  detail JSONB,
-  cash_delta INT DEFAULT 0,
-  stress_delta INT DEFAULT 0,
-  trust_delta INT DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-CREATE INDEX idx_event_log_session_turn ON event_log(session_id, turn_number);
-
-CREATE TABLE memos (
-  id SERIAL PRIMARY KEY,
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  game_date DATE NOT NULL,
-  content VARCHAR(100),
-  UNIQUE (session_id, game_date)
-);
-
-CREATE TABLE news_exposure (
-  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
-  game_date DATE NOT NULL,
-  news_id INT NOT NULL REFERENCES news(id) ON DELETE CASCADE,
-  PRIMARY KEY (session_id, game_date, news_id)
-);
-
--- 기본 시드. 주식 117개와 코인 10개는 ETL에서 적재한다.
-INSERT INTO assets (asset_id, asset_type, code, name, masked_name, currency) VALUES
-  ('BOND_KTB3Y','bond','KTB3Y','국고채 3년','국채 단기','KRW'),
-  ('BOND_KTB10Y','bond','KTB10Y','국고채 10년','국채 장기','KRW'),
-  ('BOND_CORPAAA','bond','CORPAAA','회사채 AAA','우량 회사채','KRW'),
-  ('BOND_CORPBBB','bond','CORPBBB','회사채 BBB','투기 회사채','KRW');
-
-INSERT INTO bond_info VALUES
-  ('BOND_KTB3Y','국고채',NULL,'3Y'),
-  ('BOND_KTB10Y','국고채',NULL,'10Y'),
-  ('BOND_CORPAAA','회사채','AAA',NULL),
-  ('BOND_CORPBBB','회사채','BBB',NULL);
-
-INSERT INTO macro_indicators VALUES
-  ('base_rate','기준금리','%'),
-  ('usdkrw','USD/KRW 환율','원'),
-  ('cpi','소비자물가지수','지수'),
-  ('ktb_yield','국채금리','%'),
-  ('wti','WTI 유가','USD'),
-  ('gold','금 가격','USD'),
-  ('leading_index','경기선행지수','지수');
-```
+전체 DDL(24테이블 + 인덱스 + 채권/거시지표 기본 시드)은 [`server/migrations/001_init.sql`](server/migrations/001_init.sql)에 있다. 빈 PostgreSQL 16에서 재실행 가능하며, `docker-compose up -d` 시 자동 실행된다.
 
 조회 기준:
 
@@ -621,8 +376,11 @@ INSERT INTO macro_indicators VALUES
 | GET | `/api/game/:sessionId/turn/:turnNumber` | 턴 데이터: 자산 시세, 뉴스, 상태, 상환 여부 |
 | POST | `/api/game/:sessionId/trade` | 매수/매도. 서버가 체결 가능 여부, 평균단가, 실현손익 계산 |
 | POST | `/api/game/:sessionId/next-turn` | 다음 턴 진행, 가격/뉴스/이벤트/상태 갱신, 자동저장 |
-| POST | `/api/game/:sessionId/repay` | 20턴마다 월말 상환 처리 |
-| POST | `/api/game/:sessionId/event` | 이벤트 선택 결과 처리 |
+| POST | `/api/game/:sessionId/repay` | 20턴마다 월말 상환 처리. body `{ amount }` |
+| GET | `/api/game/:sessionId/repay/history` | 상환 이력 |
+| POST | `/api/game/:sessionId/event` | 선택형 이벤트 해결. body `{ eventLogId, choice }` |
+| GET | `/api/game/:sessionId/event/pending` | 선택 대기(미해결) 이벤트 목록 |
+| GET | `/api/game/:sessionId/event/history` | 이벤트 이력 |
 | GET | `/api/game/:sessionId/result` | 최종 결산 |
 
 ### 8-2. 포트폴리오 / 리포트
@@ -630,6 +388,7 @@ INSERT INTO macro_indicators VALUES
 | Method | Endpoint | 설명 |
 |---|---|---|
 | GET | `/api/game/:sessionId/portfolio` | 보유자산, 평가금액, 수익률, 자산군 비중 |
+| GET | `/api/game/:sessionId/report/weekly/:weekIndex` | 주간 수익률 평가 (기획서 Weekly 평가서, LLM 연동 TODO) |
 | GET | `/api/game/:sessionId/report/monthly/:monthIndex` | 월간 리포트 |
 | GET | `/api/game/:sessionId/report/final` | 최종 리포트 |
 
@@ -646,8 +405,9 @@ INSERT INTO macro_indicators VALUES
 
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/news/:date` | 날짜별 뉴스. 스트레스 제한과 노출 기록 반영 |
-| GET | `/api/news/:date/:assetId` | 날짜+자산별 뉴스 |
+| GET | `/api/news/:date?sessionId=&category=` | 날짜별 뉴스. `sessionId` 전달 시 스트레스 열람 제한 + `news_exposure` 기록 |
+| GET | `/api/news/:date/:assetId` | 날짜+자산별 뉴스 (해당일 이전 30건) |
+| GET | `/api/macro/:date/history?code=&days=` | 지표 차트용 시계열 |
 | GET | `/api/community/:assetId?date=` | 종토방 게시글 목록 |
 | GET | `/api/community/post/:postId/comments` | 게시글 댓글 |
 | GET | `/api/game/:sessionId/memo?date=` | 메모 조회 |
@@ -663,6 +423,7 @@ INSERT INTO macro_indicators VALUES
   "date": "2018-05-14",
   "monthIndex": 3,
   "isRepaymentTurn": false,
+  "isMonthStart": false,
   "state": {
     "cash": 38500000,
     "totalAsset": 51200000,
@@ -675,22 +436,32 @@ INSERT INTO macro_indicators VALUES
       "assetId": "STOCK_005930",
       "assetType": "stock",
       "name": "A전자",
+      "sector": "반도체",
       "price": 52400,
       "changeRate": 0.012
     }
   ],
   "news": [
     {
-      "id": 1,
-      "type": "macro",
-      "headline": "한국은행 기준금리 동결",
-      "sentiment": "neutral"
+      "newsId": "market__2018-05-14__macro__0",
+      "category": "market_macro",
+      "date": "2018-05-14",
+      "headline": "한국은행이 기준금리를 동결했다.",
+      "lines": ["한국은행이 기준금리를 동결했다."],
+      "eventType": "rate_move",
+      "direction": "neutral",
+      "strength": 4,
+      "macroLabel": "기준금리",
+      "assetId": null,
+      "assetName": null
     }
   ],
   "newsLimit": 8,
   "actionLocked": false
 }
 ```
+
+뉴스 DTO는 NEWS_DATA_CONTRACT의 필드를 그대로 반영한다: `headline = news_lines[0]`, `lines = news_lines` 전문, 종목 뉴스는 `assetId`/`assetName`(마스킹명)으로 종목 화면에 라우팅한다.
 
 ## 9. 게임 로직
 
@@ -703,14 +474,27 @@ INSERT INTO macro_indicators VALUES
 
 ### 9-2. 턴 종료 순서
 
-1. 현재 턴 입력 검증
-2. 매수/매도 반영
+`turnService.advanceTurn`이 아래 전 과정을 단일 트랜잭션으로 실행한다(=자동저장).
+
+1. 현재 턴 입력 검증 (종료 세션/240턴 초과 차단)
+2. 매수/매도 반영 (거래는 `tradeService`가 개별 트랜잭션으로 즉시 체결)
 3. 다음 턴 가격 조회
-4. 보유자산 평가
-5. 스트레스 기반 뉴스 노출량 계산
-6. 이벤트 발생 여부 판단
+4. **월초(21, 41, ...턴)면 월급 지급 + 생활비 차감** (기획서 §7. 생활비 수준별 스트레스 변화)
+5. 보유자산 평가 + 자연 스트레스 변동
+6. 이벤트 발생 여부 판단 (`eventEngine.rollTurnEvents`)
 7. 신뢰도/스트레스/현금/행동제한 반영
-8. 자동저장
+8. 일간/주간 스냅샷 기록 (`session_snapshots`) 후 자동저장, 승패 판정
+
+### 9-2-1. 월급 / 생활비 (기획서 §7 Monthly turn)
+
+- 월초 턴에 월급 `MONTHLY_SALARY` 지급, 이번 달 생활비(`game_sessions.monthly_living_cost`) 차감.
+- 생활비 < 최소기준: 굶주린 식사 -> 스트레스 상승 / > 최대기준: 호화로운 식사 -> 스트레스 하락 / 그 외 변화 없음.
+- 금액·기준은 전부 `constants.js` (`LIVING_COST_*`)에서 밸런싱.
+
+### 9-2-2. 주간 평가 (기획서 §7 Weekly 평가서)
+
+- 5턴(1주) 주기로 weekly 스냅샷을 남기고 `GET /report/weekly/:weekIndex`가 지난주 수익률을 계산한다.
+- LLM 평가문 생성은 `reportService.getWeeklyReport`의 TODO 지점에 연동한다 (거래이력+수익률 요약 -> 프롬프트).
 
 ### 9-3. 거래
 
@@ -728,18 +512,24 @@ INSERT INTO macro_indicators VALUES
 
 ### 9-5. 이벤트
 
-이벤트 타입은 서버 `eventEngine`에서 관리하고, 모든 결과는 `event_log`에 남긴다.
+이벤트 타입은 서버 `eventEngine`의 `EVENT_DEFS` 레지스트리로 관리하고, 모든 결과는 `event_log`에 남긴다.
 
-| 이벤트 | 트리거 | 주요 영향 |
-|---|---|---|
-| 사채업자 전화 | 신뢰도 낮을수록 확률 증가 | 스트레스 증가 |
-| 사채업자 방문/상환 | 20턴마다 | 상환비율에 따라 신뢰도/스트레스 변화 |
-| 기절/입원 | 스트레스 100 | 병원비, 3거래일 행동제한, 스트레스 리셋 |
-| 명절 | 공휴일/월별 이벤트 | 현금/스트레스 변화 |
-| 여행 | 랜덤 선택 이벤트 | 현금 감소, 스트레스 감소 |
-| 결혼식 | 랜덤 선택 이벤트 | 현금/스트레스 변화 |
-| 부업 | 선택형 현금 확보 | 시간/스트레스 비용 |
-| 특수 시장 이벤트 | 뉴스/거시 조건 기반 | 자산군별 리스크 힌트 |
+- **immediate(강제)**: 발생 즉시 효과 적용, `resolved=TRUE`로 기록. 프론트는 팝업 연출만.
+- **choice(선택형)**: `resolved=FALSE`로 기록 -> 프론트 `EventPopup`이 선택지 표시 -> `POST /event`로 해결. 미해결 이벤트가 있으면 다음 턴 진행 버튼이 잠긴다.
+
+| 이벤트 (`event_type`) | 종류 | 트리거 | 주요 영향 | 구현 상태 |
+|---|---|---|---|---|
+| `loan_shark_call` 사채업자 전화 | immediate | 신뢰도 낮을수록 확률 증가 (`LOAN_SHARK_CALL`) | 스트레스 증가 | 구현 |
+| `repayment` 월말 상환 | (repaymentService) | 20턴마다 | 상환비율별 신뢰도/스트레스 변화 (기획서: 독촉/변화없음/격려) | 구현 |
+| `faint` 기절 | immediate | 스트레스 100 | 3~7거래일 행동제한 + 스트레스 리셋 (기획서 Skip N days) | 구현 |
+| `hospital` 병원행 | immediate | 스트레스 80 초과 확률 | 병원비 지출, 스트레스 완화 | 구현 |
+| `surge_stock_tip` 급등주 소식 | immediate | 스트레스 80 초과 확률 (기획서 §8) | 급등주 힌트 노출 | 뼈대 (힌트 종목 선정 TODO) |
+| `monthly_cashflow` 월급/생활비 | (turnService) | 월초 턴 | 현금 증감 + 생활비 스트레스 | 구현 |
+| `holiday` 명절 | immediate | 명절 날짜 | 현금/스트레스 변화 | 임시 트리거 (명절 달력 TODO) |
+| `travel` 여행 | choice | 랜덤 (`RANDOM_EVENT_PROB`) | 현금 감소, 스트레스 감소 | 구현 |
+| `wedding` 결혼식 | choice | 랜덤 | 현금/스트레스 변화 | 구현 |
+| `side_job` 부업 | choice | 랜덤 | 현금 확보 vs 스트레스 비용 | 구현 |
+| `market_special` 특수 시장 이벤트 | immediate | 뉴스/거시 급변 조건 | 자산군별 리스크 힌트 | 뼈대 (트리거 TODO) |
 
 ## 10. UI 화면
 
@@ -755,8 +545,9 @@ INSERT INTO macro_indicators VALUES
 | 포트폴리오 | 보유자산, 평가손익, 비중, 수익분석 | `GET /api/game/:sessionId/portfolio` |
 | 뉴스 | 필터, 상세, 관련 자산 연결 | `GET /api/news/:date` |
 | 캘린더 | 과거 뉴스, 메모 CRUD | `/memo`, `news_exposure` |
-| 이벤트 팝업 | 선택형/강제 이벤트 처리 | `POST /api/game/:sessionId/event` |
-| 월간/최종 리포트 | 20턴 정산, 엔딩 | `/report/monthly`, `/report/final`, `/result` |
+| 이벤트 팝업 | 선택형/강제 이벤트 처리 (미해결 시 턴 진행 잠금) | `POST /api/game/:sessionId/event`, `/event/pending` |
+| 상환 모달 | 상환 턴 상환액 입력, 결과 연출 | `POST /api/game/:sessionId/repay` |
+| 주간/월간/최종 리포트 | 주간 평가, 20턴 정산, 엔딩 | `/report/weekly`, `/report/monthly`, `/report/final`, `/result` |
 
 UI와 데이터 정합:
 
@@ -770,38 +561,48 @@ UI와 데이터 정합:
 
 | 서비스 | 책임 |
 |---|---|
+| `gameService` | 세션 생성/상태 DTO/승패 판정/최종 결산 |
 | `turnSelector` | 시작일 선택, 240거래일 생성 |
-| `pricingService` | 현재가, 기간 시세, 환율 변환 |
-| `tradeService` | 거래 검증, 체결, 평균단가, 실현손익 |
+| `turnService` | 턴 데이터 조회, next-turn 오케스트레이션(월초 현금흐름·이벤트·스냅샷·자동저장) |
+| `pricingService` | 현재가, 기간 시세, 종목 목록/상세(타입별 정보 탭) |
+| `tradeService` | 거래 검증, 체결, 평균단가, 실현손익 (세션 행잠금) |
 | `valuationService` | 총자산, 순자산, 수익률, 자산군 비중 |
-| `stressPolicy` | 스트레스 증감, 뉴스 제한, 기절 조건 |
-| `trustPolicy` | 신뢰도 증감, 독촉전화 확률 |
-| `repaymentService` | 월말 상환금 계산, 상환 결과 반영 |
-| `eventEngine` | 이벤트 발생 판단, 중복 방지, 결과 계산 |
-| `reportService` | 월간/최종 리포트 계산 |
-| `maskingService` | 회사명 가명 처리, 조사 보정 |
+| `stressPolicy` | 스트레스 증감, 뉴스 제한, 기절 조건, 생활비 스트레스 |
+| `trustPolicy` | 신뢰도 증감, 독촉전화 확률, 상환 효과 |
+| `repaymentService` | 월말 상환금 계산, 상환 결과 반영, 전액상환 클리어 |
+| `eventEngine` | `EVENT_DEFS` 관리, 발생 판단, 선택형 해결, `event_log` 기록 |
+| `newsService` | 계약 DTO 변환, 스트레스 열람 제한, `news_exposure` 기록 |
+| `macroService` | 거시지표 당일값/전일대비/시계열 |
+| `communityService` | 종토방 게시글/댓글 (과거분만 노출) |
+| `memoService` | 캘린더 메모 CRUD |
+| `reportService` | 주간/월간/최종 리포트, `session_snapshots` 기록, LLM 연동 지점 |
+| `maskingService` | 회사명 가명 처리, 조사 보정 (사전 확정 TODO) |
 
 ## 12. 개발 마일스톤
 
-| Phase | 목표 | 기준 |
-|---|---|---|
-| P0 | DB 스키마, Docker, 서버 부트스트랩 | 23테이블 migration, health check |
-| P1 | 데이터 적재 | 131자산, 시세, 재무, 거시, 뉴스, 종토방 stub/실데이터 |
-| P2 | 게임 코어 | 세션, 240턴, 현재가, 매수/매도, 평가, 자동저장 |
-| P3 | 상태/상환 | 스트레스, 신뢰도, 월말상환, 승패 |
-| P4 | 이벤트 | 이벤트 엔진, `event_log`, 행동제한 |
-| P5 | 프론트 | 메인/마켓/상세/포트폴리오/뉴스/캘린더/거래/이벤트 |
-| P6 | 리포트/밸런싱 | 월간/최종 리포트, 난이도 조정, 안정화 |
+| Phase | 목표 | 기준 | 상태 (2026-07-07) |
+|---|---|---|---|
+| P0 | DB 스키마, Docker, 서버 부트스트랩 | 24테이블 migration, health check | **완료·검증됨** |
+| P1 | 데이터 적재 | 131자산, 시세, 재무, 거시, 뉴스, 종토방 stub/실데이터 | 스텁 완료 / 실데이터 적재기 구현 (매핑 TODO 4건, §6-0) |
+| P2 | 게임 코어 | 세션, 240턴, 현재가, 매수/매도, 평가, 자동저장 | **완료·검증됨** |
+| P3 | 상태/상환 | 스트레스, 신뢰도, 월말상환, 승패, 월급/생활비 | 구현 완료 (밸런싱 곡선 TODO) |
+| P4 | 이벤트 | 이벤트 엔진, `event_log`, 행동제한 | 엔진/8종 구현 (급등주·명절·시장특수 트리거 TODO) |
+| P5 | 프론트 | 메인/마켓/상세/포트폴리오/뉴스/캘린더/거래/이벤트/리포트 | 전 화면 구현·API 연동 (디자인 시안 미적용) |
+| P6 | 리포트/밸런싱 | 주간/월간/최종 리포트, LLM 분석, 난이도 조정 | 리포트 계산 구현 (LLM 연동·밸런싱 TODO) |
+
+남은 작업(코드 채워넣기 지점)은 저장소 전체에서 `TODO(gamelogic)` / `TODO(data)` / `TODO(frontend)` 주석으로 검색된다.
 
 ## 13. 검증 기준
 
-- `docker-compose up -d` 후 DB와 API가 기동해야 한다.
-- `server/migrations/001_init.sql`은 빈 PostgreSQL 16에서 재실행 가능해야 한다.
-- `node seeds/import_news.js --stub`로 최소 개발 데이터가 적재되어야 한다.
-- `/health`가 200을 반환해야 한다.
-- 게임 시작 후 240개 `game_turns`가 생성되어야 한다.
-- 기본 게임 플로우 테스트는 시작 -> 턴 조회 -> 거래 -> 다음 턴 -> 상환 -> 결과 순서를 포함해야 한다.
-- API 응답에는 마스킹 전 회사명이 노출되지 않아야 한다.
+2026-07-07 스캐폴드 기준 전 항목 통과 확인:
+
+- [x] `docker-compose up -d` 후 DB와 API가 기동해야 한다.
+- [x] `server/migrations/001_init.sql`은 빈 PostgreSQL 16에서 재실행 가능해야 한다. (24테이블 생성 확인)
+- [x] `node seeds/import_all.js --stub`로 최소 개발 데이터가 적재되어야 한다. (29자산/300거래일/뉴스 1,600여 건)
+- [x] `/health`가 200을 반환해야 한다.
+- [x] 게임 시작 후 240개 `game_turns`가 생성되어야 한다.
+- [x] 기본 게임 플로우 테스트: 시작 -> 턴 조회 -> 매수 -> 19턴 진행 -> 매도(실현손익) -> 상환(신뢰도 반영) -> 뉴스 제한 -> 메모 -> 월간/주간 리포트 순서로 통과.
+- [x] API 응답에는 마스킹 전 회사명이 노출되지 않아야 한다. (`masked_name`만 응답)
 
 ## 14. 단일 문서 운영 규칙
 
