@@ -95,6 +95,43 @@ async function repay(sessionId, amount) {
   });
 }
 
+/**
+ * 상환 턴(20의 배수)을 상환 기록 없이 지나친 경우 자동 미납(ratio 0) 처리.
+ * 기절 등으로 월말을 경과해도 미납이 반드시 기록되게 한다 (미팅5 §E).
+ * turnService.advanceTurn 트랜잭션 안에서 호출 — session 객체의 stress/trust를 갱신해 두면
+ * advanceTurn의 최종 UPDATE가 저장한다.
+ * @returns 미납 처리 시 요약, 해당 없으면 null
+ */
+async function recordMissedIfUnpaid(client, session) {
+  const turn = session.current_turn;
+  if (!isRepaymentTurn(turn)) return null;
+  const monthIndex = monthIndexOf(turn);
+  const { rows: dup } = await client.query(
+    `SELECT 1 FROM repayments WHERE session_id = $1 AND month_index = $2`,
+    [session.id, monthIndex]
+  );
+  if (dup[0]) return null;
+
+  const due = dueAmountOf(session.debt_initial);
+  const { trustDelta, stressDelta, label } = trustPolicy.repaymentEffect(0);
+  session.trust = clamp100(session.trust + trustDelta);
+  session.stress = clamp100(session.stress + stressDelta);
+
+  await client.query(
+    `INSERT INTO repayments (session_id, month_index, due_amount, paid_amount, ratio, trust_delta, stress_delta)
+     VALUES ($1, $2, $3, 0, 0, $4, $5)`,
+    [session.id, monthIndex, due, trustDelta, stressDelta]
+  );
+  await client.query(
+    `INSERT INTO event_log (session_id, turn_number, event_type, detail, cash_delta, stress_delta, trust_delta, resolved)
+     VALUES ($1, $2, 'repayment', $3, 0, $4, $5, TRUE)`,
+    [session.id, turn,
+     JSON.stringify({ monthIndex, due, paid: 0, ratio: 0, auto: true, label }),
+     stressDelta, trustDelta]
+  );
+  return { monthIndex, dueAmount: due, paidAmount: 0, ratio: 0, trustDelta, stressDelta, auto: true };
+}
+
 async function getHistory(sessionId) {
   const { rows } = await query(
     `SELECT month_index, due_amount, paid_amount, ratio, trust_delta, stress_delta, created_at
@@ -104,4 +141,4 @@ async function getHistory(sessionId) {
   return rows;
 }
 
-module.exports = { isRepaymentTurn, monthIndexOf, dueAmountOf, repay, getHistory };
+module.exports = { isRepaymentTurn, monthIndexOf, dueAmountOf, repay, recordMissedIfUnpaid, getHistory };

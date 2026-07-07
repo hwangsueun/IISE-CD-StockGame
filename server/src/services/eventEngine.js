@@ -18,6 +18,8 @@ const { clamp100 } = require('../utils/clamp');
 
 const rand = (min, max) => min + Math.random() * (max - min);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+// DATE 컬럼은 db.js 파서가 'YYYY-MM-DD' 문자열로 주지만, Date 객체가 와도 안전하게 처리
+const toIsoDate = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
 
 /**
  * 이벤트 정의 레지스트리.
@@ -153,10 +155,13 @@ const EVENT_DEFS = {
   // ------------------------------------------------------------------
   holiday: {
     kind: 'immediate',
-    // TODO(data): 실제 설/추석 달력 기반 트리거로 교체 (임시: 2/1, 9/1 근처)
-    trigger: ({ tradeDate }) => {
-      const d = new Date(tradeDate);
-      return (d.getMonth() === 1 || d.getMonth() === 8) && d.getDate() <= 2;
+    // 설날/추석 당일(HOLIDAY.DATES)이 직전 거래일~이번 거래일 사이에 있으면 발동.
+    // 명절은 휴장일이므로 연휴 직후 첫 거래일에 정확히 1회 발생한다.
+    trigger: ({ tradeDate, prevTradeDate }) => {
+      if (!prevTradeDate) return false;
+      const cur = toIsoDate(tradeDate);
+      const prev = toIsoDate(prevTradeDate);
+      return C.HOLIDAY.DATES.some((h) => prev < h && h <= cur);
     },
     apply: () => {
       const r = pick(C.HOLIDAY.RESULTS);

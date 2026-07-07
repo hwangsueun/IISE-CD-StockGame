@@ -87,13 +87,24 @@ async function advanceTurn(sessionId) {
     const session = sRows[0];
     if (!session) throw notFound('세션을 찾을 수 없습니다');
     if (session.status !== 'active') throw conflict('종료된 게임입니다');
+
+    // --- 상환 턴을 상환 없이 지나치면 자동 미납 처리 (미팅5: 기절로 월말 경과 포함) ---
+    const missedRepayment = await repaymentService.recordMissedIfUnpaid(client, session);
+
     if (session.current_turn >= C.TOTAL_TURNS) {
-      // 240턴 종료: 승패 판정만
+      // 240턴 종료: 승패 판정만 (미납 반영분 저장 포함)
+      if (missedRepayment) {
+        await client.query(
+          `UPDATE game_sessions SET stress = $2, trust = $3, updated_at = NOW() WHERE id = $1`,
+          [sessionId, session.stress, session.trust]
+        );
+      }
       const status = await gameService.evaluateEndCondition(client, session);
-      return { finished: true, status };
+      return { finished: true, status, missedRepayment };
     }
 
     const nextTurn = session.current_turn + 1;
+    const prevDate = await getTurnDate(sessionId, session.current_turn, client);
     const nextDate = await getTurnDate(sessionId, nextTurn, client);
     session.current_turn = nextTurn;
 
@@ -132,6 +143,7 @@ async function advanceTurn(sessionId) {
     const events = await eventEngine.rollTurnEvents(client, session, {
       turnNumber: nextTurn,
       tradeDate: nextDate,
+      prevTradeDate: prevDate,
       totalAsset: totalAssetBefore,
     });
 
@@ -166,6 +178,7 @@ async function advanceTurn(sessionId) {
       date: toIso(nextDate),
       isRepaymentTurn: repaymentService.isRepaymentTurn(nextTurn),
       monthly,
+      missedRepayment, // 직전 상환 턴을 지나쳐 자동 미납 처리된 경우 (팝업 연출용)
       events,
       surgeResults, // 전 턴 급등주 정산 결과 (팝업 연출용)
       dailyReturn,
