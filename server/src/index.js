@@ -10,10 +10,13 @@ const assetRoutes = require('./routes/assets');
 const macroRoutes = require('./routes/macro');
 const newsRoutes = require('./routes/news');
 const communityRoutes = require('./routes/community');
+const authRoutes = require('./routes/auth');
+const { authMiddleware } = require('./services/authService');
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
+app.use(authMiddleware); // Bearer 토큰 -> req.user (게스트면 null)
 
 app.get('/health', async (_req, res) => {
   try {
@@ -24,7 +27,9 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-// 게임 세션 흐름 (start/state/turn/trade/next-turn/repay/event/result/portfolio/report/memo)
+// 회원관리 (회원가입/로그인/프로필/이어하기)
+app.use('/api/auth', authRoutes);
+// 게임 세션 흐름 (start/state/turn/trade/next-turn/repay/event/result/portfolio/report/memo/side-job/surge/log)
 app.use('/api/game', gameRoutes);
 // 자산/시세
 app.use('/api/assets', assetRoutes);

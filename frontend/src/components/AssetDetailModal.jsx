@@ -20,6 +20,10 @@ export default function AssetDetailModal({ assetId }) {
   const [detail, setDetail] = useState(null);
   const [series, setSeries] = useState([]);
   const [news, setNews] = useState([]);
+  // 기술적 지표 토글 (미팅5 §1: 주식·코인 차트에 MA/볼린저/RSI 제공)
+  const [showMa, setShowMa] = useState(true);
+  const [showBb, setShowBb] = useState(false);
+  const [showRsi, setShowRsi] = useState(false);
 
   useEffect(() => {
     api.getAssetDetail(assetId, turn.date).then(setDetail).catch(console.error);
@@ -59,8 +63,23 @@ export default function AssetDetailModal({ assetId }) {
                 {r.label}
               </button>
             ))}
+            {detail.assetType !== 'bond' && (
+              <>
+                <span className="spacer" />
+                <button className={showMa ? 'active' : ''} onClick={() => setShowMa(!showMa)}>MA</button>
+                <button className={showBb ? 'active' : ''} onClick={() => setShowBb(!showBb)}>볼린저</button>
+                <button className={showRsi ? 'active' : ''} onClick={() => setShowRsi(!showRsi)}>RSI</button>
+              </>
+            )}
           </div>
-          <PriceChart series={series} />
+          <PriceChart
+            series={series}
+            overlays={detail.assetType === 'bond' ? {} : {
+              ma: showMa ? [5, 10, 60, 120] : null,
+              bollinger: showBb,
+              rsi: showRsi,
+            }}
+          />
         </>
       )}
 

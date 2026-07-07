@@ -84,6 +84,7 @@ async function getMonthlyReport(sessionId, monthIndex) {
   const first = snaps[0];
   const last = snaps[snaps.length - 1];
 
+  const repay = repayment.rows[0] || null;
   return {
     monthIndex,
     fromTurn,
@@ -96,7 +97,16 @@ async function getMonthlyReport(sessionId, monthIndex) {
         : null,
     tradeCount: trades.rows[0].cnt,
     realizedPnl: Number(trades.rows[0].pnl),
-    repayment: repayment.rows[0] || null,
+    repayment: repay,
+    // 신뢰도 변화 요약 (기능명세서 §리포트/월간-신뢰도 분석)
+    trustChange: first && last ? last.trust - first.trust : null,
+    stressChange: first && last ? last.stress - first.stress : null,
+    // 상환 결과 피드백 (기능명세서 §리포트/월간-상환 분석)
+    repaymentFeedback: repay
+      ? Number(repay.ratio) >= 1
+        ? '이번 달 상환을 성실히 이행했습니다.'
+        : '상환이 부족했습니다. 신뢰도 하락에 주의하세요.'
+      : '이번 달 상환 기록이 없습니다.',
     events: events.rows,
   };
 }
@@ -135,7 +145,11 @@ async function getFinalReport(sessionId) {
         : 0,
     monthlyTrend: monthly,
     repayments,
-    // TODO(gamelogic): LLM 투자성향 분석 리포트 (기획서 §10 Argument) 연동 지점
+    // 투자 성향 분석 + 학습 피드백 (기능명세서 §리포트/최종)
+    // TODO(gamelogic): LLM 연동 — 거래이력/자산군 비중/이벤트 대응을 요약해 프롬프트로 전달
+    //   (기획서 §10 Argument "생성형 AI를 활용한 투자성향/포트폴리오 분석 레포트")
+    investmentStyle: null,   // 예: '공격형' | '안정형' | ... LLM 산출
+    learningFeedback: null,  // 학습 피드백 문장 목록
     aiAnalysis: null,
   };
 }

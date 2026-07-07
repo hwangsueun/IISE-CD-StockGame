@@ -13,8 +13,8 @@ async function getSession(sessionId, client) {
   return rows[0];
 }
 
-/** 난이도 선택 -> 세션 생성 -> 240턴 날짜 고정 */
-async function startGame(difficulty) {
+/** 난이도 선택 -> 세션 생성 -> 240턴 날짜 고정. userId 있으면 계정 연결(이어하기) */
+async function startGame(difficulty, userId = null) {
   const debt = C.DEBT_BY_DIFFICULTY[difficulty];
   const { startDate, dates } = await turnSelector.selectTurnDates();
 
@@ -22,15 +22,44 @@ async function startGame(difficulty) {
     const { rows } = await client.query(
       `INSERT INTO game_sessions
          (difficulty, start_date, initial_cash, cash, debt_initial, debt,
-          stress, trust, monthly_living_cost)
-       VALUES ($1, $2, $3, $3, $4, $4, $5, $6, $7)
+          stress, trust, monthly_living_cost, user_id)
+       VALUES ($1, $2, $3, $3, $4, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [difficulty, startDate, C.INITIAL_CASH, debt, C.STRESS_INIT, C.TRUST_INIT, C.LIVING_COST_DEFAULT]
+      [difficulty, startDate, C.INITIAL_CASH, debt, C.STRESS_INIT, C.TRUST_INIT,
+       C.LIVING_COST_DEFAULT, userId]
     );
     const session = rows[0];
     await turnSelector.createGameTurns(client, session.id, dates);
     return toStateDto(session, Number(session.cash)); // 시작 시 총자산 = 현금
   });
+}
+
+/** 거래/상환/이벤트 통합 타임라인 (기능명세서 §기록 게임 로그) */
+async function getGameLog(sessionId, limit = 200) {
+  const { rows } = await query(
+    `SELECT * FROM (
+       SELECT 'trade' AS log_type, turn_number, created_at,
+              json_build_object('assetId', asset_id, 'tradeType', trade_type,
+                                'quantity', quantity, 'price', price,
+                                'amount', amount, 'realizedPnl', realized_pnl) AS detail
+       FROM trades WHERE session_id = $1
+       UNION ALL
+       SELECT 'repayment', month_index * 20, created_at,
+              json_build_object('monthIndex', month_index, 'due', due_amount,
+                                'paid', paid_amount, 'ratio', ratio)
+       FROM repayments WHERE session_id = $1
+       UNION ALL
+       SELECT 'event', turn_number, created_at,
+              json_build_object('eventType', event_type, 'detail', detail,
+                                'cashDelta', cash_delta, 'stressDelta', stress_delta,
+                                'trustDelta', trust_delta)
+       FROM event_log WHERE session_id = $1
+     ) logs
+     ORDER BY turn_number, created_at
+     LIMIT $2`,
+    [sessionId, limit]
+  );
+  return rows;
 }
 
 /** 현재 상태 DTO (총자산 평가 포함) */
@@ -107,4 +136,4 @@ function toStateDto(session, totalAsset) {
   };
 }
 
-module.exports = { getSession, startGame, getSessionState, evaluateEndCondition, getResult, toStateDto };
+module.exports = { getSession, startGame, getSessionState, evaluateEndCondition, getResult, toStateDto, getGameLog };

@@ -149,3 +149,41 @@ textarea { min-height: 80px; resize: vertical; }
 .result-stats div { display: flex; justify-content: space-between; gap: 30px; }
 .result-stats dt { color: #8a8f98; }
 .result-stats dd { margin: 0; font-weight: 700; }
+
+/* --- 오프닝 --- */
+.opening-page { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 30px; cursor: pointer; padding: 24px; }
+.opening-text { font-size: 1.4rem; max-width: 560px; text-align: center; line-height: 1.8; }
+.opening-nav { display: flex; gap: 20px; color: #8a8f98; font-size: 0.85rem; align-items: center; }
+.btn-skip { background: none; border: 1px solid #333845; color: #8a8f98; padding: 6px 14px; border-radius: 999px; }
+
+/* --- 로그인/이어하기 --- */
+.auth-panel { margin-top: 28px; background: #232630; border-radius: 12px; padding: 16px 20px; width: min(360px, 90vw); display: flex; flex-direction: column; gap: 8px; }
+.auth-panel input { background: #16181d; border: 1px solid #333845; color: #e8eaef; padding: 10px; border-radius: 8px; }
+.btn-link { background: none; border: none; color: #e8a33d; text-decoration: underline; padding: 0; }
+.resume-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.resume-list button { width: 100%; text-align: left; background: #16181d; border: 1px solid #333845; color: inherit; padding: 10px; border-radius: 8px; font-size: 0.85rem; }
+.resume-list button:hover { border-color: #e8a33d; }
+
+/* --- 부업/미니게임 --- */
+.sidejob-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.sidejob-card { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; background: #16181d; border: 1px solid #333845; color: inherit; padding: 14px; border-radius: 10px; }
+.sidejob-card:hover:not(:disabled) { border-color: #e8a33d; }
+.sidejob-card:disabled { opacity: 0.4; }
+.sidejob-icon { font-size: 1.5rem; }
+.sidejob-grade { text-align: center; color: #e8a33d; font-size: 1.5rem; margin: 8px 0; }
+.minigame-board { display: flex; flex-direction: column; gap: 8px; }
+.minigame-hud { display: flex; justify-content: space-between; font-weight: 700; }
+.minigame-field { position: relative; height: 320px; background: #10141c; border-radius: 10px; overflow: hidden; }
+.minigame-help { color: #8a8f98; font-size: 0.85rem; }
+.minigame-over { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.6); font-size: 1.6rem; font-weight: 800; }
+.waxon-bird { position: absolute; background: none; border: none; font-size: 1.8rem; transition: left 0.1s linear, top 0.1s linear; }
+.falling-word { position: absolute; background: #e2504c; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.85rem; white-space: nowrap; }
+.player-char { position: absolute; bottom: 6px; font-size: 2rem; transition: left 0.08s; }
+.tetris-grid { position: relative; display: flex; flex-direction: column; gap: 1px; background: #10141c; padding: 6px; border-radius: 10px; width: fit-content; margin: 0 auto; }
+.tetris-row { display: flex; gap: 1px; }
+.tetris-cell { width: 26px; height: 26px; background: #1c2029; display: grid; place-items: center; font-size: 18px; border-radius: 3px; }
+.tetris-cell.filled { background: #2c3140; }
+
+/* --- 급등주 --- */
+.surge-popup .field input { margin-top: 4px; }
+.rsi-label { font-size: 0.85rem; color: #8a8f98; margin: 4px 0 0; }

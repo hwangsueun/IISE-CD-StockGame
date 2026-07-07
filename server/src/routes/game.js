@@ -8,6 +8,8 @@ const portfolioRoutes = require('./portfolio');
 const repaymentRoutes = require('./repayment');
 const eventRoutes = require('./event');
 const memoRoutes = require('./memo');
+const sideJobRoutes = require('./sideJob');
+const surgeRoutes = require('./surge');
 
 // POST /api/game/start { difficulty }
 router.post('/start', asyncHandler(game.start));
@@ -32,6 +34,11 @@ router.use('/:sessionId/portfolio', portfolioRoutes);
 router.use('/:sessionId/repay', repaymentRoutes);
 router.use('/:sessionId/event', eventRoutes);
 router.use('/:sessionId/memo', memoRoutes);
+router.use('/:sessionId/side-job', sideJobRoutes);
+router.use('/:sessionId/surge', surgeRoutes);
+
+// 게임 로그 (기능명세서 §기록: 거래/상환/이벤트/상태 통합 타임라인)
+router.get('/:sessionId/log', asyncHandler(game.getLog));
 
 // 리포트 (월간/주간/최종)
 router.get('/:sessionId/report/weekly/:weekIndex', asyncHandler(game.getWeeklyReport));

@@ -97,4 +97,56 @@ async function getPortfolio(sessionId) {
   };
 }
 
-module.exports = { getCurrentTradeDate, evaluateHoldings, computeTotalAsset, getPortfolio };
+/**
+ * 기간별/자산군별/종목별 실현손익 (기능명세서 §자산 포트폴리오)
+ * @param {'daily'|'weekly'|'monthly'|'yearly'|'all'} period 현재 턴 기준 조회 구간
+ * @param {'stock'|'bond'|'coin'|undefined} assetType 자산군 필터
+ * @returns { period, totalPnl, tradeCount, byAsset: [{assetId, name, assetType, pnl, tradeCount}] }
+ */
+async function getRealizedPnl(sessionId, period = 'all', assetType) {
+  const { rows: sRows } = await query(
+    `SELECT current_turn FROM game_sessions WHERE id = $1`, [sessionId]
+  );
+  if (!sRows[0]) throw notFound('세션을 찾을 수 없습니다');
+  const currentTurn = sRows[0].current_turn;
+
+  // 턴 기준 구간: 일=현재 턴, 주=5턴, 월=20턴, 연=240턴, 전체=1턴부터
+  const TURNS = { daily: 1, weekly: 5, monthly: 20, yearly: 240, all: currentTurn };
+  const span = TURNS[period] ?? TURNS.all;
+  const fromTurn = Math.max(1, currentTurn - span + 1);
+
+  const params = [sessionId, fromTurn];
+  let typeFilter = '';
+  if (assetType) {
+    params.push(assetType);
+    typeFilter = `AND a.asset_type = $${params.length}`;
+  }
+  const { rows } = await query(
+    `SELECT t.asset_id, a.masked_name AS name, a.asset_type,
+            COALESCE(SUM(t.realized_pnl), 0) AS pnl,
+            COUNT(*)::int AS trade_count
+     FROM trades t JOIN assets a ON a.asset_id = t.asset_id
+     WHERE t.session_id = $1 AND t.turn_number >= $2 ${typeFilter}
+     GROUP BY t.asset_id, a.masked_name, a.asset_type
+     ORDER BY pnl DESC`,
+    params
+  );
+  const byAsset = rows.map((r) => ({
+    assetId: r.asset_id,
+    name: r.name,
+    assetType: r.asset_type,
+    pnl: Number(r.pnl),
+    tradeCount: r.trade_count,
+  }));
+  return {
+    period,
+    fromTurn,
+    toTurn: currentTurn,
+    assetType: assetType || 'all',
+    totalPnl: byAsset.reduce((s, r) => s + r.pnl, 0),
+    tradeCount: byAsset.reduce((s, r) => s + r.tradeCount, 0),
+    byAsset,
+  };
+}
+
+module.exports = { getCurrentTradeDate, evaluateHoldings, computeTotalAsset, getPortfolio, getRealizedPnl };

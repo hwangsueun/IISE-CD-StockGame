@@ -1,6 +1,7 @@
-// 인트로/빚 설정 화면 — 난이도 선택 후 POST /api/game/start (§10)
+// 인트로/빚 설정 화면 — 로그인(선택)/이어하기 + 난이도 선택 후 POST /api/game/start (§10)
 import { useState } from 'react';
 import { useGameStore } from '../state/gameStore';
+import AuthPanel from '../components/AuthPanel';
 
 const DIFFICULTIES = [
   { key: 'easy', label: '쉬움', debt: '빚 5,000만 원' },
@@ -34,6 +35,8 @@ export default function IntroPage() {
         {loading ? '시작 중...' : '게임 시작'}
       </button>
       {error && <p className="error-text">{error}</p>}
+
+      <AuthPanel />
     </div>
   );
 }

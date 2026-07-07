@@ -10,6 +10,7 @@ const valuationService = require('./valuationService');
 const stressPolicy = require('./stressPolicy');
 const repaymentService = require('./repaymentService');
 const eventEngine = require('./eventEngine');
+const surgeStockService = require('./surgeStockService');
 const newsService = require('./newsService');
 const reportService = require('./reportService');
 const { clamp100 } = require('../utils/clamp');
@@ -69,6 +70,7 @@ async function getTurnData(sessionId, turnNumber) {
     news: newsResult.news,
     newsLimit: newsResult.newsLimit,
     actionLocked: session.current_turn <= session.action_locked_until_turn,
+    sideJobDoneToday: session.side_job_turn === session.current_turn, // 부업한 날 = 투자 불가
   };
 }
 
@@ -111,27 +113,35 @@ async function advanceTurn(sessionId) {
       );
     }
 
-    // --- 보유자산 평가 + 자연 스트레스 변동 ---
-    const totalAssetBefore = await valuationService.computeTotalAsset(sessionId, client);
-    const dailyDelta = stressPolicy.dailyStressDelta({
-      totalAsset: totalAssetBefore,
-      debt: Number(session.debt),
-    });
-    session.stress = clamp100(session.stress + dailyDelta);
+    // --- 전 턴 급등주 정산 (미팅5 §4: 다음 턴 결과 공개 -> 자동 매도/제거) ---
+    const surgeResults = await surgeStockService.resolvePending(client, session);
 
-    // --- 이벤트 발생 판단/적용 ---
+    // --- 보유자산 평가 + 일일 손익률 기반 스트레스 (미팅4 §2) ---
+    const totalAssetBefore = await valuationService.computeTotalAsset(sessionId, client);
+    const { rows: prevSnap } = await client.query(
+      `SELECT total_asset FROM session_snapshots
+       WHERE session_id = $1 AND snapshot_type = 'daily'
+       ORDER BY turn_number DESC LIMIT 1`,
+      [sessionId]
+    );
+    const prevAsset = prevSnap[0] ? Number(prevSnap[0].total_asset) : totalAssetBefore;
+    const dailyReturn = prevAsset > 0 ? (totalAssetBefore - prevAsset) / prevAsset : 0;
+    session.stress = clamp100(session.stress + stressPolicy.dailyReturnStressDelta(dailyReturn));
+
+    // --- 이벤트 발생 판단/적용 (기절/독촉전화/급등주/경조사/명절/스터디/여행) ---
     const events = await eventEngine.rollTurnEvents(client, session, {
       turnNumber: nextTurn,
       tradeDate: nextDate,
       totalAsset: totalAssetBefore,
     });
 
-    // --- 상태 반영 + 자동저장 ---
+    // --- 상태 반영 + 자동저장 (부채는 이벤트가 이미 반영, 여기서 동기화) ---
     await client.query(
       `UPDATE game_sessions
-       SET current_turn = $2, cash = $3, stress = $4, trust = $5, updated_at = NOW()
+       SET current_turn = $2, cash = $3, debt = $4, stress = $5, trust = $6, updated_at = NOW()
        WHERE id = $1`,
-      [sessionId, nextTurn, Math.round(Number(session.cash)), session.stress, session.trust]
+      [sessionId, nextTurn, Math.round(Number(session.cash)), Math.round(Number(session.debt)),
+       session.stress, session.trust]
     );
 
     // --- 주간/일간 스냅샷 (리포트·차트용) ---
@@ -157,6 +167,8 @@ async function advanceTurn(sessionId) {
       isRepaymentTurn: repaymentService.isRepaymentTurn(nextTurn),
       monthly,
       events,
+      surgeResults, // 전 턴 급등주 정산 결과 (팝업 연출용)
+      dailyReturn,
       newsLimit: stressPolicy.newsLimitFor(session.stress),
       state: {
         cash: Math.round(Number(session.cash)),

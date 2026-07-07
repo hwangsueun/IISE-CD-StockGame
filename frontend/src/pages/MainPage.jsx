@@ -11,6 +11,8 @@ import NewsModal from '../components/NewsModal';
 import CalendarModal from '../components/CalendarModal';
 import RepaymentModal from '../components/RepaymentModal';
 import ReportModal from '../components/ReportModal';
+import SideJobModal from '../components/SideJobModal';
+import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 
 const MODALS = {
   market: MarketModal,
@@ -21,6 +23,7 @@ const MODALS = {
   calendar: CalendarModal,
   repay: RepaymentModal,
   report: ReportModal,
+  sidejob: SideJobModal,
 };
 
 export default function MainPage() {
@@ -39,8 +42,10 @@ export default function MainPage() {
       <div className="main-center">
         <div className="date-chip">
           {turn.date} · {turn.turnNumber}/240턴 · {turn.monthIndex}월차
+          · 상환 D-{Math.max(0, turn.monthIndex * 20 - turn.turnNumber)}
           {turn.isRepaymentTurn && <span className="repay-badge">상환일</span>}
-          {turn.actionLocked && <span className="lock-badge">행동제한</span>}
+          {turn.actionLocked && <span className="lock-badge">입원 중</span>}
+          {turn.sideJobDoneToday && <span className="lock-badge">부업으로 투자 불가</span>}
         </div>
 
         {/* 오늘의 헤드라인 (클릭 -> 뉴스 모달) */}
@@ -59,6 +64,7 @@ export default function MainPage() {
         <button onClick={() => openModal('portfolio')}>💼 포트폴리오</button>
         <button onClick={() => openModal('news')}>📰 뉴스</button>
         <button onClick={() => openModal('calendar')}>📅 캘린더</button>
+        <button onClick={() => openModal('sidejob')}>🛠 부업</button>
         <button onClick={() => openModal('report', { monthIndex: turn.monthIndex })}>📊 리포트</button>
         {turn.isRepaymentTurn && (
           <button className="btn-repay" onClick={() => openModal('repay')}>💸 상환</button>
@@ -72,7 +78,11 @@ export default function MainPage() {
       {error && <p className="error-text">{error}</p>}
 
       {/* 선택형 이벤트 팝업 (해결 전 턴 진행 불가) */}
-      {pendingEvents.length > 0 && <EventPopup event={pendingEvents[0]} />}
+      {pendingEvents.length > 0 && <EventPopup key={pendingEvents[0].eventLogId} event={pendingEvents[0]} />}
+
+      {/* 급등주: 정산 결과 -> 신규 등장 순으로 표시 */}
+      <SurgeResultPopup />
+      {pendingEvents.length === 0 && <SurgeStockPopup />}
 
       {ActiveModal && <ActiveModal {...modalProps} />}
     </div>

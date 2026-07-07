@@ -7,14 +7,19 @@ const reportService = require('../services/reportService');
 
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 
-/** POST /api/game/start */
+/** POST /api/game/start — 로그인 상태면 계정에 연결(이어하기 대상), 게스트도 허용 */
 exports.start = async (req, res) => {
   const { difficulty } = req.body || {};
   if (!DIFFICULTIES.includes(difficulty)) {
     throw badRequest(`difficulty는 ${DIFFICULTIES.join('/')} 중 하나여야 합니다`);
   }
-  const session = await gameService.startGame(difficulty);
+  const session = await gameService.startGame(difficulty, req.user?.id || null);
   res.status(201).json(session);
+};
+
+/** GET /api/game/:sessionId/log — 거래/상환/이벤트 통합 타임라인 (기능명세서 §기록) */
+exports.getLog = async (req, res) => {
+  res.json(await gameService.getGameLog(req.params.sessionId));
 };
 
 /** GET /api/game/:sessionId */

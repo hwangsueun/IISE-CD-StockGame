@@ -76,7 +76,8 @@ IISE-CD-StockGame/
 │   ├── package.json              # express, pg, cors, dotenv, xlsx
 │   ├── .env.example              # DATABASE_URL, GAME_START_RANGE, DATA_DIR
 │   ├── migrations/
-│   │   └── 001_init.sql          # 24테이블 전체 DDL + 채권/거시지표 시드
+│   │   ├── 001_init.sql          # 기본 24테이블 DDL + 채권/거시지표 시드
+│   │   └── 002_members_minigames.sql # 회원/부업/급등주 (+4테이블, 28테이블)
 │   ├── seeds/
 │   │   ├── import_all.js         # 오케스트레이터 (--stub 지원)
 │   │   ├── stub.js               # 합성 개발 데이터 (29자산/300거래일/뉴스/종토방)
@@ -92,9 +93,9 @@ IISE-CD-StockGame/
 │       ├── db.js                 # pg pool, withTransaction, DATE 문자열 파서
 │       ├── config/constants.js   # 모든 밸런싱 상수 (턴/부채/월급/스트레스/이벤트)
 │       ├── utils/                # errors, asyncHandler, clamp
-│       ├── routes/               # game, assets, macro, news, community,
-│       │                         # portfolio, event, repayment, memo (9파일)
-│       ├── controllers/          # 라우트별 검증/위임 (8파일)
+│       ├── routes/               # game, assets, macro, news, community, portfolio,
+│       │                         # event, repayment, memo, auth, sideJob, surge (12파일)
+│       ├── controllers/          # 라우트별 검증/위임 (11파일)
 │       └── services/
 │           ├── gameService.js    # 세션 생성/상태/승패판정/결산
 │           ├── turnSelector.js   # 시작일 선택, 240거래일 생성
@@ -111,22 +112,28 @@ IISE-CD-StockGame/
 │           ├── communityService.js # 종토방 읽기
 │           ├── memoService.js    # 캘린더 메모 CRUD
 │           ├── reportService.js  # 주간/월간/최종 리포트 + 스냅샷
+│           ├── authService.js    # 회원가입/로그인/토큰/프로필 (scrypt)
+│           ├── sideJobService.js # 부업 미니게임 판정/보상/투자 잠금
+│           ├── surgeStockService.js # 급등주 등장/매수/다음 턴 정산
 │           └── maskingService.js # 가명 치환/조사 보정 유틸
 └── frontend/
     ├── package.json              # react 19, zustand, vite
     ├── vite.config.js            # /api -> :3001 프록시
     ├── index.html
     └── src/
-        ├── main.jsx / App.jsx    # 인트로 -> 메인 -> 결과 화면 전환
-        ├── api/client.js         # 전 엔드포인트 1:1 래퍼
-        ├── state/gameStore.js    # zustand: 세션/턴/모달/이벤트 상태
-        ├── utils/format.js       # 원화/퍼센트/등락 표기
-        ├── pages/                # IntroPage, MainPage, ResultPage
+        ├── main.jsx / App.jsx    # 오프닝 -> 인트로 -> 메인 -> 결과 화면 전환
+        ├── api/client.js         # 전 엔드포인트 1:1 래퍼 (+ Bearer 토큰)
+        ├── state/gameStore.js    # zustand: 회원/세션/턴/모달/이벤트/급등주 상태
+        ├── utils/                # format(원화/퍼센트), chartIndicators(MA/볼린저/RSI)
+        ├── pages/                # OpeningPage, IntroPage, MainPage, ResultPage
         ├── components/           # StatusBar, NewsPanel, NewsModal, MarketModal,
-        │                         # AssetDetailModal(차트/뉴스/종토방/정보),
-        │                         # TradeModal, PortfolioModal, CalendarModal,
-        │                         # RepaymentModal, ReportModal, EventPopup,
-        │                         # CommunityBoard, PriceChart(SVG), Modal
+        │                         # AssetDetailModal(차트+기술지표/뉴스/종토방/정보),
+        │                         # TradeModal, PortfolioModal(보유+수익분석),
+        │                         # CalendarModal, RepaymentModal, ReportModal,
+        │                         # EventPopup(payload 입력), SideJobModal,
+        │                         # SurgeStockPopup, AuthPanel, CommunityBoard,
+        │                         # PriceChart(SVG), Modal
+        │   └── minigames/        # CatchWaxon, AvoidProfessor, PassengerTetris
         └── styles/global.css     # 디자인 시안 적용 전 기능 확인용
 ```
 
@@ -234,9 +241,11 @@ DATA_DIR=/path/to/data-pipeline
 
 ## 7. DB 스키마
 
-최종 스키마는 **24개 테이블**이다 (기존 23 + `session_snapshots`). 자산 타입별 가격 구조가 달라 공통 거래/평가 테이블과 타입별 상세 테이블을 분리한다.
+최종 스키마는 **28개 테이블**이다 (초안 23 + `session_snapshots` + 회원 2종 + 부업/급등주 2종). 자산 타입별 가격 구조가 달라 공통 거래/평가 테이블과 타입별 상세 테이블을 분리한다.
 
-**실행 가능한 전체 DDL은 [`server/migrations/001_init.sql`](server/migrations/001_init.sql)이 단일 기준이다.** 이 문서에는 테이블 그룹, 핵심 관계, 설계 원칙만 남긴다. DB 변경은 migration 파일을 먼저 수정하고, 이 문서는 변경 의도와 구조 요약만 갱신한다.
+**실행 가능한 전체 DDL은 migration 파일이 단일 기준이다:**
+[`001_init.sql`](server/migrations/001_init.sql) (기본 24테이블) + [`002_members_minigames.sql`](server/migrations/002_members_minigames.sql) (`users`, `auth_tokens`, `side_job_plays`, `surge_stocks` + `game_sessions.user_id/side_job_turn`).
+이 문서에는 테이블 그룹, 핵심 관계, 설계 원칙만 남긴다. DB 변경은 migration 파일을 먼저 수정하고, 이 문서는 변경 의도와 구조 요약만 갱신한다.
 
 **초안 대비 확정 변경 (최종 데이터 정합, 2026-07-07):**
 
@@ -275,6 +284,8 @@ DB 구조를 짤 때는 아래 순서로 확정한다.
 | 종토방 | `community_posts`, `community_comments` | 읽기 전용 NPC 반응 | ETL |
 | 게임 진행 | `game_sessions`, `game_turns`, `holdings`, `trades` | 세션 상태, 날짜, 보유, 거래 | API |
 | 상태/기록 | `repayments`, `event_log`, `memos`, `news_exposure`, `session_snapshots` | 상환, 이벤트, 메모, 뉴스 노출, 자산 스냅샷 | API |
+| 회원 | `users`, `auth_tokens` | 회원가입/로그인/이어하기 (게스트 허용, `game_sessions.user_id` nullable) | API |
+| 부업/급등주 | `side_job_plays`, `surge_stocks` | 미니게임 결과(하루 1회 UNIQUE), 급등주 등장~정산 상태 | API |
 
 ### 7-3. 핵심 관계
 
@@ -366,6 +377,16 @@ erDiagram
 ## 8. 백엔드 API
 
 모든 응답은 JSON이며, 경로 변수는 `:sessionId`, `:assetId`, `:postId` 명명으로 통일한다.
+로그인은 선택(게스트 허용): `Authorization: Bearer <token>` 헤더가 있으면 세션이 계정에 연결된다.
+
+### 8-0. 회원관리 (기능명세서 §회원)
+
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/api/auth/register` | 회원가입. `{ username, password, nickname? }` (입력 검증 + 중복 확인) |
+| POST | `/api/auth/login` | 로그인 -> `{ token, user }` |
+| POST | `/api/auth/logout` | 토큰 삭제 (게임 나가면 로그아웃) |
+| GET | `/api/auth/me` | 프로필 + 이어하기용 저장 세션 목록 |
 
 ### 8-1. 게임 흐름
 
@@ -378,9 +399,15 @@ erDiagram
 | POST | `/api/game/:sessionId/next-turn` | 다음 턴 진행, 가격/뉴스/이벤트/상태 갱신, 자동저장 |
 | POST | `/api/game/:sessionId/repay` | 20턴마다 월말 상환 처리. body `{ amount }` |
 | GET | `/api/game/:sessionId/repay/history` | 상환 이력 |
-| POST | `/api/game/:sessionId/event` | 선택형 이벤트 해결. body `{ eventLogId, choice }` |
+| POST | `/api/game/:sessionId/event` | 선택형 이벤트 해결. body `{ eventLogId, choice, payload? }` (독촉전화 일부상환 = `payload.amount`) |
 | GET | `/api/game/:sessionId/event/pending` | 선택 대기(미해결) 이벤트 목록 |
 | GET | `/api/game/:sessionId/event/history` | 이벤트 이력 |
+| GET | `/api/game/:sessionId/side-job/status` | 부업 가능 여부 + 게임 3종/보상표 |
+| POST | `/api/game/:sessionId/side-job/play` | 미니게임 원점수 제출 `{ gameKey, rawScore }` -> 서버가 등급/보상 판정 |
+| GET | `/api/game/:sessionId/side-job/history` | 부업 이력 |
+| GET | `/api/game/:sessionId/surge/active` | 매수 가능한 급등주 조회 |
+| POST | `/api/game/:sessionId/surge/buy` | 급등주 매수 `{ surgeStockId, amount }` (관망 = 미호출) |
+| GET | `/api/game/:sessionId/log` | 거래/상환/이벤트 통합 타임라인 (기능명세서 §기록) |
 | GET | `/api/game/:sessionId/result` | 최종 결산 |
 
 ### 8-2. 포트폴리오 / 리포트
@@ -388,6 +415,7 @@ erDiagram
 | Method | Endpoint | 설명 |
 |---|---|---|
 | GET | `/api/game/:sessionId/portfolio` | 보유자산, 평가금액, 수익률, 자산군 비중 |
+| GET | `/api/game/:sessionId/portfolio/pnl?period=&assetType=` | 기간별(일/주/월/연/전체)·자산군별·종목별 실현손익 (기능명세서 §자산) |
 | GET | `/api/game/:sessionId/report/weekly/:weekIndex` | 주간 수익률 평가 (기획서 Weekly 평가서, LLM 연동 TODO) |
 | GET | `/api/game/:sessionId/report/monthly/:monthIndex` | 월간 리포트 |
 | GET | `/api/game/:sessionId/report/final` | 최종 리포트 |
@@ -504,32 +532,65 @@ erDiagram
 - 수수료는 0으로 시작하되, 추후 밸런싱 시 `constants.js`에서 변경한다.
 - 평균단가와 실현손익은 서버에서 계산한다.
 
-### 9-4. 스트레스 / 신뢰도
+### 9-4. 스트레스 / 신뢰도 (미팅4·5 확정 수치 — `constants.js` 반영 완료)
 
-- 스트레스는 뉴스 열람 제한, 기절/입원 이벤트, 일부 이벤트 선택 결과에 영향을 준다.
-- 신뢰도는 독촉전화 확률, 상환 이벤트, 실패 조건에 영향을 준다.
-- 스트레스와 신뢰도는 항상 0-100 사이로 clamp한다.
+**스트레스 (0-100)** — 심리 압박 수치화. 뉴스 내용은 바꾸지 않고 열람 가능 수만 줄인다. 신뢰도를 직접 깎지 않는다(판단 악화 -> 상환 실패 -> 신뢰도 하락의 간접 경로).
 
-### 9-5. 이벤트
+| 구간 | 스트레스 | 뉴스 열람 |
+|---|---|---|
+| 안정 | 0–29 | 10개 |
+| 긴장 | 30–49 | 8개 |
+| 불안 | 50–69 | 6개 |
+| 고위험 | 70–89 | 4개 |
+| 붕괴 직전 | 90–99 | 2개 |
+| 기절 | 100 | 0개 (투자 불가) |
 
-이벤트 타입은 서버 `eventEngine`의 `EVENT_DEFS` 레지스트리로 관리하고, 모든 결과는 `event_log`에 남긴다.
+상승/하락 요인: 월말 상환 결과(아래 표), 독촉 전화(+8~+25), 일일 투자 손실(−5~−15%: +5 / −15% 초과: +12), 부업(+3~+17, 등급별), 생활비 수준, 경조사/명절/여행/투자 스터디, 급등주 결과(−20~+30).
 
-- **immediate(강제)**: 발생 즉시 효과 적용, `resolved=TRUE`로 기록. 프론트는 팝업 연출만.
-- **choice(선택형)**: `resolved=FALSE`로 기록 -> 프론트 `EventPopup`이 선택지 표시 -> `POST /event`로 해결. 미해결 이벤트가 있으면 다음 턴 진행 버튼이 잠긴다.
+**신뢰도 (0-100)** — 채권자가 보는 상환 신뢰 수준. 월말 상환 결과로만 변한다. 0이 되면 즉시 실패.
 
-| 이벤트 (`event_type`) | 종류 | 트리거 | 주요 영향 | 구현 상태 |
-|---|---|---|---|---|
-| `loan_shark_call` 사채업자 전화 | immediate | 신뢰도 낮을수록 확률 증가 (`LOAN_SHARK_CALL`) | 스트레스 증가 | 구현 |
-| `repayment` 월말 상환 | (repaymentService) | 20턴마다 | 상환비율별 신뢰도/스트레스 변화 (기획서: 독촉/변화없음/격려) | 구현 |
-| `faint` 기절 | immediate | 스트레스 100 | 3~7거래일 행동제한 + 스트레스 리셋 (기획서 Skip N days) | 구현 |
-| `hospital` 병원행 | immediate | 스트레스 80 초과 확률 | 병원비 지출, 스트레스 완화 | 구현 |
-| `surge_stock_tip` 급등주 소식 | immediate | 스트레스 80 초과 확률 (기획서 §8) | 급등주 힌트 노출 | 뼈대 (힌트 종목 선정 TODO) |
-| `monthly_cashflow` 월급/생활비 | (turnService) | 월초 턴 | 현금 증감 + 생활비 스트레스 | 구현 |
-| `holiday` 명절 | immediate | 명절 날짜 | 현금/스트레스 변화 | 임시 트리거 (명절 달력 TODO) |
-| `travel` 여행 | choice | 랜덤 (`RANDOM_EVENT_PROB`) | 현금 감소, 스트레스 감소 | 구현 |
-| `wedding` 결혼식 | choice | 랜덤 | 현금/스트레스 변화 | 구현 |
-| `side_job` 부업 | choice | 랜덤 | 현금 확보 vs 스트레스 비용 | 구현 |
-| `market_special` 특수 시장 이벤트 | immediate | 뉴스/거시 급변 조건 | 자산군별 리스크 힌트 | 뼈대 (트리거 TODO) |
+| 월말 상환 결과 | 스트레스 | 신뢰도 |
+|---|---|---|
+| 100% 초과 | −5 | +2 |
+| 100% 납부 | 0 | 0 |
+| 50~99% | +10 | −5 |
+| 1~49% | +20 | −15 |
+| 미납 | +35 | −25 |
+
+독촉 전화 발생 확률(%) = **50 − 신뢰도×0.45** (하한 5 / 상한 50). 유형: 일반(51–100, +8) / 압박(31–50, +15) / 위협(11–30, +20) / 최후통첩(0–10, +25). 전화 팝업에서 즉시 일부 상환 입력 가능.
+
+### 9-5. 이벤트 (미팅4·5 분류 체계 A~E)
+
+이벤트는 서버 `eventEngine`의 `EVENT_DEFS` 레지스트리로 관리하고, 모든 결과는 `event_log`에 남긴다.
+
+- **immediate(강제)**: 발생 즉시 효과 적용, `resolved=TRUE`. 프론트는 팝업 연출만.
+- **choice(선택형)**: `resolved=FALSE` -> `EventPopup` 선택 -> `POST /event { eventLogId, choice, payload? }`. 미해결 시 턴 진행 잠금.
+
+| 분류 | 이벤트 (`event_type`) | 트리거/내용 | 구현 상태 |
+|---|---|---|---|
+| A 플레이어 선택형 | `side_job` 부업 | 하루 1회, 미니게임 3종 진입, 입원 중 불가, 부업한 날 투자 불가 (§9-6) | **구현·검증** |
+| B 랜덤 기회형 | `invest_study` 투자 스터디 | 수락/거절. 기본 스트레스 −6~−12 + 인사이트, 40% 방향성 힌트, 10% 희귀(−15+전조 힌트) | 구현 (힌트 실데이터 연동 TODO) |
+| C 상태 연동형 | `loan_shark_call` 독촉 전화 | 확률 = 50−신뢰도×0.45, 유형 4단계, 팝업에서 일부 상환(payload.amount) | **구현** |
+| C 상태 연동형 | `surge_stock` 급등주 | 구간별 확률(5/10/20/35/55%), 임시 작전주 등장 -> 매수/관망 -> 다음 턴 수익률 구간별 정산(−20~+30 스트레스) -> 자동 매도/제거 | **구현·검증** |
+| D 외부 랜덤형 | `condolence` 경조사 | 결혼식/장례식/돌잔치/동창모임 4종. 거부 불가, 비용 확정 차감 + 스트레스 방향 랜덤 ±10 | 구현 |
+| D 외부 랜덤형 | `holiday` 명절 | 랜덤 결과: 사촌동생 용돈(지출) / 아늑한 우리집(스트레스 하락) | 구현 (명절 달력 TODO) |
+| — | `travel` 여행 | 선택형: 현금 지출 + 스트레스 하락 | 구현 |
+| E 강제 페널티형 | `faint` 기절·입원 | 스트레스 100 즉시. 3~5일 투자·부업 불가, 병원비 차감(부족분 부채 증가), 스트레스 0 리셋(신뢰도 유지), 입원 중 가격 변동 지속 | **구현** |
+| (시스템) | `monthly_cashflow` / `repayment` / `surge_stock_result` | 월급·생활비 / 월말 상환 / 급등주 정산 기록 | **구현·검증** |
+
+### 9-6. 부업 미니게임 (미팅5 §6 / 기능명세서 §부업)
+
+- **규칙**: 하루 1회(`side_job_plays` UNIQUE), 입원 중 불가, **부업한 날은 투자 불가**(`game_sessions.side_job_turn`으로 tradeService가 차단).
+- **판정**: 클라이언트는 원점수(`rawScore`)만 제출, 서버가 게임별 컷(`SIDE_JOB.SCORE_CUTS`)으로 등급 판정 -> 일당/스트레스 반영.
+- **보상**: 기본급 × 배율 — 대성공 1.8/+3, 성공 1.5/+5, 보통 1.0/+10, 실패 0.6/+13, 대실패 0.2/+17.
+
+| 게임 (`game_key`) | 내용 | 원점수 | 프론트 구현 |
+|---|---|---|---|
+| `catch_waxon` 왝슨을 잡아라 | 마우스로 날아다니는 왝슨 클릭 포획 (30초) | 포획 수 | `minigames/CatchWaxon.jsx` — 플레이 가능 |
+| `avoid_professor` 교수님을 피해라 | 낙하 단어(대학원/과제...)를 ←→로 회피, 속도 점증 | 생존 시간(초) | `minigames/AvoidProfessor.jsx` — 플레이 가능 |
+| `passenger_tetris` 노원03 테트리스 | 버스 승객 블록 쌓기, 줄 완성 시 하차 | 점수(줄 100 + 배치 4) | `minigames/PassengerTetris.jsx` — 플레이 가능 |
+
+밸런싱(점수 컷/기본급)은 `constants.js`의 `SIDE_JOB`에서만 조정한다.
 
 ## 10. UI 화면
 
@@ -537,7 +598,8 @@ erDiagram
 
 | 화면 | 역할 | 주요 API |
 |---|---|---|
-| 인트로/빚 설정 | 난이도 선택, 세션 시작 | `POST /api/game/start` |
+| 오프닝 | 스토리텔링 (배경/상황 제시, 스킵 가능) | - |
+| 인트로/빚 설정 | 로그인/회원가입/이어하기(선택) + 난이도 선택, 세션 시작 | `/api/auth/*`, `POST /api/game/start` |
 | 메인 화면 | 상태바, 날짜, 헤드라인, 메뉴, 다음 턴 | `GET /api/game/:sessionId`, `POST /next-turn` |
 | 마켓 모달 | 랭킹, 업종, 지표, 자산군 필터 | `GET /api/assets`, `GET /api/macro/:date` |
 | 종목 상세 | 차트, 뉴스, 종토방, 타입별 정보 | `GET /api/assets/:assetId`, `/prices`, `/news`, `/community` |
@@ -545,7 +607,9 @@ erDiagram
 | 포트폴리오 | 보유자산, 평가손익, 비중, 수익분석 | `GET /api/game/:sessionId/portfolio` |
 | 뉴스 | 필터, 상세, 관련 자산 연결 | `GET /api/news/:date` |
 | 캘린더 | 과거 뉴스, 메모 CRUD | `/memo`, `news_exposure` |
-| 이벤트 팝업 | 선택형/강제 이벤트 처리 (미해결 시 턴 진행 잠금) | `POST /api/game/:sessionId/event`, `/event/pending` |
+| 이벤트 팝업 | 선택형/강제 이벤트 처리 (미해결 시 턴 진행 잠금, 독촉전화 상환액 입력) | `POST /api/game/:sessionId/event`, `/event/pending` |
+| 부업 모달 | 미니게임 3종 선택/플레이/결과 (§9-6) | `/side-job/status`, `/side-job/play` |
+| 급등주 팝업 | 등장(매수 금액 입력/관망) + 다음 턴 정산 연출 | `/surge/active`, `/surge/buy` |
 | 상환 모달 | 상환 턴 상환액 입력, 결과 연출 | `POST /api/game/:sessionId/repay` |
 | 주간/월간/최종 리포트 | 주간 평가, 20턴 정산, 엔딩 | `/report/weekly`, `/report/monthly`, `/report/final`, `/result` |
 
@@ -576,6 +640,9 @@ UI와 데이터 정합:
 | `communityService` | 종토방 게시글/댓글 (과거분만 노출) |
 | `memoService` | 캘린더 메모 CRUD |
 | `reportService` | 주간/월간/최종 리포트, `session_snapshots` 기록, LLM 연동 지점 |
+| `authService` | 회원가입/로그인/토큰/프로필/이어하기 (scrypt, 게스트 허용) |
+| `sideJobService` | 부업 미니게임 등급 판정(서버 권위), 보상/스트레스, 당일 투자 잠금 |
+| `surgeStockService` | 급등주 등장 확률/매수/다음 턴 수익률 정산/자동 제거 |
 | `maskingService` | 회사명 가명 처리, 조사 보정 (사전 확정 TODO) |
 
 ## 12. 개발 마일스톤
@@ -586,8 +653,10 @@ UI와 데이터 정합:
 | P1 | 데이터 적재 | 131자산, 시세, 재무, 거시, 뉴스, 종토방 stub/실데이터 | 스텁 완료 / 실데이터 적재기 구현 (매핑 TODO 4건, §6-0) |
 | P2 | 게임 코어 | 세션, 240턴, 현재가, 매수/매도, 평가, 자동저장 | **완료·검증됨** |
 | P3 | 상태/상환 | 스트레스, 신뢰도, 월말상환, 승패, 월급/생활비 | 구현 완료 (밸런싱 곡선 TODO) |
-| P4 | 이벤트 | 이벤트 엔진, `event_log`, 행동제한 | 엔진/8종 구현 (급등주·명절·시장특수 트리거 TODO) |
-| P5 | 프론트 | 메인/마켓/상세/포트폴리오/뉴스/캘린더/거래/이벤트/리포트 | 전 화면 구현·API 연동 (디자인 시안 미적용) |
+| P4 | 이벤트 | 이벤트 엔진(A~E), `event_log`, 행동제한, 급등주, 독촉전화 4단계 | **구현·검증** (명절 달력·스터디 힌트 실데이터 TODO) |
+| P4.5 | 부업 미니게임 | 왝슨/교수님/테트리스 3종 + 서버 판정 + 투자 잠금 | **구현·검증** (점수 컷 밸런싱 TODO) |
+| P4.6 | 회원관리 | 회원가입/로그인/프로필/이어하기 (게스트 허용) | **구현·검증** |
+| P5 | 프론트 | 오프닝/인트로/메인/마켓/상세(기술지표)/포트폴리오(수익분석)/뉴스/캘린더/거래/이벤트/부업/급등주/리포트 | 전 화면 구현·API 연동 (디자인 시안 미적용) |
 | P6 | 리포트/밸런싱 | 주간/월간/최종 리포트, LLM 분석, 난이도 조정 | 리포트 계산 구현 (LLM 연동·밸런싱 TODO) |
 
 남은 작업(코드 채워넣기 지점)은 저장소 전체에서 `TODO(gamelogic)` / `TODO(data)` / `TODO(frontend)` 주석으로 검색된다.
@@ -603,6 +672,20 @@ UI와 데이터 정합:
 - [x] 게임 시작 후 240개 `game_turns`가 생성되어야 한다.
 - [x] 기본 게임 플로우 테스트: 시작 -> 턴 조회 -> 매수 -> 19턴 진행 -> 매도(실현손익) -> 상환(신뢰도 반영) -> 뉴스 제한 -> 메모 -> 월간/주간 리포트 순서로 통과.
 - [x] API 응답에는 마스킹 전 회사명이 노출되지 않아야 한다. (`masked_name`만 응답)
+- [x] 회원가입 -> 로그인 -> 세션 계정 연결 -> 프로필/이어하기 목록 조회 통과.
+- [x] 부업: 미니게임 플레이 -> 원점수 제출 -> 서버 등급 판정 -> 보상/스트레스 반영 -> 당일 투자 차단 -> 하루 1회 제한 통과 (브라우저 E2E 포함).
+- [x] 급등주: 등장 -> 매수 -> 다음 턴 자동 정산(수익률/스트레스) -> 제거 통과.
+
+## 13-1. 기획 문서 참조 (Drive)
+
+| 문서 | 내용 |
+|---|---|
+| 260331 미팅(3) 기획서 | 게임 개요/자산구성/데일리·먼슬리 턴 (레포 로컬: `data-pipeline/기획서/`) |
+| 260414 미팅(4) 기획서 | 스트레스 로직 확정 수치, 이벤트 분류 A~E, 뉴스 처리 6단계 |
+| 260504 미팅(5) 기획서 | 신뢰도 로직, 독촉전화 4단계, 급등주 플로우, **미니게임 3종**, 재무비율/기술지표 |
+| ANT SURVIVAL 중간보고서 | 최종 스코프(240턴/131자산/부업 메뉴/휴장일·부업일 투자 불가) |
+| 기능명세서 시트 | 전체 기능 분해 (회원/시작/메인/시스템/투자/정보/자산/부업/이벤트/리포트/기록/종료) — 시트 ID `1TAJb1DCmziqrI1oDUH4OGS9hsKqc6k-Dts1W2xiqXlE` |
+| 태스크플로우 (draw.io) | 전체 플로우차트 — Drive 파일 `1dJZf_wEUi3nj_meMN-PTIla27uE4mEYD` |
 
 ## 14. 단일 문서 운영 규칙
 

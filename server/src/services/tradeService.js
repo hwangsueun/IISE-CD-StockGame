@@ -25,6 +25,10 @@ async function executeTrade(sessionId, { assetId, tradeType, quantity }) {
         lockedUntilTurn: session.action_locked_until_turn,
       });
     }
+    // 부업한 날에는 투자 불가 (중간보고서 §4.5)
+    if (session.side_job_turn === session.current_turn) {
+      throw conflict('부업한 날에는 투자할 수 없습니다');
+    }
 
     // 자산/수량 검증
     const { rows: aRows } = await client.query(
