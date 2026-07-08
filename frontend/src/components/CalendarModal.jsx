@@ -1,15 +1,32 @@
-// 캘린더 모달: 과거 노출 뉴스 + 메모 CRUD (§10)
+// 캘린더 모달: 월 그리드 + 과거 노출 뉴스 + 메모 CRUD (§10)
+// 디자인 원본: public/game/Main Screen.html의 cal-overlay (월 그리드/요일 헤더/메모 사이드)
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import Modal from './Modal';
 
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const MONTH_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const pad = (n) => String(n).padStart(2, '0');
+
 export default function CalendarModal() {
   const { sessionId, turn } = useGameStore();
+  const startDate = useGameStore((s) => (s.state?.startDate ? String(s.state.startDate).slice(0, 10) : null));
   const [memos, setMemos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(turn.date);
   const [dayNews, setDayNews] = useState([]);
   const [editing, setEditing] = useState('');
+
+  // 보이는 달 (게임 시작월 ~ 현재월 사이만 이동 가능)
+  const [ty, tm] = turn.date.split('-').map(Number);
+  const [view, setView] = useState({ y: ty, m: tm });
+  const viewYm = `${view.y}-${pad(view.m)}`;
+  const minYm = (startDate || turn.date).slice(0, 7);
+  const maxYm = turn.date.slice(0, 7);
+  const moveMonth = (delta) => {
+    const d = new Date(Date.UTC(view.y, view.m - 1 + delta, 1));
+    setView({ y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 });
+  };
 
   const reloadMemos = () => api.getMemos(sessionId).then(setMemos).catch(console.error);
   useEffect(() => { reloadMemos(); }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -23,6 +40,7 @@ export default function CalendarModal() {
 
   const currentMemo = memos.find((m) => String(m.game_date).slice(0, 10) === selectedDate);
   const isToday = selectedDate === turn.date;
+  const memoDates = new Set(memos.map((m) => String(m.game_date).slice(0, 10)));
 
   const saveMemo = async () => {
     if (currentMemo) await api.updateMemo(sessionId, currentMemo.id, editing);
@@ -36,42 +54,80 @@ export default function CalendarModal() {
     reloadMemos();
   };
 
+  // 월 그리드 셀 (앞쪽 빈 칸 + 1..말일)
+  const firstDow = new Date(Date.UTC(view.y, view.m - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(view.y, view.m, 0)).getUTCDate();
+  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
   return (
-    <Modal title="캘린더" wide>
-      {/* TODO(frontend): 월 그리드 캘린더 UI로 교체. 지금은 날짜 선택 + 메모/뉴스 목록 */}
-      <label className="field">
-        날짜
-        <input
-          type="date"
-          value={selectedDate}
-          max={turn.date}
-          onChange={(e) => setSelectedDate(e.target.value)}
-        />
-      </label>
-
-      <h4>이 날 본 뉴스</h4>
-      <ul className="news-list">
-        {dayNews.length === 0 && <p className="news-empty">기록 없음</p>}
-        {dayNews.map((n) => <li key={n.newsId}>{n.headline}</li>)}
-      </ul>
-
-      <h4>메모 {isToday ? '(오늘)' : '(지난 날짜는 읽기 전용)'}</h4>
-      {isToday ? (
-        <>
-          <textarea
-            maxLength={100}
-            value={editing}
-            onChange={(e) => setEditing(e.target.value)}
-            placeholder="오늘의 투자 메모 (100자)"
-          />
-          <div className="quick-buttons">
-            <button className="btn-primary" onClick={saveMemo}>저장</button>
-            {currentMemo && <button onClick={deleteMemo}>삭제</button>}
+    <Modal title={`★ ${pad(view.m)}월 · 게임 캘린더`} wide>
+      <div className="cal-body">
+        <div className="cal-grid-wrap">
+          <div className="cal-month-nav">
+            <button className="cal-nav" disabled={viewYm <= minYm} onClick={() => moveMonth(-1)}>◀</button>
+            <div className="cal-month-name">{view.y} {MONTH_EN[view.m - 1]}</div>
+            <button className="cal-nav" disabled={viewYm >= maxYm} onClick={() => moveMonth(1)}>▶</button>
           </div>
-        </>
-      ) : (
-        <p>{currentMemo?.content || '메모 없음'}</p>
-      )}
+          <div className="cal-dow">{DOW.map((d) => <span key={d}>{d}</span>)}</div>
+          <div className="cal-grid">
+            {cells.map((d, i) => {
+              if (d === null) return <div key={`e${i}`} className="cal-cell empty" />;
+              const iso = `${view.y}-${pad(view.m)}-${pad(d)}`;
+              const dow = (firstDow + d - 1) % 7;
+              const out = (startDate && iso < startDate) || iso > turn.date; // 게임 범위 밖/미래
+              const cls = [
+                'cal-cell',
+                dow === 0 && 'sun', dow === 6 && 'sat',
+                out && 'future',
+                iso === turn.date && 'today',
+                iso === selectedDate && 'selected',
+              ].filter(Boolean).join(' ');
+              return (
+                <button key={iso} className={cls} disabled={out} onClick={() => setSelectedDate(iso)}>
+                  <span className="num">{d}</span>
+                  <span className="dots">{memoDates.has(iso) && <i className="dot memo" />}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="cal-memo-side">
+          <div>
+            <div className="cal-side-head">
+              <span className="t">▶ NEWS</span>
+              <span className="d">{selectedDate.slice(5).replace('-', '/')}</span>
+            </div>
+            <ul className="cal-side-news-list">
+              {dayNews.length === 0 && <li className="empty">이 날 본 뉴스 기록 없음</li>}
+              {dayNews.map((n) => <li key={n.newsId}>{n.headline}</li>)}
+            </ul>
+          </div>
+
+          <div>
+            <div className="cal-side-head">
+              <span className="t">★ MEMO</span>
+              <span className="d">{isToday ? '오늘' : '읽기 전용'}</span>
+            </div>
+            {isToday ? (
+              <>
+                <textarea
+                  maxLength={100}
+                  value={editing}
+                  onChange={(e) => setEditing(e.target.value)}
+                  placeholder="오늘의 투자 메모 (100자)"
+                />
+                <div className="quick-buttons">
+                  <button className="btn-primary" onClick={saveMemo}>저장</button>
+                  {currentMemo && <button onClick={deleteMemo}>삭제</button>}
+                </div>
+              </>
+            ) : (
+              <p className="cal-memo-read">{currentMemo?.content || '메모 없음'}</p>
+            )}
+          </div>
+        </aside>
+      </div>
     </Modal>
   );
 }

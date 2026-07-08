@@ -484,6 +484,91 @@ textarea { min-height: 80px; resize: vertical; }
 .event-choices button:hover { background: var(--px-gold); color: #1a0f0a; box-shadow: inset 0 -3px 0 #b8862a, 2px 2px 0 #000; }
 .event-choices button:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
 
+/* --- 캘린더 (픽셀 월 그리드: 디자인 cal-overlay 이식) --- */
+.cal-body { display: flex; align-items: stretch; gap: 0; margin: 0 -18px; }
+.cal-grid-wrap { flex: 1 1 auto; min-width: 0; padding: 4px 18px 12px; }
+.cal-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-month-name {
+  font-family: 'Press Start 2P', monospace; font-size: 13px;
+  color: var(--px-ink); letter-spacing: 2px; text-shadow: 2px 2px 0 #000;
+}
+.cal-nav {
+  background: #3d2418; border: 2px solid #000;
+  box-shadow: inset 0 -2px 0 #2a1a10, 2px 2px 0 #000;
+  color: var(--px-ink); width: 36px; height: 28px;
+  font-family: 'Press Start 2P', monospace; font-size: 10px;
+}
+.cal-nav:hover:not(:disabled) { background: #5a3624; color: var(--px-gold); }
+.cal-nav:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+.cal-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+.cal-dow span {
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  color: var(--px-ink-dim); text-align: center; padding: 4px 0; letter-spacing: 1px;
+}
+.cal-dow span:first-child { color: #ef4444; }
+.cal-dow span:last-child { color: #3b82f6; }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-cell {
+  aspect-ratio: 1.15 / 1;
+  background: #0c0704;
+  border: 2px solid #2a1a10;
+  box-shadow: inset 0 0 0 1px #000;
+  padding: 4px 6px;
+  position: relative;
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  transition: background 80ms, transform 60ms;
+  color: var(--px-ink);
+}
+.cal-cell.empty { background: transparent; border-color: transparent; cursor: default; box-shadow: none; }
+.cal-cell:not(.empty):not(:disabled):hover { background: #2a1a10; transform: translate(-1px, -1px); }
+.cal-cell .num { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-ink); line-height: 1; }
+.cal-cell.sun .num { color: #ef4444; }
+.cal-cell.sat .num { color: #3b82f6; }
+.cal-cell.future, .cal-cell:disabled { opacity: 0.35; cursor: not-allowed; }
+.cal-cell.today {
+  border-color: var(--px-gold);
+  box-shadow: inset 0 0 0 1px #000, 0 0 0 2px var(--px-gold), 0 0 12px rgba(245, 197, 66, 0.5);
+}
+.cal-cell.today .num { color: var(--px-gold); }
+.cal-cell.selected {
+  background: #3d2418; border-color: var(--px-gold);
+  box-shadow: inset 0 0 0 1px #000, 0 0 0 2px #fff5cc;
+}
+.cal-cell .dots { margin-top: auto; display: flex; gap: 3px; align-items: center; }
+.cal-cell .dot { width: 6px; height: 6px; }
+.cal-cell .dot.memo { background: var(--px-gold); }
+
+.cal-memo-side {
+  flex: 0 0 280px; width: 280px;
+  padding: 4px 16px 16px;
+  border-left: 2px dashed #3d2418;
+  background: #160c07;
+  display: flex; flex-direction: column; gap: 14px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: #5a3624 transparent;
+}
+.cal-side-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  border-bottom: 2px solid #3d2418;
+  padding-bottom: 8px; margin-bottom: 10px;
+}
+.cal-side-head .t { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-gold); letter-spacing: 1.5px; }
+.cal-side-head .d { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--px-ink-dim); letter-spacing: 1px; }
+.cal-side-news-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 240px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #5a3624 transparent;
+}
+.cal-side-news-list li {
+  background: #0c0704; border-left: 3px solid #5a3624;
+  padding: 6px 8px; font-size: 12px; line-height: 1.4;
+}
+.cal-side-news-list li.empty { background: none; border: none; color: var(--px-ink-dim); font-style: italic; }
+.cal-memo-read { background: #0c0704; border-left: 3px solid var(--px-gold); padding: 8px 10px; line-height: 1.5; }
+
 /* --- 차트/종토방/리포트 --- */
 .price-chart { background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #2a1a10; }
 .chart-label { fill: var(--px-ink-dim); font-size: 10px; }
