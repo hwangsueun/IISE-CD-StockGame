@@ -32,34 +32,314 @@ button { cursor: pointer; font: inherit; }
 }
 .btn-primary:disabled { opacity: 0.5; }
 
-/* --- 메인 --- */
-.main-page { max-width: 960px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; min-height: 100vh; }
-.status-bar { display: flex; gap: 20px; background: #232630; padding: 12px 16px; border-radius: 12px; flex-wrap: wrap; }
-.status-item { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
-.status-item label { color: #8a8f98; font-size: 0.8rem; }
-.status-item.debt span { color: #e2504c; }
-.gauge { width: 80px; height: 8px; background: #16181d; border-radius: 4px; overflow: hidden; }
-.gauge-fill { height: 100%; }
-.gauge-fill.stress { background: #e2504c; }
-.gauge-fill.trust { background: #4caf7d; }
-
-.main-center { flex: 1; display: flex; flex-direction: column; gap: 12px; }
-.date-chip { color: #8a8f98; display: flex; gap: 8px; align-items: center; }
-.repay-badge { background: #e2504c; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; }
-.lock-badge { background: #555; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; }
-.headline {
-  text-align: left; background: #232630; border: none; color: inherit;
-  padding: 14px 16px; border-radius: 12px; font-size: 1.05rem;
+/* =====================================================================
+   메인 화면 — 픽셀아트 (Phase D: public/game/Main Screen.html 이식)
+   색/좌표/그림자 수치는 디자인 원본과 동일하게 유지한다.
+   ===================================================================== */
+:root {
+  --px-bg-deep: #1a0f0a;
+  --px-frame: #2a1a10;
+  --px-panel: #3d2418;
+  --px-ink: #f4e4cc;
+  --px-ink-dim: #c9a888;
+  --px-gold: #f5c542;
+  --px-gold-dark: #b8862a;
+  --px-green: #4ade80;
+  --px-red: #ef4444;
 }
 
-.menu-bar { display: flex; gap: 8px; flex-wrap: wrap; }
-.menu-bar button { background: #232630; border: none; color: inherit; padding: 12px 18px; border-radius: 10px; }
-.menu-bar .btn-repay { background: #e2504c; color: #fff; }
-.btn-next-turn {
-  align-self: flex-end; padding: 14px 36px; background: #4caf7d; color: #16181d;
-  border: none; border-radius: 10px; font-weight: 700; font-size: 1.05rem;
+.main-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: radial-gradient(ellipse at center, #1a0f0a 0%, #050302 80%), #050302;
+  overflow: auto;
+  image-rendering: pixelated;
 }
-.btn-next-turn:disabled { opacity: 0.5; }
+
+.game-frame {
+  position: relative;
+  width: 1280px;
+  height: 820px;
+  flex-shrink: 0;
+  background: var(--px-bg-deep);
+  border: 6px solid var(--px-frame);
+  box-shadow: 0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000, 0 24px 60px rgba(0, 0, 0, 0.7);
+  font-family: 'Galmuri11', 'Press Start 2P', monospace;
+  color: var(--px-ink);
+}
+/* 좁은 화면에서는 프레임 자체를 축소 */
+@media (max-width: 1360px) { .game-frame { transform: scale(0.78); } .main-page { padding: 0; } }
+@media (max-width: 1024px) { .game-frame { transform: scale(0.58); } }
+
+.title-plate {
+  position: absolute;
+  top: -28px;
+  left: 24px;
+  background: var(--px-bg-deep);
+  border: 3px solid var(--px-frame);
+  padding: 4px 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--px-gold);
+  letter-spacing: 2px;
+  z-index: 200;
+}
+
+/* --- 상단 상태바 --- */
+.px-statusbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 92px;
+  background: repeating-linear-gradient(0deg, #1f120a 0px, #1f120a 2px, #170d07 2px, #170d07 4px);
+  border-bottom: 4px solid #000;
+  box-shadow: inset 0 -2px 0 #5a3624, inset 0 2px 0 #2a1a10;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 10;
+}
+.px-stat {
+  display: flex; align-items: center; gap: 12px;
+  background: #0c0704;
+  border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, inset 2px 2px 0 #7a4a30;
+  padding: 10px 14px; height: 64px; flex: 1; max-width: 300px;
+}
+.px-stat-icon {
+  width: 36px; height: 36px; flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family: 'Press Start 2P', monospace; font-size: 18px;
+}
+.px-stat-icon.trust-ic { color: var(--px-green); }
+.px-stat-icon.stress-ic { color: var(--px-red); }
+.px-stat-icon.gold-ic { color: var(--px-gold); font-size: 24px; }
+.px-stat-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.px-stat-label { display: flex; justify-content: space-between; align-items: center; }
+.px-stat-label .ko { font-family: 'Galmuri11', monospace; font-size: 14px; color: var(--px-ink); }
+.px-stat-label .val { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-gold); }
+
+.px-gauge {
+  height: 14px; background: #000; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #2a1a10;
+  display: flex; padding: 1px; gap: 1px;
+}
+.px-gauge .cell { flex: 1; background: #2a1a10; height: 100%; }
+.px-gauge.trust .cell.on { background: #4ade80; box-shadow: inset 0 -2px 0 #166534; }
+.px-gauge.stress .cell.on { background: #ef4444; box-shadow: inset 0 -2px 0 #7f1d1d; }
+
+.px-money {
+  flex: 1.4; max-width: 400px;
+  background: #0c0704; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #b8862a, inset 2px 2px 0 #f5c542;
+  padding: 10px 16px; height: 64px;
+  display: flex; align-items: center; gap: 14px;
+}
+.px-money-amount {
+  font-family: 'Press Start 2P', monospace; font-size: 20px; color: var(--px-gold);
+  text-shadow: 2px 2px 0 #000, 0 0 12px rgba(245, 197, 66, 0.4);
+  letter-spacing: 1px; line-height: 1;
+}
+.px-money-sub { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--px-ink-dim); margin-top: 4px; }
+
+.px-debt {
+  display: flex; align-items: center; gap: 12px;
+  background: #0c0704; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #7f1d1d, inset 2px 2px 0 #ef4444;
+  padding: 10px 14px; height: 64px; flex: 1; max-width: 300px;
+}
+.px-debt-bar {
+  height: 14px; background: #000; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #2a1a10; position: relative; padding: 1px;
+}
+.px-debt-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, #b91c1c 4px, #b91c1c 8px);
+  box-shadow: inset 0 -2px 0 #7f1d1d;
+  transition: width 240ms steps(8, end);
+}
+
+.px-turn-pill {
+  margin-left: auto; height: 64px;
+  background: #0c0704; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, inset 2px 2px 0 #7a4a30;
+  padding: 8px 18px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+  min-width: 150px;
+}
+.px-turn-pill .lbl { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--px-ink-dim); letter-spacing: 1px; }
+.px-turn-pill .val { font-family: 'Press Start 2P', monospace; font-size: 15px; color: var(--px-ink); text-shadow: 2px 2px 0 #000; }
+
+/* --- 방 (stage) --- */
+.stage { position: absolute; top: 92px; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.stage::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: url('/game/assets/bg_room.png') center/cover no-repeat;
+  image-rendering: pixelated;
+}
+.stage::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.5) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0px, rgba(0, 0, 0, 0.06) 1px, transparent 1px, transparent 3px);
+  pointer-events: none;
+}
+.crt {
+  position: absolute; inset: 0; pointer-events: none; z-index: 100;
+  background:
+    radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.45) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.08) 2px 3px);
+  mix-blend-mode: multiply;
+}
+
+/* --- 오브젝트 버튼 (좌표: 디자인 LAYOUT 값) --- */
+.pbtn {
+  position: absolute;
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+  image-rendering: pixelated;
+  transition: transform 80ms steps(2, end);
+  filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6));
+  z-index: 5;
+}
+.pbtn:hover {
+  transform: translateY(-3px) scale(1.04);
+  filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 8px rgba(245, 197, 66, 0.7));
+}
+.pbtn:active { transform: translateY(1px) scale(0.97); }
+.pbtn img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.pbtn .lbl {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: -22px;
+  background: #0c0704; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #5a3624, 2px 2px 0 #000;
+  padding: 3px 8px;
+  font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--px-ink);
+  white-space: nowrap; letter-spacing: 1px; pointer-events: none;
+}
+.b-calendar { left: 100px; top: 100px; width: 130px; height: 130px; }
+.b-news { left: 100px; top: 280px; width: 130px; height: 130px; }
+.b-portfolio { left: 100px; top: 450px; width: 130px; height: 130px; }
+.b-market { left: 1050px; top: 300px; width: 130px; height: 130px; }
+.b-game { left: 1050px; top: 150px; width: 130px; height: 100px; }
+
+.monitor-ring {
+  position: absolute;
+  left: 1026px; top: 132px; width: 178px; height: 136px;
+  border: 3px dashed rgba(74, 222, 128, 0.6);
+  pointer-events: none;
+  animation: px-blink 1.6s steps(2, end) infinite;
+  z-index: 4;
+}
+@keyframes px-blink { 0%, 49% { opacity: 0.7; } 50%, 100% { opacity: 0.15; } }
+
+/* --- HUD 날짜판/배지 (우상단) --- */
+.hud-clock {
+  position: absolute; top: 16px; right: 16px;
+  background: #0c0704; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, 3px 3px 0 #000;
+  padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  z-index: 4; min-width: 190px;
+}
+.hud-clock .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.hud-clock .row .k { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--px-ink-dim); }
+.hud-clock .row .v { font-family: 'Press Start 2P', monospace; font-size: 11px; color: var(--px-gold); }
+
+.hud-side {
+  position: absolute; top: 128px; right: 16px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  z-index: 4;
+}
+.px-badge {
+  font-family: 'Galmuri11', monospace; font-size: 12px;
+  background: #0c0704; color: var(--px-ink);
+  border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #5a3624, 2px 2px 0 #000;
+  padding: 4px 10px; letter-spacing: 1px;
+}
+.px-badge.repay { color: #1a0f0a; background: var(--px-gold); box-shadow: inset 0 0 0 1px #b8862a, 2px 2px 0 #000; }
+.px-badge.lock { color: var(--px-red); }
+.hud-btn {
+  font-family: 'Galmuri11', monospace; font-size: 13px; font-weight: bold;
+  background: var(--px-panel); color: var(--px-ink);
+  border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #5a3624, inset 0 -3px 0 #2a1a10, 2px 2px 0 #000;
+  padding: 7px 12px; letter-spacing: 1px;
+}
+.hud-btn:hover { background: #5a3624; }
+.hud-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+.hud-btn.repay { background: #7f1d1d; }
+.hud-btn.repay:hover { background: #b91c1c; }
+
+/* --- 오늘의 핵심 뉴스 (좌하단) --- */
+.headline-panel {
+  position: absolute; bottom: 28px; left: 28px; width: 380px;
+  background: #0c0704; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, inset 0 -3px 0 #2a1a10, 4px 4px 0 #000;
+  padding: 10px 12px 12px;
+  z-index: 5;
+}
+.headline-panel .hp-head {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px dashed #3d2418;
+  padding-bottom: 6px; margin-bottom: 8px;
+}
+.headline-panel .hp-title { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-gold); letter-spacing: 1.5px; }
+.headline-panel .hp-imp {
+  font-family: 'Galmuri11', monospace; font-size: 11px; letter-spacing: 1px;
+  padding: 2px 6px; background: #1a0f0a; border: 1px solid #5a3624; color: var(--px-ink-dim);
+}
+.headline-panel .hp-headline {
+  font-family: 'Galmuri11', monospace; font-size: 14px; color: var(--px-ink);
+  line-height: 1.4; margin-bottom: 8px; min-height: 36px;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.headline-panel .hp-foot { display: flex; gap: 8px; align-items: center; }
+.headline-panel .hp-btn {
+  flex: 1;
+  background: #b8862a; border: 2px solid #000;
+  box-shadow: inset 0 -3px 0 #7a5a18, 2px 2px 0 #000;
+  color: #1a0f0a; padding: 7px 10px;
+  font-family: 'Galmuri11', monospace; font-size: 12px; font-weight: bold; letter-spacing: 1px;
+}
+.headline-panel .hp-btn:hover { background: var(--px-gold); }
+.headline-panel .hp-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+
+/* --- NEXT TURN CTA (우하단) --- */
+.nextturn-wrap {
+  position: absolute; left: 1010px; top: 590px; width: 220px;
+  z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  animation: px-bob 1.4s steps(2, end) infinite;
+}
+@keyframes px-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.nextturn-btn {
+  position: relative;
+  background: #f5c542; border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #fff5cc, inset 0 -6px 0 #b8862a, 4px 4px 0 #000, 0 0 24px rgba(245, 197, 66, 0.4);
+  padding: 12px 22px 16px 22px;
+  display: flex; align-items: center; gap: 14px;
+  transition: transform 60ms steps(2, end);
+}
+.nextturn-btn:hover:not(:disabled) { transform: translate(-1px, -1px); }
+.nextturn-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: inset 0 0 0 2px #fff5cc, inset 0 -2px 0 #b8862a, 0 0 0 #000;
+}
+.nextturn-btn:disabled { filter: grayscale(0.8) brightness(0.7); cursor: not-allowed; }
+.nextturn-btn img { width: 56px; height: 36px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.4)); }
+.nextturn-btn .nt-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.nextturn-btn .nt-en { font-family: 'Press Start 2P', monospace; font-size: 11px; color: #1a0f0a; letter-spacing: 1px; }
+.nextturn-btn .nt-ko { font-family: 'Galmuri11', monospace; font-weight: bold; font-size: 22px; color: #1a0f0a; letter-spacing: 2px; line-height: 1; }
+.nextturn-wrap .error-text {
+  background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #7f1d1d;
+  padding: 4px 8px; margin: 0;
+  font-family: 'Galmuri11', monospace;
+}
 
 /* --- 뉴스 --- */
 .news-panel ul, .news-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
