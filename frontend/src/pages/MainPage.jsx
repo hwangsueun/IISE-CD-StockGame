@@ -1,5 +1,6 @@
 // 메인 게임 화면: 픽셀아트 방(stage) + 상태바 + 오브젝트 버튼 + 다음 턴 (§10)
 // 디자인 원본: public/game/Main Screen.html (Phase D 이식 — 레이아웃/에셋/좌표 동일)
+import { useEffect, useRef } from 'react';
 import { useGameStore } from '../state/gameStore';
 import StatusBar from '../components/StatusBar';
 import EventPopup from '../components/EventPopup';
@@ -13,6 +14,7 @@ import RepaymentModal from '../components/RepaymentModal';
 import ReportModal from '../components/ReportModal';
 import SideJobModal from '../components/SideJobModal';
 import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
+import FaintOverlay from '../components/FaintOverlay';
 
 const MODALS = {
   market: MarketModal,
@@ -36,13 +38,25 @@ function dateParts(dateStr) {
 }
 
 export default function MainPage() {
-  const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents } =
-    useGameStore();
+  const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
+    lastTurnResult, dismissFaint } = useGameStore();
+
+  const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
+
+  // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
+  // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
+  const autoOpenedRepayTurnRef = useRef(null);
+  useEffect(() => {
+    if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
+    if (pendingEvents.length > 0 || faintEvent || activeModal) return;
+    if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
+    autoOpenedRepayTurnRef.current = turn.turnNumber;
+    openModal('repay');
+  }, [turn, pendingEvents, faintEvent, activeModal, openModal]);
 
   if (!turn) return <div className="loading-screen">불러오는 중...</div>;
 
   const ActiveModal = activeModal ? MODALS[activeModal] : null;
-  const headline = turn.news?.[0];
   const { md, dow } = dateParts(turn.date);
   const repayDday = Math.max(0, turn.monthIndex * 20 - turn.turnNumber);
 
@@ -69,9 +83,6 @@ export default function MainPage() {
             <button className="hud-btn" onClick={() => openModal('report', { monthIndex: turn.monthIndex })}>
               📊 리포트
             </button>
-            {turn.isRepaymentTurn && (
-              <button className="hud-btn repay" onClick={() => openModal('repay')}>💸 월말 상환</button>
-            )}
           </div>
 
           {/* 오브젝트 버튼 (좌표: 디자인 Main Screen.html LAYOUT 그대로) */}
@@ -97,17 +108,8 @@ export default function MainPage() {
             <span className="lbl">부업</span>
           </button>
 
-          {/* 오늘의 핵심 뉴스 (좌하단 패널) */}
-          <div className="headline-panel">
-            <div className="hp-head">
-              <span className="hp-title">▶ 오늘의 핵심 뉴스</span>
-              <span className="hp-imp">{turn.newsLimit != null ? `읽기한도 ${turn.newsLimit}` : ''}</span>
-            </div>
-            <div className="hp-headline">{headline ? headline.headline : '오늘은 새로운 소식이 없습니다.'}</div>
-            <div className="hp-foot">
-              <button className="hp-btn" onClick={() => openModal('news')}>자세히 보기 ▶</button>
-            </div>
-          </div>
+          {/* 오늘의 핵심 뉴스 패널은 디자인 원본(Main Screen.html)에서 display:none 처리 —
+              뉴스는 좌측 '뉴스' 오브젝트 버튼(NewsModal)으로만 접근한다. */}
 
           {/* NEXT TURN CTA (우하단) */}
           <div className="nextturn-wrap">
@@ -138,6 +140,9 @@ export default function MainPage() {
       {pendingEvents.length === 0 && <SurgeStockPopup />}
 
       {ActiveModal && <ActiveModal {...modalProps} />}
+
+      {/* 기절(입원): 강제 페널티형 즉시 이벤트 — 확인 전까지 최상단에 표시 */}
+      {faintEvent && <FaintOverlay event={faintEvent} onDismiss={dismissFaint} />}
     </div>
   );
 }

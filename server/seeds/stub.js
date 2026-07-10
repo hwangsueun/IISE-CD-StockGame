@@ -71,12 +71,18 @@ async function seedStub() {
     ])
   );
 
-  // --- 거시지표 (4종만) ---
+  // --- 거시지표 (게임 노출 10종 전체 — 001_init.sql의 is_game_visible=TRUE와 맞춘다) ---
   const macros = [
     { code: 'kospi', v: 2000, vol: 15 },
+    { code: 'kosdaq', v: 550, vol: 5 },
     { code: 'usdkrw', v: 1100, vol: 8 },
     { code: 'kr_policy_rate', v: 2.75, vol: 0 },
+    { code: 'cpi', v: 100, vol: 0.1 },
+    { code: 'ktb_3y_rate', v: 2.8, vol: 0.02 },
+    { code: 'ktb_10y_rate', v: 3.5, vol: 0.03 },
     { code: 'wti_price', v: 93, vol: 1.5 },
+    { code: 'gold_price', v: 1300, vol: 10 },
+    { code: 'leading_index', v: 100, vol: 0.2 },
   ];
   for (const m of macros) {
     let v = m.v;
