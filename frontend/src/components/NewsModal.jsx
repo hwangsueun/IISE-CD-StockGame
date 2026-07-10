@@ -37,29 +37,32 @@ export default function NewsModal() {
         ))}
       </div>
 
-      {selected ? (
-        <article className="news-article">
-          <button className="btn-back" onClick={() => setSelected(null)}>← 목록</button>
-          <h3>{selected.headline}</h3>
-          {selected.lines.map((line, i) => <p key={i}>{line}</p>)}
-          {selected.assetId && (
-            <button className="btn-link" onClick={() => openModal('asset', { assetId: selected.assetId })}>
-              관련 종목 보기: {selected.assetName} →
-            </button>
-          )}
-        </article>
-      ) : (
-        <ul className="news-list">
-          {(data?.news || []).map((n) => (
-            <li key={n.newsId}>
-              <button onClick={() => setSelected(n)}>
-                <span className={`news-dir ${n.direction || ''}`}>{n.headline}</span>
-                {n.strength >= 5 && <b className="news-strong">중요</b>}
+      <div className="news-body">
+        {selected ? (
+          <article className="news-article">
+            <button className="btn-back" onClick={() => setSelected(null)}>← 목록</button>
+            <h3>{selected.headline}</h3>
+            {selected.lines.map((line, i) => <p key={i}>{line}</p>)}
+            {selected.assetId && (
+              <button className="btn-link" onClick={() => openModal('asset', { assetId: selected.assetId })}>
+                관련 종목 보기: {selected.assetName} →
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
+            )}
+          </article>
+        ) : (
+          <ul className="news-list">
+            {(data?.news || []).map((n) => (
+              <li key={n.newsId}>
+                <button onClick={() => setSelected(n)}>
+                  <span className={`news-dir ${n.direction || ''}`}>{n.headline}</span>
+                  {n.strength >= 5 && <b className="news-strong">중요</b>}
+                </button>
+              </li>
+            ))}
+            {(data?.news || []).length === 0 && <p className="news-empty">오늘은 뉴스가 없다.</p>}
+          </ul>
+        )}
+      </div>
       {data && data.hiddenCount > 0 && (
         <p className="news-hidden">😵 스트레스로 못 본 뉴스 {data.hiddenCount}건</p>
       )}

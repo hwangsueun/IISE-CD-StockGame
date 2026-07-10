@@ -84,18 +84,24 @@ export default function AssetDetailModal({ assetId }) {
       )}
 
       {tab === 'news' && (
-        <ul className="news-list">
-          {news.length === 0 && <p className="news-empty">관련 뉴스가 없다.</p>}
-          {news.map((n) => (
-            <li key={n.newsId}>
-              <span className="news-date">{n.date}</span>
-              <div>{n.lines.map((l, i) => <p key={i}>{l}</p>)}</div>
-            </li>
-          ))}
-        </ul>
+        <div className="news-body">
+          <ul className="news-list">
+            {news.length === 0 && <p className="news-empty">관련 뉴스가 없다.</p>}
+            {news.map((n) => (
+              <li key={n.newsId}>
+                <span className="news-date">{n.date}</span>
+                <div>{n.lines.map((l, i) => <p key={i}>{l}</p>)}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      {tab === 'community' && <CommunityBoard assetId={assetId} date={turn.date} />}
+      {tab === 'community' && (
+        <div className="news-body">
+          <CommunityBoard assetId={assetId} date={turn.date} />
+        </div>
+      )}
 
       {tab === 'info' && <AssetInfo detail={detail} />}
     </Modal>
