@@ -160,6 +160,11 @@ export const useGameStore = create((set, get) => ({
     set({ surgeResults: [] });
   },
 
+  /** 기절(입원) 연출 확인 후 닫기 */
+  dismissFaint() {
+    set({ lastTurnResult: null });
+  },
+
   /** 게임 초기화 (엔딩 후 다시하기) */
   resetGame() {
     localStorage.removeItem('antsurvival_session');

@@ -213,6 +213,14 @@
 (function () {
   'use strict';
 
+  // --- 부업 임베드 연동 (React 앱이 iframe으로 열었을 때만 동작; 단독 실행에는 영향 없음) ---
+  var EMBEDDED = (function () { try { return window.parent && window.parent !== window; } catch (_) { return false; } })();
+  if (EMBEDDED) { var _bb = document.getElementById('backBtn'); if (_bb) _bb.style.display = 'none'; }
+  function postScore(rawScore) {
+    if (!EMBEDDED) return;
+    try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'catch_waxon', rawScore: rawScore }, '*'); } catch (_) {}
+  }
+
   var GAME_SECONDS = 5;       // 제한시간 5초
   var MAX_BIRDS = 9;          // 동시에 떠다니는 왝슨 수
   var MIN_SIZE = 42, MAX_SIZE = 110;
@@ -469,6 +477,7 @@
             : '…왝슨이 비웃으며 날아갑니다.';
     document.getElementById('rankMsg').textContent = msg;
     document.getElementById('endOverlay').hidden = false;
+    postScore(caught);   // 원점수 = 포획 수 (서버 SCORE_CUTS.catch_waxon 기준)
   }
 
   document.getElementById('startBtn').addEventListener('click', start);

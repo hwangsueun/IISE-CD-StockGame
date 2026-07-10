@@ -331,6 +331,14 @@
 (function () {
   'use strict';
 
+  // --- 부업 임베드 연동 (React 앱이 iframe으로 열었을 때만 동작; 단독 실행에는 영향 없음) ---
+  var EMBEDDED = (function () { try { return window.parent && window.parent !== window; } catch (_) { return false; } })();
+  if (EMBEDDED) { var _bb = document.getElementById('backBtn'); if (_bb) _bb.style.display = 'none'; }
+  function postScore(rawScore) {
+    if (!EMBEDDED) return;
+    try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'avoid_professor', rawScore: rawScore }, '*'); } catch (_) {}
+  }
+
   // ===== 튜닝 값 =====
   var LIVES = 3;
   var WALK_SPEED = 340;        // px/s
@@ -722,6 +730,7 @@
             : '…축하합니다. 대학원 합격입니다?!';
     document.getElementById('rankMsg').textContent = msg;
     document.getElementById('endOverlay').hidden = false;
+    postScore(t);   // 원점수 = 버틴 시간(초) (서버 SCORE_CUTS.avoid_professor 기준)
   }
 
   // 리사이즈 대응
