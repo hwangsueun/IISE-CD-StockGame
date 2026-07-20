@@ -1,11 +1,13 @@
 // 턴 진행 오케스트레이션 (ARCHITECTURE.md §9-2 턴 종료 순서)
 // 1. 입력 검증 -> 2. (거래는 tradeService가 개별 처리) -> 3. 다음 턴 가격
-// -> 4. 보유자산 평가 -> 5. 뉴스 노출량 -> 6. 이벤트 -> 7. 상태 반영 -> 8. 자동저장
+// -> 3-1. 상장폐지 강제청산(신규, migration 003) -> 4. 보유자산 평가
+// -> 5. 뉴스 노출량 -> 6. 이벤트 -> 7. 상태 반영 -> 8. 자동저장
 const { query, withTransaction } = require('../db');
 const { notFound, conflict } = require('../utils/errors');
 const C = require('../config/constants');
 const gameService = require('./gameService');
 const pricingService = require('./pricingService');
+const tradeService = require('./tradeService');
 const valuationService = require('./valuationService');
 const stressPolicy = require('./stressPolicy');
 const repaymentService = require('./repaymentService');
@@ -37,7 +39,18 @@ async function getTurnData(sessionId, turnNumber) {
 
   const [prices, assets, newsResult, totalAsset] = await Promise.all([
     pricingService.getPricesAt(iso),
-    query(`SELECT asset_id, asset_type, masked_name AS name, sector FROM assets WHERE is_active = TRUE`),
+    // 코인은 세션 유니버스 20개로 제한한다 (migration 005). 주식/채권은 asset_type <> 'coin'로
+    // 그대로 통과한다(전역, is_active만 적용) — pricingService.listAssets와 동일한 필터 형태.
+    query(
+      `SELECT a.asset_id, a.asset_type, a.masked_name AS name, a.sector
+       FROM assets a
+       WHERE a.is_active = TRUE
+         AND (a.asset_type <> 'coin' OR EXISTS (
+           SELECT 1 FROM session_coin_universe scu
+           WHERE scu.session_id = $1 AND scu.asset_id = a.asset_id
+         ))`,
+      [sessionId]
+    ),
     newsService.getNewsByDate(iso, { sessionId }),
     valuationService.computeTotalAsset(sessionId),
   ]);
@@ -107,6 +120,13 @@ async function advanceTurn(sessionId) {
     const prevDate = await getTurnDate(sessionId, session.current_turn, client);
     const nextDate = await getTurnDate(sessionId, nextTurn, client);
     session.current_turn = nextTurn;
+
+    // --- 상장폐지 강제청산 (migration 003 §4, ARCHITECTURE.md §9-2) ---
+    // 다음 턴 가격 조회(위 nextDate) 직후 / 보유자산 평가(아래 totalAssetBefore) 이전에 실행해야 한다.
+    // 이 순서가 어긋나면 (a) 청산 대상 보유자산이 이번 턴 평가에 그대로 남거나,
+    // (b) daily 스냅샷이 청산 이전 상태로 기록되어 다음 턴 dailyReturn 계산이 틀어진다.
+    // assets.listed_from/listed_to 단일 기준만 본다 (coin_info 조인 없음).
+    const forcedLiquidations = await tradeService.liquidateDelisted(client, session, nextDate);
 
     // --- 월초 처리: 월급 지급 + 생활비 차감 (기획서 §7 Monthly turn) ---
     let monthly = null;
@@ -179,6 +199,7 @@ async function advanceTurn(sessionId) {
       isRepaymentTurn: repaymentService.isRepaymentTurn(nextTurn),
       monthly,
       missedRepayment, // 직전 상환 턴을 지나쳐 자동 미납 처리된 경우 (팝업 연출용)
+      forcedLiquidations: forcedLiquidations.length > 0 ? forcedLiquidations : null, // 상장폐지 강제청산 결과 (팝업 연출용)
       events,
       surgeResults, // 전 턴 급등주 정산 결과 (팝업 연출용)
       dailyReturn,

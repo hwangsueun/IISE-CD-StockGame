@@ -39,13 +39,16 @@ exports.getTurn = async (req, res) => {
 /** POST /api/game/:sessionId/trade */
 exports.trade = async (req, res) => {
   const { assetId, tradeType, quantity } = req.body || {};
-  if (!assetId || !['buy', 'sell'].includes(tradeType) || !(Number(quantity) > 0)) {
-    throw badRequest('assetId, tradeType(buy|sell), quantity(>0)가 필요합니다');
+  const qty = Number(quantity);
+  // 여기서는 형태만 본다 (유한한 양수). 자산 타입별 세부 규칙(정수/코인 최소단위·소수자리)은
+  // 이 시점에 assetType을 모르므로 tradeService가 서버 권위로 재검증한다 (중복 아님, 계층 분리).
+  if (!assetId || !['buy', 'sell'].includes(tradeType) || !Number.isFinite(qty) || qty <= 0) {
+    throw badRequest('assetId, tradeType(buy|sell), quantity(유한한 양수)가 필요합니다');
   }
   const result = await tradeService.executeTrade(req.params.sessionId, {
     assetId,
     tradeType,
-    quantity: Number(quantity),
+    quantity: qty,
   });
   res.json(result);
 };
