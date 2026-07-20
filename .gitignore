@@ -5,3 +5,10 @@ dist/
 .DS_Store
 pgdata/
 data/
+# 위 data/ 규칙은 DATA_DIR(외부 data-pipeline 체크아웃)을 실수로 server/ 밑에 복사했을 때를
+# 막기 위한 것이다(패턴이 앞에 슬래시가 없어 server/seeds/data/도 함께 걸러진다).
+# 2026-07-20: server/seeds/data/에 있던 자체 생성 가명 사전(masked_names.json,
+# generate_masked_names.js)을 폐기했다 - 마스킹은 이제 $DATA_DIR/data/processed/rename_map/
+# 의 정본 CSV를 seeds 실행 시점에 직접 읽는다(src/services/maskingService.js). 그 디렉터리에
+# 더 이상 커밋 대상 정적 산출물이 없으므로 예외 규칙(!server/seeds/data/)도 함께 제거했다 -
+# 위 data/ 블랭킷 제외 규칙 그대로 적용된다.
