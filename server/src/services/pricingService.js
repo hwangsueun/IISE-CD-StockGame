@@ -30,13 +30,33 @@ async function getPricesAt(date, client) {
 /**
  * 종목 목록 (마켓 모달). date 기준 시세를 붙이고 sort 기준으로 정렬.
  * sort: change(상승률) | volume(거래량, 주식만) | amount(거래대금 근사) | name
+ * sessionId: 코인은 이 세션이 층화추출한 20개 유니버스로 제한한다(migration 005). 주식/채권은
+ *   전역이라 영향받지 않는다(asset_type <> 'coin' 분기로 그대로 통과).
+ *
+ * sessionId 미전달 시 결정: 코인을 결과에서 아예 제외한다(주식/채권만 반환).
+ * 근거 — 게임이 실제 거래 대상으로 노출하는 코인은 세션마다 다른 20개뿐이므로(작업 배경),
+ * sessionId 없이 a.is_active만으로 걸러 전체 코인(1,267개, 참조 유니버스)을 그대로 보여주면
+ * "마켓 목록에 보이는 것 = 실제로 살 수 있는 것"이라는 전제가 깨지고 대부분 거래 불가능한
+ * 코인 목록을 노출하게 된다. sessionId 없는 호출은 세션 스코프가 정의되지 않은 상황(세션
+ * 시작 전 등)이므로 안전한 기본값(코인 비노출)을 택했다. 프론트 api/client.js는 현재
+ * sessionId를 넘기지 않지만, 호출 자체는 에러 없이 200으로 응답한다(주식/채권 탭은 기존과
+ * 동일, 코인 탭만 빈 배열) — sessionId를 넘기도록 프론트를 갱신하면 원래 의도대로 복원된다.
  */
-async function listAssets({ type, sort, date }) {
+async function listAssets({ type, sort, date, sessionId }) {
   const params = [];
   let where = `a.is_active = TRUE`;
   if (type) {
     params.push(type);
     where += ` AND a.asset_type = $${params.length}`;
+  }
+  if (sessionId) {
+    params.push(sessionId);
+    where += ` AND (a.asset_type <> 'coin' OR EXISTS (
+      SELECT 1 FROM session_coin_universe scu
+      WHERE scu.session_id = $${params.length} AND scu.asset_id = a.asset_id
+    ))`;
+  } else {
+    where += ` AND a.asset_type <> 'coin'`;
   }
   let priceJoin = '';
   let priceCols = `NULL AS price, NULL AS change_rate, NULL AS volume`;

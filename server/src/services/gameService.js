@@ -3,6 +3,7 @@ const { query, withTransaction } = require('../db');
 const { notFound, badRequest } = require('../utils/errors');
 const C = require('../config/constants');
 const turnSelector = require('./turnSelector');
+const coinUniverseService = require('./coinUniverseService');
 const valuationService = require('./valuationService');
 
 /** 세션 로우 조회 (없으면 404) */
@@ -30,6 +31,10 @@ async function startGame(difficulty, userId = null) {
     );
     const session = rows[0];
     await turnSelector.createGameTurns(client, session.id, dates);
+    // 코인 층화추출 (migration 005) — 240턴 날짜가 확정된 직후, 같은 트랜잭션 안에서 실행해야
+    // 세션 생성과 원자적으로 묶인다(둘 중 하나만 커밋되는 상태 방지). dates[0]/dates[dates.length-1]
+    // = 세션의 첫/마지막 거래일 (coinUniverseService의 전 기간 생존 조건 판단 기준).
+    await coinUniverseService.selectForSession(client, session.id, dates[0], dates[dates.length - 1]);
     return toStateDto(session, Number(session.cash)); // 시작 시 총자산 = 현금
   });
 }

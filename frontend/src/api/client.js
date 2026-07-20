@@ -96,11 +96,15 @@ const httpApi = {
   deleteMemo: (sid, memoId) => del(`/api/game/${sid}/memo/${memoId}`),
 
   // 자산 / 시장
-  listAssets: ({ type, sort, date } = {}) => {
+  // sessionId는 코인 목록에 필수다. 코인은 세션마다 시총 규모별로 랜덤 층화추출한 20종만
+  // 거래 대상이라(session_coin_universe, migration 005), 서버가 세션을 모르면 어떤 20개를
+  // 보여줄지 결정할 수 없어 코인을 빈 배열로 돌려준다. 주식/채권은 전역이라 영향 없다.
+  listAssets: ({ type, sort, date, sessionId } = {}) => {
     const q = new URLSearchParams();
     if (type) q.set('type', type);
     if (sort) q.set('sort', sort);
     if (date) q.set('date', date);
+    if (sessionId) q.set('sessionId', sessionId);
     return get(`/api/assets?${q}`);
   },
   getAssetDetail: (assetId, date) =>
