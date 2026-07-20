@@ -4,7 +4,7 @@
 // 수익률 -> 가격지수 변환: 게임 거래용 근사치. 시작 100, 일 수익 = 쿠폰수익(y/250) - 듀레이션*Δy
 const path = require('path');
 const { readCsv } = require('./lib/csv');
-const { bulkInsert, pool } = require('./lib/db');
+const { bulkInsert, pool, toIsoDate } = require('./lib/db');
 
 const SERIES_TO_ASSET = {
   KTB_3Y: { assetId: 'BOND_KTB3Y', duration: 2.7 },
@@ -71,7 +71,7 @@ async function importBonds(treasuryCsv) {
       continue;
     }
     const series = mRows.map((r) => ({
-      date: r.trade_date.toISOString().slice(0, 10),
+      date: toIsoDate(r.trade_date),
       y: Number(r.value),
     }));
     const { priceRows, detailRows } = buildPriceRows(assetId, duration, series);

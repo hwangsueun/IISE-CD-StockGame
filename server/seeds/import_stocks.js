@@ -1,6 +1,14 @@
 // DataGuide 주가/거래량 xlsx -> assets + asset_prices + stock_price_detail
 // 원천: $DATA_DIR/data/raw/stock/stock_price-volume_npq.xlsx
 // 시트: 13-17_price-volume / 18-22_price-volume / 23_price-volume (+ *_npq 수급)
+//
+// masked_name(가명)은 여기서 채우지 않는다 — assets.name(원 이름)만 적재하고 masked_name은
+// NULL로 둔다. seeds/apply_masking.js가 모든 자산유형(주식/코인/채권)의 masked_name을
+// rename_map 기준으로 채우는 유일한 지점이다(적재 마지막 단계, import_all.js 참고).
+// 예전에는 이 파일이 stock_rename_map.csv를 직접 읽어 masked_name까지 같이 넣었는데,
+// import_coins.js도 같은 일을 자기 방식대로 하고 있어서 마스킹 적용 지점이 세 곳(여기 /
+// import_coins.js / apply_masking.js)으로 흩어져 있었다 - 한 곳(apply_masking.js)으로
+// 통일했다(보고서 참고).
 // 구조: 9행 근처 메타(코드/코드명/아이템명) 후 날짜별 wide 데이터
 const path = require('path');
 const XLSX = require('xlsx');
@@ -49,12 +57,11 @@ async function importStocks(xlsxPath) {
     const { columns } = parseSheet(ws);
     for (const c of columns) if (c.name) stockNames.set(c.code, c.name);
   }
-  // TODO(data): masked_name / FICS sector는 마스킹·섹터 매핑표 확정 후 UPDATE.
-  //             임시로 '종목###' 가명을 부여해 원 회사명 노출을 차단한다.
-  let seq = 0;
-  const assetRows = [...stockNames.entries()].map(([code, name]) => [
-    `STOCK_${code}`, 'stock', code, name, `종목${String(++seq).padStart(3, '0')}`, null, 'KRW',
-  ]);
+  // TODO(data): FICS sector는 별도 섹터 매핑표 확정 후 UPDATE.
+  // masked_name은 NULL로 적재 -> apply_masking.js가 stock_rename_map.csv 기준으로 채운다.
+  const assetRows = [...stockNames.entries()].map(([code, name]) => (
+    [`STOCK_${code}`, 'stock', code, name, null, null, 'KRW']
+  ));
   await bulkInsert(
     'assets',
     ['asset_id', 'asset_type', 'code', 'name', 'masked_name', 'sector', 'currency'],
