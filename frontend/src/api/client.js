@@ -57,6 +57,7 @@ const httpApi = {
 
   // 포트폴리오 / 리포트
   getPortfolio: (sid) => get(`/api/game/${sid}/portfolio`),
+  getPortfolioHistory: (sid) => get(`/api/game/${sid}/portfolio/history`),
   getWeeklyReport: (sid, w) => get(`/api/game/${sid}/report/weekly/${w}`),
   getMonthlyReport: (sid, m) => get(`/api/game/${sid}/report/monthly/${m}`),
   getFinalReport: (sid) => get(`/api/game/${sid}/report/final`),
@@ -168,6 +169,7 @@ const mockAdapter = {
   getActiveSurge: () => Promise.resolve(null),
   buySurge: notMocked('급등주 매수'),
   getRealizedPnl: notMocked('실현손익'),
+  getPortfolioHistory: notMocked('수익률 추이'),
   getGameLog: notMocked('게임 로그'),
 };
 

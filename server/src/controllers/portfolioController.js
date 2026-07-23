@@ -6,6 +6,11 @@ exports.getPortfolio = async (req, res) => {
   res.json(await valuationService.getPortfolio(req.params.sessionId));
 };
 
+/** GET /api/game/:sessionId/portfolio/history — 턴별 수익률 추이 (대시보드 차트) */
+exports.getPortfolioHistory = async (req, res) => {
+  res.json(await valuationService.getPortfolioHistory(req.params.sessionId));
+};
+
 /** GET /api/game/:sessionId/portfolio/pnl?period=&assetType= */
 exports.getRealizedPnl = async (req, res) => {
   const { period = 'all', assetType } = req.query;

@@ -1033,6 +1033,105 @@ textarea { min-height: 80px; resize: vertical; }
 .cal-side-news-list li.empty { background: none; border: none; color: var(--px-ink-dim); font-style: italic; }
 .cal-memo-read { background: #0c0704; border-left: 3px solid var(--px-gold); padding: 8px 10px; line-height: 1.5; }
 
+/* 포트폴리오 탭 본문: 고정 높이 + 내부 스크롤.
+   보유 종목이 늘어도 창 크기가 변하지 않는다 (표 헤더 34px + 5행×33px ≈ 200px 기준). */
+.pf-panel {
+  height: 300px; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scrollbar-color: #5a3624 transparent;
+  padding-right: 2px;
+}
+.pf-panel .data-table thead th {
+  position: sticky; top: 0; z-index: 1; background: #1a0f0a;
+}
+/* 대시보드 탭은 고정하지 않는다 — 내용 길이에 맞춰 창이 늘어난다 */
+.pf-panel.auto { height: auto; overflow: visible; padding-right: 0; }
+
+/* --- 수익분석: 좌측 자산군 세로 탭 (마켓 사이드바와 동일 언어) --- */
+.pnl-body {
+  display: flex; min-height: 200px;
+  margin: 10px 0 0; border-top: 2px solid #2a1a10;
+}
+.pnl-side {
+  width: 116px; flex-shrink: 0;
+  background: #0c0704;
+  border-right: 3px solid #000;
+  box-shadow: inset -2px 0 0 #2a1a10;
+  display: flex; flex-direction: column;
+  padding: 10px 8px; gap: 4px;
+}
+.pnl-main { flex: 1; min-width: 0; padding: 4px 18px 0; }
+
+/* --- 수익률 대시보드 (포트폴리오) --- */
+.dash { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+.dash-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.dash-kpi {
+  background: #0c0704; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #5a3624, 2px 2px 0 #000;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.dash-kpi.hero { box-shadow: inset 0 0 0 1px var(--px-gold), 2px 2px 0 #000; }
+.dash-kpi .k { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--px-ink-dim); }
+.dash-kpi .v {
+  font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--px-ink);
+  text-shadow: 2px 2px 0 #000; letter-spacing: 0.5px; word-break: break-all;
+}
+.dash-kpi.hero .v { font-size: 18px; }
+.dash-kpi .sub { font-family: 'Galmuri11', monospace; font-size: 11px; color: var(--px-ink-faint, #7c6248); }
+.dash-kpi .v.up { color: #e2504c; }
+.dash-kpi .v.down { color: #3b6fd4; }
+
+.dash-sec { display: flex; flex-direction: column; gap: 8px; }
+.dash-h {
+  margin: 0; font-family: 'Galmuri11', monospace; font-size: 14px;
+  color: var(--px-gold); letter-spacing: 0.5px;
+  border-bottom: 1px dashed #3d2418; padding-bottom: 6px;
+}
+.dash-h small { color: var(--px-ink-dim); font-size: 11px; margin-left: 8px; letter-spacing: 0; }
+.dash-empty { color: var(--px-ink-dim); font-family: 'Galmuri11', monospace; font-size: 13px; margin: 8px 0; }
+
+.dash-chart-wrap { background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #2a1a10; padding: 6px 6px 0; }
+.dash-chart { display: block; cursor: crosshair; }
+.dash-axis { fill: var(--px-ink-dim); font-family: 'Galmuri11', monospace; font-size: 10px; }
+.dash-tip {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  border-top: 1px dashed #3d2418; padding: 7px 4px;
+  font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--px-ink); min-height: 30px;
+}
+.dash-tip b { color: var(--px-gold); }
+.dash-tip .muted { color: var(--px-ink-faint, #7c6248); }
+.dash-tip .up { color: #e2504c; }
+.dash-tip .down { color: #3b6fd4; }
+
+.dash-types { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dash-types li {
+  display: grid; grid-template-columns: 1fr 56px 1fr 1fr; gap: 8px; align-items: center;
+  background: #0c0704; border-left: 3px solid #5a3624; padding: 7px 10px;
+  font-family: 'Galmuri11', monospace; font-size: 13px;
+}
+.dash-types .lg { display: flex; align-items: center; gap: 6px; color: var(--px-ink); }
+.dash-types .lg i { width: 10px; height: 10px; flex-shrink: 0; box-shadow: inset 0 0 0 1px #000; }
+.dash-types .wt, .dash-types .amt { color: var(--px-ink-dim); text-align: right; }
+.dash-types .pl { text-align: right; color: var(--px-ink-dim); }
+.dash-types .pl.up { color: #e2504c; }
+.dash-types .pl.down { color: #3b6fd4; }
+
+.dash-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dash-rank li {
+  display: grid; grid-template-columns: 130px 1fr 76px; gap: 10px; align-items: center;
+  font-family: 'Galmuri11', monospace; font-size: 13px;
+}
+.dash-rank .nm { color: var(--px-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-rank .bar { position: relative; height: 14px; background: #0c0704; box-shadow: inset 0 0 0 1px #2a1a10; }
+.dash-rank .bar .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #5a3624; }
+.dash-rank .bar .fill { position: absolute; top: 2px; bottom: 2px; box-shadow: inset 0 0 0 1px #000; }
+.dash-rank .bar .fill.gain { background: #e2504c; border-radius: 0 3px 3px 0; }
+.dash-rank .bar .fill.loss { background: #3b6fd4; border-radius: 3px 0 0 3px; }
+.dash-rank .val { text-align: right; color: var(--px-ink-dim); }
+.dash-rank .val.up { color: #e2504c; }
+.dash-rank .val.down { color: #3b6fd4; }
+
+@media (max-width: 720px) { .dash-kpis { grid-template-columns: repeat(2, 1fr); } }
+
 /* --- 차트/종토방/리포트 --- */
 .price-chart { background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #2a1a10; }
 .chart-label { fill: var(--px-ink-dim); font-size: 10px; }

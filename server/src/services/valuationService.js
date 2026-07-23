@@ -177,4 +177,41 @@ async function getRealizedPnl(sessionId, period = 'all', assetType) {
   };
 }
 
-module.exports = { getCurrentTradeDate, evaluateHoldings, computeTotalAsset, getPortfolio, getRealizedPnl };
+/**
+ * 수익률 추이: 턴별 총자산 스냅샷(session_snapshots daily) + 초기자본 대비 수익률.
+ * 대시보드 라인차트용 단일 측정치 시계열이다.
+ * @returns { initialCapital, points: [{turn, totalAsset, netAsset, returnRate}] }
+ */
+async function getPortfolioHistory(sessionId) {
+  const { rows: sRows } = await query(
+    `SELECT initial_cash FROM game_sessions WHERE id = $1`, [sessionId]
+  );
+  if (!sRows.length) throw notFound('세션을 찾을 수 없습니다');
+  const initialCapital = Number(sRows[0].initial_cash);
+
+  const { rows } = await query(
+    `SELECT turn_number, total_asset, debt
+       FROM session_snapshots
+      WHERE session_id = $1 AND snapshot_type = 'daily'
+      ORDER BY turn_number`,
+    [sessionId]
+  );
+
+  const points = rows.map((r) => {
+    const totalAsset = Number(r.total_asset);
+    return {
+      turn: r.turn_number,
+      totalAsset,
+      netAsset: totalAsset - Number(r.debt),
+      // 초기자본 대비 수익률 (0 = 본전). 단일 측정치라 축이 하나다.
+      returnRate: initialCapital > 0 ? (totalAsset - initialCapital) / initialCapital : 0,
+    };
+  });
+
+  return { initialCapital, points };
+}
+
+module.exports = {
+  getCurrentTradeDate, evaluateHoldings, computeTotalAsset,
+  getPortfolio, getRealizedPnl, getPortfolioHistory,
+};
