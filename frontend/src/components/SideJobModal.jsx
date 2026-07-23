@@ -18,6 +18,19 @@ const GRADE_LABEL = {
   great_success: '대성공', success: '성공', normal: '보통', fail: '실패', great_fail: '대실패',
 };
 
+// 부업 화면 도움말 (Modal의 ? 버튼으로 토글)
+const SIDEJOB_HELP = (
+  <>
+    <p>급하게 <b>현금</b>이 필요할 때 <b>부업</b>으로 벌 수 있다. 단, 대가가 따른다.</p>
+    <ul>
+      <li><b>하루 1회</b>만 할 수 있다.</li>
+      <li>미니게임 성적(등급)에 따라 <b>일당</b>과 <b>스트레스</b>가 정해진다 — 잘할수록 돈은 많이, 스트레스는 적게 오른다.</li>
+      <li>부업을 한 날은 <b>그날 투자(매매)를 할 수 없다.</b></li>
+      <li><b>입원 중</b>에는 부업을 할 수 없다.</li>
+    </ul>
+  </>
+);
+
 export default function SideJobModal() {
   const { sessionId, loadTurn, turn } = useGameStore();
   const [status, setStatus] = useState(null);
@@ -66,7 +79,7 @@ export default function SideJobModal() {
   }
 
   return (
-    <Modal title="부업 (하루 1회)">
+    <Modal title="부업 (하루 1회)" help={SIDEJOB_HELP}>
       {status && !status.available && (
         <p className="error-text">
           {status.reason === 'already_done' ? '오늘은 이미 부업을 했다.'

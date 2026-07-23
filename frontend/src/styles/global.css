@@ -318,6 +318,53 @@ button { cursor: pointer; font: inherit; }
 .px-turn-pill .lbl { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--px-ink-dim); letter-spacing: 1px; }
 .px-turn-pill .val { font-family: 'Press Start 2P', monospace; font-size: 15px; color: var(--px-ink); text-shadow: 2px 2px 0 #000; }
 
+/* 상태바 ? 가이드 버튼 */
+.px-guide-btn {
+  flex-shrink: 0; width: 40px; height: 40px;
+  background: #0c0704; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, inset 2px 2px 0 #7a4a30;
+  color: var(--px-gold); font-family: 'Press Start 2P', monospace;
+  font-size: 15px; cursor: pointer;
+}
+.px-guide-btn:hover { color: #4ade80; }
+.px-guide-btn:active { transform: translate(1px, 1px); }
+
+/* 상태바 각 항목 호버 툴팁 (data-tip) */
+.px-statusbar [data-tip] { position: relative; }
+.px-statusbar [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; top: calc(100% + 8px); left: 0;
+  width: max-content; max-width: 260px; white-space: normal; text-align: left;
+  background: #1a0f0a; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, 4px 4px 0 #000;
+  color: var(--px-ink); font-family: 'Galmuri11', monospace;
+  font-size: 12px; line-height: 1.5; letter-spacing: 0.3px;
+  padding: 8px 10px;
+  display: none;
+  z-index: 40; pointer-events: none;
+}
+.px-statusbar [data-tip]:hover::after { display: block; }
+/* 오른쪽 끝 항목은 툴팁을 오른쪽 정렬해 화면 밖으로 안 나가게 */
+.px-statusbar .px-turn-pill[data-tip]::after { left: auto; right: 0; }
+
+/* 게임 가이드 모달 */
+.guide-intro { font-family: 'Galmuri11', monospace; line-height: 1.7; margin: 0 0 14px; }
+.guide-intro b { color: var(--px-gold); }
+.guide-stats { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.guide-stat {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: #0c0704; border-left: 4px solid #5a3624; padding: 10px 12px;
+}
+.guide-stat-ic {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  font-family: 'Press Start 2P', monospace; font-size: 16px;
+  background: #1a0f0a; box-shadow: inset 0 0 0 2px #000;
+}
+.guide-stat-ic.day-ic { font-size: 8px; color: var(--px-ink-dim); }
+.guide-stat-txt dt { font-family: 'Galmuri11', monospace; font-size: 14px; color: var(--px-gold); margin-bottom: 3px; }
+.guide-stat-txt dd { font-family: 'Galmuri11', monospace; font-size: 13px; line-height: 1.55; color: var(--px-ink-dim); margin: 0; }
+.guide-tip { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--px-ink-dim); margin: 14px 0 0; }
+
 /* --- 방 (stage) --- */
 .stage { position: absolute; top: 92px; left: 0; right: 0; bottom: 0; overflow: hidden; }
 .stage::before {
@@ -549,6 +596,7 @@ button { cursor: pointer; font: inherit; }
   font-size: 11px; color: var(--px-gold); letter-spacing: 1.5px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.modal-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .modal-close {
   background: #0c0704; border: 2px solid #000;
   box-shadow: inset 0 0 0 1px #5a3624;
@@ -556,6 +604,45 @@ button { cursor: pointer; font: inherit; }
   font-family: 'Press Start 2P', monospace; flex-shrink: 0;
 }
 .modal-close:hover { color: var(--px-red); }
+.modal-help-btn {
+  background: #0c0704; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #5a3624;
+  color: var(--px-gold); font-size: 11px; padding: 3px 9px;
+  font-family: 'Press Start 2P', monospace; cursor: pointer; flex-shrink: 0;
+}
+.modal-help-btn:hover { color: #4ade80; }
+.modal-help-btn.active { background: var(--px-gold); color: #1a0f0a; box-shadow: inset 0 -3px 0 #b8862a; }
+/* 모달 + 도움말을 한 묶음으로 중앙정렬 — 도움말은 창 '밖' 오른쪽에 나란히 뜬다.
+   창 크기와 무관하게 화면 안에 들어오도록 flex로 배치(절대배치 시 넓은 창에서 잘림). */
+.modal-shell { display: flex; align-items: flex-start; gap: 12px; max-width: 96vw; }
+/* 도움말이 열려 옆 공간이 부족하면(초광폭 창 등) 창이 필요한 만큼만 줄어 화면 안에 들어온다 */
+.modal-shell > .modal { flex-shrink: 1; min-width: 0; }
+.modal-help-panel {
+  flex-shrink: 0;
+  width: 260px; max-height: 86vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #5a3624 transparent;
+  background: #1a0f0a; border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, 6px 6px 0 #000, 0 0 20px rgba(74, 222, 128, 0.18);
+  padding: 12px 14px;
+  font-family: 'Galmuri11', monospace; color: var(--px-ink);
+  font-size: 13px; line-height: 1.7;
+  animation: px-pop 200ms steps(4, end);
+}
+.modal-help-panel-title {
+  font-family: 'Press Start 2P', monospace; font-size: 10px;
+  color: var(--px-gold); letter-spacing: 1.5px;
+  margin: 0 0 10px; padding-bottom: 8px; border-bottom: 2px solid #5a3624;
+}
+/* 좁은 화면: 옆 공간이 부족하면 창 아래로 떨어뜨린다 */
+@media (max-width: 900px) {
+  .modal-shell { flex-direction: column; align-items: stretch; }
+  .modal-help-panel { width: auto; max-height: none; }
+}
+.modal-help-panel p { margin: 0 0 8px; }
+.modal-help-panel p:last-child { margin-bottom: 0; }
+.modal-help-panel ul { margin: 0; padding-left: 18px; }
+.modal-help-panel li { margin: 4px 0; }
+.modal-help-panel b { color: var(--px-gold); }
 .modal .btn-primary {
   background: var(--px-gold); color: #1a0f0a;
   border: 2px solid #000; border-radius: 0;
@@ -651,6 +738,15 @@ button { cursor: pointer; font: inherit; }
 .mk-row .ch { text-align: right; font-family: 'Press Start 2P', monospace; font-size: 10px; letter-spacing: 1px; }
 .mk-row .vol { text-align: right; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--px-gold); letter-spacing: 1px; }
 
+.mk-ref-note {
+  flex-shrink: 0;
+  background: #0c0704; border-left: 4px solid var(--px-gold);
+  box-shadow: inset 0 0 0 1px #2a1a10;
+  padding: 10px 14px; margin: 14px 0 0;
+  font-family: 'Galmuri11', monospace; font-size: 13px; line-height: 1.6;
+  color: var(--px-ink-dim); letter-spacing: 0.3px;
+}
+.mk-ref-note b { color: var(--px-gold); }
 .mk-ref-grid {
   flex: 1; overflow-y: auto;
   display: grid; grid-template-columns: repeat(2, 1fr);
@@ -664,7 +760,22 @@ button { cursor: pointer; font: inherit; }
   padding: 12px 14px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.mk-ref-card .h { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed #3d2418; padding-bottom: 8px; }
+.mk-ref-card .h { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #3d2418; padding-bottom: 8px; }
+.mk-ref-help-btn {
+  background: #1a0f0a; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #5a3624;
+  color: var(--px-gold); font-family: 'Press Start 2P', monospace;
+  font-size: 8px; line-height: 1; padding: 4px 6px; cursor: pointer; flex-shrink: 0;
+}
+.mk-ref-help-btn:hover { color: #4ade80; }
+.mk-ref-help-btn.active { background: var(--px-gold); color: #1a0f0a; box-shadow: inset 0 -2px 0 #b8862a; }
+.mk-ref-desc {
+  margin: 0; padding: 8px 10px;
+  background: #050302; border-left: 3px solid var(--px-gold);
+  font-family: 'Galmuri11', monospace; font-size: 12px; line-height: 1.55;
+  color: var(--px-ink-dim);
+  animation: px-fade 140ms steps(3, end);
+}
 .mk-ref-card .h .nm { font-family: 'Galmuri11', monospace; font-size: 15px; color: var(--px-ink); letter-spacing: 1px; }
 .mk-ref-card .b { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .mk-ref-card .val { font-family: 'Press Start 2P', monospace; font-size: 18px; color: var(--px-ink); text-shadow: 2px 2px 0 #000; font-variant-numeric: tabular-nums; }

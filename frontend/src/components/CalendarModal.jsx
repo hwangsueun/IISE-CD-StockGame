@@ -9,6 +9,18 @@ const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTH_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const pad = (n) => String(n).padStart(2, '0');
 
+// 캘린더 화면 도움말 (Modal의 ? 버튼으로 토글)
+const CALENDAR_HELP = (
+  <>
+    <p>지난 날짜를 눌러 <b>그날의 뉴스와 메모</b>를 다시 확인할 수 있다. <b>◀ ▶</b>로 달을 옮긴다 (게임 시작월 ~ 오늘).</p>
+    <ul>
+      <li><b>이전 뉴스</b> — 날짜를 선택하면 그날 <b>실제로 봤던 뉴스</b>가 오른쪽에 뜬다. 놓친 소식이나 투자 판단 근거를 되짚을 때 쓴다.</li>
+      <li><b>메모</b> — <b>오늘</b>은 투자 메모를 100자까지 쓰고 저장·삭제할 수 있다. 지난 날짜의 메모는 <b>읽기 전용</b>이다.</li>
+      <li>메모를 남긴 날은 달력 칸에 <b>점</b>으로 표시된다.</li>
+    </ul>
+  </>
+);
+
 export default function CalendarModal() {
   const { sessionId, turn } = useGameStore();
   const startDate = useGameStore((s) => (s.state?.startDate ? String(s.state.startDate).slice(0, 10) : null));
@@ -60,7 +72,7 @@ export default function CalendarModal() {
   const cells = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
-    <Modal title={`★ ${pad(view.m)}월 · 게임 캘린더`} wide>
+    <Modal title={`★ ${pad(view.m)}월 · 게임 캘린더`} wide help={CALENDAR_HELP}>
       <div className="cal-body">
         <div className="cal-grid-wrap">
           <div className="cal-month-nav">
