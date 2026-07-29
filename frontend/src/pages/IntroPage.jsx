@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import FaintOverlay from '../components/FaintOverlay';
+import { InvestStudyEvent } from '../components/EventPopup';
 import CatchWaxon from '../components/minigames/CatchWaxon';
 import AvoidProfessor from '../components/minigames/AvoidProfessor';
 
@@ -16,6 +17,37 @@ const DEV_MOCK_FAINT_EVENT = {
   kind: 'immediate',
   detail: { message: '극심한 스트레스로 기절했다.', skipDays: 4, hospitalCost: 2_000_000, cashPaid: 2_000_000, debtAdded: 0 },
 };
+
+// [개발용 임시] 백엔드 없이 투자 스터디 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정
+const DEV_MOCK_STUDY_EVENT = {
+  eventLogId: 'dev-invest-study',
+  eventType: 'invest_study',
+  choices: [
+    { key: 'join', label: '참여한다' },
+    { key: 'decline', label: '거절한다 (기회 소멸)' },
+  ],
+};
+// eventEngine.js의 실제 invest_study 로직(§B)과 동일한 수치로 흉내낸 목업 resolveEvent
+function devResolveStudy(eventLogId, choice) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (choice === 'decline') { resolve({ eventLogId, chosen: 'decline' }); return; }
+      const rare = Math.random() < 0.1;
+      const stressDelta = rare ? -15 : Math.round(-12 + Math.random() * 6);
+      resolve({
+        eventLogId, chosen: 'join', stressDelta,
+        detail: {
+          insight: '분산 투자는 개별 종목 리스크를 줄여준다.',
+          directionHint: Math.random() < 0.4
+            ? { scope: 'market', text: '다음 주 시장 변동성이 커질 조짐이 있다.' }
+            : null,
+          omenHint: rare ? { scope: 'event', text: '조만간 큰 지출이 생길 것 같은 예감이 든다.' } : null,
+          rare,
+        },
+      });
+    }, 250);
+  });
+}
 
 const INITIAL_CASH = 50_000_000;
 
@@ -45,6 +77,7 @@ export default function IntroPage() {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState(null);
   const [devPreviewFaint, setDevPreviewFaint] = useState(false);
+  const [devPreviewStudy, setDevPreviewStudy] = useState(false);
   const [devPreviewGame, setDevPreviewGame] = useState(null); // null | 'waxon' | 'professor'
   const [devGameResult, setDevGameResult] = useState(null);
 
@@ -201,6 +234,20 @@ export default function IntroPage() {
       </button>
       {devPreviewFaint && (
         <FaintOverlay event={DEV_MOCK_FAINT_EVENT} onDismiss={() => setDevPreviewFaint(false)} />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewStudy(true)}
+      >
+        [개발용] 투자 스터디 미리보기
+      </button>
+      {devPreviewStudy && (
+        <InvestStudyEvent
+          event={DEV_MOCK_STUDY_EVENT}
+          onResolve={devResolveStudy}
+          onDismiss={() => setDevPreviewStudy(false)}
+        />
       )}
       <div style={{ display: 'flex', gap: 8 }}>
         {Object.entries(DEV_MINIGAMES).map(([key, g]) => (
