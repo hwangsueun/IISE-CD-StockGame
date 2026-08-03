@@ -1,6 +1,7 @@
 // 이벤트 팝업 — 선택형(choice) 이벤트는 해결 전 턴 진행 불가 (§10)
 // 독촉전화(loan_shark_call)는 디자인 원본 Loanshark Call.html, 투자 스터디(invest_study)는
-// game-live/Invest Study Event.html 픽셀 연출을 이식. 나머지 이벤트 타입은 공용 모달 유지.
+// game-live/Invest Study Event.html, 여행(travel)은 public/game/Travel Event.html 픽셀
+// 연출을 이식. 나머지 이벤트 타입은 공용 모달 유지.
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
@@ -17,6 +18,7 @@ export default function EventPopup({ event }) {
   const eventType = event.eventType || event.event_type;
   if (eventType === 'loan_shark_call') return <LoanSharkCallEvent event={event} />;
   if (eventType === 'invest_study') return <InvestStudyEvent event={event} />;
+  if (eventType === 'travel') return <TravelEvent event={event} />;
   return <GenericEventPopup event={event} />;
 }
 
@@ -432,6 +434,142 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
               )}
             </div>
             <div className="nar-next" onClick={() => dismissEvent(eventLogId)}>▶ 확인</div>
+          </div>
+        )}
+
+        <div className="crt" />
+      </div>
+    </div>
+  );
+}
+
+// 결과 카드의 "선택" 표시용 짧은 라벨 (버튼 자체엔 서버가 준 c.label을 그대로 쓴다)
+const TRAVEL_CHOICE_LABEL = { go: '여행을 간다', skip: '가지 않는다' };
+// 서버 choice.label은 "간다 (-1,000,000원, 스트레스 -15)"처럼 괄호 안에 수치가 붙어 온다.
+// 버튼엔 이걸 이름/부제 두 줄로 나눠 보여준다 (숫자는 항상 서버 값 그대로).
+function splitChoiceLabel(label) {
+  const m = /^(.+?)\s*\((.+)\)$/.exec(label);
+  return m ? { name: m[1], hint: m[2] } : { name: label, hint: null };
+}
+
+/**
+ * 디자인 원본: public/game/Travel Event.html (여행 티켓 안내 -> 간다/가지 않는다 -> 결과 영수증)
+ * onResolve/onDismiss: 생략하면 스토어의 resolveEvent/dismissEvent를 그대로 쓴다.
+ * IntroPage [개발용] 미리보기처럼 세션 없이 렌더링할 때만 목업으로 대체해서 넘긴다.
+ */
+export function TravelEvent({ event, onResolve, onDismiss }) {
+  const storeResolveEvent = useGameStore((s) => s.resolveEvent);
+  const storeDismissEvent = useGameStore((s) => s.dismissEvent);
+  const resolveEvent = onResolve || storeResolveEvent;
+  const dismissEvent = onDismiss || storeDismissEvent;
+  const eventLogId = event.eventLogId || event.event_log_id;
+  const choices = event.choices || event.detail?.choices || [];
+  const prompt = event.prompt || event.detail?.prompt || '주말 여행을 떠나볼까?';
+
+  const [phase, setPhase] = useState('offer'); // 'offer' | 'submitting' | 'result'
+  const [result, setResult] = useState(null);
+
+  const { html, done, skip } = useTypewriter(prompt, phase === 'offer' || phase === 'submitting');
+
+  const choose = async (key) => {
+    setPhase('submitting');
+    const r = await resolveEvent(eventLogId, key);
+    setResult({ ...r, chosen: key });
+    setPhase('result');
+  };
+
+  // 'go'인데 cashDelta가 없다 == 서버가 "여행 갈 돈이 없다" 분기를 탔다는 뜻
+  const couldNotAfford = result?.chosen === 'go' && result.cashDelta === undefined;
+  const resultText = result && (
+    result.chosen === 'skip'
+      ? '돈은 아꼈지만, 답답한 하루가 계속됩니다.'
+      : couldNotAfford
+        ? (result.detail?.message || '여행 갈 돈이 없다...')
+        : '잠시 일상에서 벗어나 숨을 돌렸습니다. 스트레스가 낮아졌습니다.'
+  );
+
+  return (
+    <div className="cutscene-overlay">
+      <div className="game-frame travel-frame">
+        <div className="title-plate">✈ EVENT · 여행 ✈</div>
+        <div className="travel-stage" />
+
+        {(phase === 'offer' || phase === 'submitting') && (
+          <>
+            <div className="travel-ticket">
+              <div className="travel-ticket-rings">✈</div>
+              <div className="travel-ticket-ttl">여행 이벤트</div>
+              <div className="travel-ticket-eng">TIME FOR A TRIP</div>
+              <div className="travel-ticket-divider" />
+              <div className="travel-ticket-body">
+                <div className="row"><span className="bullet">✈</span><span>반복되는 투자와 빚 독촉 속에서 잠시 <span className="sky">떠날 기회</span>가 생겼습니다.</span></div>
+                <div className="row"><span className="bullet">✈</span><span>여행을 가면 비용이 들지만 <span className="green">스트레스가 감소</span>합니다.</span></div>
+                <div className="row"><span className="bullet">✈</span><span>가지 않으면 <span className="em">돈은 아낄 수 있습니다.</span></span></div>
+              </div>
+            </div>
+
+            {done && (
+              <div className="choice-strip pair">
+                {choices.map((c, i) => {
+                  const { name, hint } = splitChoiceLabel(c.label);
+                  return (
+                    <button
+                      key={c.key}
+                      className={'choice-btn' + (c.key === 'go' ? ' gold' : '')}
+                      disabled={phase === 'submitting'}
+                      onClick={() => choose(c.key)}
+                    >
+                      <span className="num">［ {i + 1} ］</span>
+                      <span className="text">{name}</span>
+                      {hint && <span className="sub">{hint}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="narration" onClick={() => { if (!done) skip(); }}>
+              <div className="nar-head">
+                <div className="nar-portrait">✈</div>
+                <span className="nar-name">시스템</span>
+                <span className="nar-tag">EVENT</span>
+              </div>
+              <div className="nar-body">
+                <span dangerouslySetInnerHTML={{ __html: html }} />
+                {!done && <span className="cursor" />}
+              </div>
+            </div>
+          </>
+        )}
+
+        {phase === 'result' && result && (
+          <div className="surge-result-card">
+            <div className="surge-rc-head">
+              <div className="surge-rc-icon">✈</div>
+              <div className="surge-rc-title">여행 결과</div>
+              <div className="surge-rc-sub">TRAVEL · 여행 이벤트 정산</div>
+            </div>
+            <div className="surge-rc-row">
+              <span className="k">선택</span>
+              <span className="v gold">{TRAVEL_CHOICE_LABEL[result.chosen]}</span>
+            </div>
+            <div className="surge-rc-row">
+              <span className="k">여행비</span>
+              <span className="v">{result.cashDelta ? won(result.cashDelta) : '0원'}</span>
+            </div>
+            <div className="surge-rc-row">
+              <span className="k">스트레스 변화</span>
+              <span className={'v ' + (result.stressDelta < 0 ? 'down' : result.stressDelta > 0 ? 'up' : '')}>
+                {result.stressDelta > 0 ? '+' : ''}{result.stressDelta ?? 0}
+              </span>
+            </div>
+            <div className="surge-rc-row result">
+              <span className="k">결과</span>
+              <span className="v">{resultText}</span>
+            </div>
+            <button className="surge-confirm-btn" onClick={() => dismissEvent(eventLogId)}>
+              <span className="arr">▶</span>확인
+            </button>
           </div>
         )}
 

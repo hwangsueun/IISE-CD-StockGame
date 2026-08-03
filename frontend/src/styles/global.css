@@ -1189,6 +1189,47 @@ textarea { min-height: 80px; resize: vertical; }
 .surge-confirm-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: inset 0 0 0 2px #fff1c4, inset 0 -3px 0 var(--px-gold-dark), 2px 2px 0 #000; }
 .surge-confirm-btn .arr { font-family: 'Press Start 2P', monospace; font-size: 12px; margin-right: 10px; }
 
+/* --- 여행 이벤트 (픽셀: 디자인 public/game/Travel Event.html 이식) ---
+   결과 카드는 급등주와 구조가 같아 surge-result-card, surge-rc-row 등을 그대로
+   재사용한다 (이벤트 결과 영수증 공용 스타일). 여기서는 티켓/배경만 새로 추가. */
+.travel-frame { overflow: hidden; }
+.travel-stage {
+  position: absolute; inset: 0;
+  background: #bfe0ec url('/game/assets/bg_travel.png') center 38%/cover no-repeat;
+  image-rendering: pixelated;
+  filter: brightness(0.84) saturate(1.05);
+}
+.travel-stage::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 30%, rgba(190,235,255,0.30), transparent 72%),
+    radial-gradient(ellipse 90% 72% at 50% 62%, transparent 28%, rgba(6,20,28,0.62) 100%),
+    linear-gradient(180deg, rgba(6,20,28,0.16) 0%, rgba(6,20,28,0.55) 66%, rgba(3,12,18,0.84) 100%);
+}
+
+/* 여행 안내 티켓 카드 — 아래 .choice-strip.pair(bottom:290px)와 안 겹치도록 위쪽에 앉힌다 */
+.travel-ticket {
+  position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%);
+  width: 600px; max-width: 88%; z-index: 6; text-align: center;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(95,208,230,0.05) 30px 31px), #0e2029;
+  border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #2f8aa3, inset 0 0 0 6px #0c2531, 8px 8px 0 #000, 0 0 34px rgba(95,208,230,0.20);
+  padding: 24px 30px 26px;
+  animation: travelCardPop 280ms steps(5,end);
+}
+@keyframes travelCardPop { from { opacity: 0; transform: translate(-50%,-50%) translateY(16px) scale(0.96); } to { opacity: 1; transform: translate(-50%,-50%); } }
+.travel-ticket-rings { font-family: 'Press Start 2P', monospace; font-size: 22px; color: #5fd0e6; letter-spacing: 4px; text-shadow: 0 0 10px rgba(95,208,230,0.55); margin-bottom: 12px; }
+.travel-ticket-ttl { font-family: 'Galmuri11', monospace; font-size: 28px; color: var(--px-gold); letter-spacing: 5px; text-shadow: 3px 3px 0 #000; margin-bottom: 4px; }
+.travel-ticket-eng { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--px-ink-dim); letter-spacing: 3px; margin-bottom: 16px; }
+.travel-ticket-divider { height: 0; border-top: 3px double #2f8aa3; margin: 4px 0 16px; }
+.travel-ticket-body { font-family: 'Galmuri11', monospace; font-size: 15px; line-height: 1.7; color: var(--px-ink); text-align: left; }
+.travel-ticket-body .row { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0; }
+.travel-ticket-body .bullet { color: #5fd0e6; flex: none; }
+.travel-ticket-body .em { color: var(--px-gold); }
+.travel-ticket-body .sky { color: #5fd0e6; }
+.travel-ticket-body .green { color: var(--px-green); }
+
 /* --- 캘린더 (픽셀 월 그리드: 디자인 cal-overlay 이식) --- */
 .cal-body { display: flex; align-items: stretch; gap: 0; margin: 0 -18px; }
 .cal-grid-wrap { flex: 1 1 auto; min-width: 0; padding: 4px 18px 12px; }

@@ -92,14 +92,6 @@ export default function FaintOverlay({ event, onDismiss }) {
               <div className="sub">…눈앞이 새카매진다.</div>
             </div>
           )}
-          {step === 1 && (
-            <div className="stress-block">
-              <div className="lbl">STRESS LEVEL</div>
-              <div className="num hot">100</div>
-              <Gauge onCount={10} cls="hot" />
-              <div className="tag hot">▲ 한계치 도달 — 더 이상 버틸 수 없습니다</div>
-            </div>
-          )}
           {step === 2 && (
             <div className="big-center">
               <div className="small">＋ EMERGENCY ＋</div>

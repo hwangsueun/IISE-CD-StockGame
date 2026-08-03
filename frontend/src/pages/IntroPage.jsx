@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import FaintOverlay from '../components/FaintOverlay';
-import { InvestStudyEvent } from '../components/EventPopup';
+import { InvestStudyEvent, TravelEvent } from '../components/EventPopup';
 import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 import CatchWaxon from '../components/minigames/CatchWaxon';
 import AvoidProfessor from '../components/minigames/AvoidProfessor';
@@ -67,6 +67,33 @@ const DEV_MOCK_SURGE_RESULT = {
   displayName: '텐배거바이오', invested: 300000, outcome: 'plunge', returnRate: -0.22, pnl: -66000, stressDelta: 20,
 };
 
+// [개발용 임시] 백엔드 없이 여행 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정
+// eventEngine.js travel 정의(§C.constants.TRAVEL: cost 1,000,000 / go -15 / skip +3)와 동일한 라벨
+const DEV_MOCK_TRAVEL_EVENT = {
+  eventLogId: 'dev-travel',
+  eventType: 'travel',
+  prompt: '주말 여행을 떠나볼까?',
+  choices: [
+    { key: 'go', label: '간다 (-1,000,000원, 스트레스 -15)' },
+    { key: 'skip', label: '안 간다' },
+  ],
+};
+// eventEngine.js travel.choices[].effect()를 그대로 흉내낸 목업 resolveEvent
+// (현금 부족 분기까지 재현하려면 DEV_TRAVEL_CASH를 1,000,000 미만으로 낮춰서 테스트)
+const DEV_TRAVEL_CASH = 50_000_000;
+function devResolveTravel(eventLogId, choice) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (choice === 'skip') { resolve({ eventLogId, chosen: 'skip', stressDelta: 3 }); return; }
+      if (DEV_TRAVEL_CASH >= 1_000_000) {
+        resolve({ eventLogId, chosen: 'go', cashDelta: -1_000_000, stressDelta: -15 });
+      } else {
+        resolve({ eventLogId, chosen: 'go', stressDelta: 2, detail: { message: '여행 갈 돈이 없다...' } });
+      }
+    }, 250);
+  });
+}
+
 const INITIAL_CASH = 50_000_000;
 
 const DEBT_OPTIONS = [
@@ -96,6 +123,7 @@ export default function IntroPage() {
   const [picked, setPicked] = useState(null);
   const [devPreviewFaint, setDevPreviewFaint] = useState(false);
   const [devPreviewStudy, setDevPreviewStudy] = useState(false);
+  const [devPreviewTravel, setDevPreviewTravel] = useState(false);
   const [devPreviewSurge, setDevPreviewSurge] = useState(false);
   const [devPreviewSurgeResult, setDevPreviewSurgeResult] = useState(false);
   const [devPreviewGame, setDevPreviewGame] = useState(null); // null | 'waxon' | 'professor'
@@ -267,6 +295,20 @@ export default function IntroPage() {
           event={DEV_MOCK_STUDY_EVENT}
           onResolve={devResolveStudy}
           onDismiss={() => setDevPreviewStudy(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewTravel(true)}
+      >
+        [개발용] 여행 이벤트 미리보기
+      </button>
+      {devPreviewTravel && (
+        <TravelEvent
+          event={DEV_MOCK_TRAVEL_EVENT}
+          onResolve={devResolveTravel}
+          onDismiss={() => setDevPreviewTravel(false)}
         />
       )}
       <button
