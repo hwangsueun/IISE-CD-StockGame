@@ -1,6 +1,6 @@
 // 기절(입원) 연출 — 스트레스 100 도달 시 즉시 발동, 결과 확인용 오버레이 (§10, 미팅5 §E)
 // 디자인 원본: public/game/Faint Event.html (Phase D 이식 — 6단계 연출 동일, 수치는 실제 이벤트 결과 사용)
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { won } from '../utils/format';
 
@@ -9,19 +9,8 @@ const TOTAL_STEPS = STEP_NAMES.length;
 const STRESS_FROM = 100;
 const STRESS_TO = 0;
 
-function Gauge({ onCount, cls }) {
-  return (
-    <div className="gauge-big">
-      {Array.from({ length: 10 }, (_, i) => (
-        <span key={i} className={`cell ${i < onCount ? `on ${cls}` : ''}`} />
-      ))}
-    </div>
-  );
-}
-
 export default function FaintOverlay({ event, onDismiss }) {
   const [step, setStep] = useState(0);
-  const [resetValue, setResetValue] = useState(STRESS_FROM);
 
   const detail = event.detail || {};
   const days = detail.skipDays ?? 3;
@@ -42,18 +31,6 @@ export default function FaintOverlay({ event, onDismiss }) {
   })();
 
   const { html: typedHtml, done: typedDone, skip } = useTypewriter(narrationText, true);
-
-  useEffect(() => {
-    if (step !== 3) return undefined;
-    setResetValue(STRESS_FROM);
-    let v = STRESS_FROM;
-    const id = setInterval(() => {
-      v = Math.max(STRESS_TO, v - 4);
-      setResetValue(v);
-      if (v <= STRESS_TO) clearInterval(id);
-    }, 28);
-    return () => clearInterval(id);
-  }, [step]);
 
   const showConfirm = step === 5 && typedDone;
   const advanceOnClick = step < 5 && typedDone;
@@ -84,37 +61,6 @@ export default function FaintOverlay({ event, onDismiss }) {
         </div>
 
         <div className="intro-stage faint-stage" onClick={handleStageClick}>
-          {step === 0 && (
-            <div className="big-center shake">
-              <div className="small">★ EVENT ★</div>
-              <div className="faint">FAINT</div>
-              <div className="kr">기 절</div>
-              <div className="sub">…눈앞이 새카매진다.</div>
-            </div>
-          )}
-          {step === 2 && (
-            <div className="big-center">
-              <div className="small">＋ EMERGENCY ＋</div>
-              <div className="kr med-text">병원 이송</div>
-              <div className="sub">의식을 잃은 채, 사이렌 소리가 멀어진다…</div>
-            </div>
-          )}
-          {step === 3 && (
-            <div className="stress-block">
-              <div className="lbl">STRESS · RESET</div>
-              <div className="num cool">{resetValue}</div>
-              <Gauge onCount={Math.round(resetValue / 10)} cls="cool" />
-              <div className="tag cool">▼ 충분한 휴식 — 스트레스 지수 초기화</div>
-            </div>
-          )}
-          {step === 4 && (
-            <div className="big-center">
-              <div className="small">TIME PASSED</div>
-              <div className="day">+ {days} DAYS</div>
-              <div className="kr">{days}일 경과</div>
-              <div className="sub">시장은 당신을 기다려주지 않았다.</div>
-            </div>
-          )}
           {step === 5 && (
             <div className="bill-card" onClick={(e) => e.stopPropagation()}>
               <div className="bill-head">
