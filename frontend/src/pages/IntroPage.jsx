@@ -5,6 +5,7 @@ import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import FaintOverlay from '../components/FaintOverlay';
 import { InvestStudyEvent } from '../components/EventPopup';
+import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 import CatchWaxon from '../components/minigames/CatchWaxon';
 import AvoidProfessor from '../components/minigames/AvoidProfessor';
 
@@ -49,6 +50,23 @@ function devResolveStudy(eventLogId, choice) {
   });
 }
 
+// [개발용 임시] 백엔드 없이 급등주 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정
+// surgeStockService.getActive()가 실제로 돌려주는 필드 그대로 흉내낸다
+const DEV_MOCK_SURGE_ACTIVE = {
+  surgeStockId: 'dev-surge',
+  displayName: '텐배거바이오',
+  buyPrice: 1000 * (1 + Math.floor(Math.random() * 50)),
+  investedAmount: 0,
+  canBuy: true,
+};
+function devBuySurge(surgeStockId, amount) {
+  return new Promise((resolve) => setTimeout(() => resolve({ surgeStockId, investedAmount: amount }), 250));
+}
+// surgeStockService.resolvePending()이 다음 턴에 돌려주는 정산 결과 한 건을 흉내낸다
+const DEV_MOCK_SURGE_RESULT = {
+  displayName: '텐배거바이오', invested: 300000, outcome: 'plunge', returnRate: -0.22, pnl: -66000, stressDelta: 20,
+};
+
 const INITIAL_CASH = 50_000_000;
 
 const DEBT_OPTIONS = [
@@ -78,6 +96,8 @@ export default function IntroPage() {
   const [picked, setPicked] = useState(null);
   const [devPreviewFaint, setDevPreviewFaint] = useState(false);
   const [devPreviewStudy, setDevPreviewStudy] = useState(false);
+  const [devPreviewSurge, setDevPreviewSurge] = useState(false);
+  const [devPreviewSurgeResult, setDevPreviewSurgeResult] = useState(false);
   const [devPreviewGame, setDevPreviewGame] = useState(null); // null | 'waxon' | 'professor'
   const [devGameResult, setDevGameResult] = useState(null);
 
@@ -247,6 +267,33 @@ export default function IntroPage() {
           event={DEV_MOCK_STUDY_EVENT}
           onResolve={devResolveStudy}
           onDismiss={() => setDevPreviewStudy(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewSurge(true)}
+      >
+        [개발용] 급등주 이벤트 미리보기
+      </button>
+      {devPreviewSurge && (
+        <SurgeStockPopup
+          activeOverride={DEV_MOCK_SURGE_ACTIVE}
+          onBuy={devBuySurge}
+          onDismiss={() => setDevPreviewSurge(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewSurgeResult(true)}
+      >
+        [개발용] 급등주 결과 미리보기
+      </button>
+      {devPreviewSurgeResult && (
+        <SurgeResultPopup
+          resultOverride={DEV_MOCK_SURGE_RESULT}
+          onDismiss={() => setDevPreviewSurgeResult(false)}
         />
       )}
       <div style={{ display: 'flex', gap: 8 }}>

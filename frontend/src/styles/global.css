@@ -1029,6 +1029,166 @@ textarea { min-height: 80px; resize: vertical; }
   display: inline-flex; margin-top: 14px;
 }
 
+/* --- 급등주 이벤트 (픽셀: 디자인 public/game/Surge Stock Event.html 이식) ---
+   .phone-wrap/.ring-waves/.phone-glow/.phone-screen 는 독촉전화 이벤트가 이미 쓰고 있어서
+   (빨간색·중앙 배치) 이름이 겹치지 않도록 전부 .surge- 접두사를 붙였다. */
+.surge-frame { overflow: hidden; }
+.surge-stage {
+  position: absolute; inset: 0;
+  background: url('/game/assets/room_ceiling.png') center/cover no-repeat;
+  image-rendering: pixelated;
+  filter: brightness(0.4) saturate(1.15) sepia(0.15);
+}
+.surge-stage::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 30%, rgba(245,197,66,0.16), transparent 72%),
+    radial-gradient(ellipse 90% 72% at 50% 62%, transparent 24%, rgba(8,5,2,0.68) 100%),
+    linear-gradient(180deg, rgba(8,5,2,0.2) 0%, rgba(8,5,2,0.6) 66%, rgba(5,3,1,0.86) 100%);
+}
+
+/* 오른쪽 하단에서 우는 휴대폰 */
+.surge-phone-wrap {
+  position: absolute; right: 3%; bottom: 4%;
+  width: 380px; height: 380px; z-index: 6;
+  filter: drop-shadow(0 0 22px rgba(245,197,66,0.22));
+}
+.surge-phone-wrap.ringing { animation: surgePhoneShake 0.16s steps(2,end) infinite alternate; }
+@keyframes surgePhoneShake { 0% { transform: rotate(-1.2deg); } 100% { transform: rotate(1.2deg); } }
+.surge-phone-wrap img {
+  position: relative; z-index: 2;
+  width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;
+}
+.surge-phone-glow {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 70%; height: 70%; border-radius: 50%; pointer-events: none; z-index: 1;
+  box-shadow: 0 0 0 6px rgba(245,197,66,0.18), 0 0 60px 16px rgba(245,197,66,0.22);
+  opacity: 0;
+}
+.surge-phone-wrap.ringing .surge-phone-glow { animation: surgeGlowPulse 1s steps(2,end) infinite; }
+@keyframes surgeGlowPulse { 0%,100% { opacity: 0.35; } 50% { opacity: 0.85; } }
+.surge-ring-waves {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 90%; height: 90%; pointer-events: none; z-index: 1; opacity: 0;
+}
+.surge-phone-wrap.ringing .surge-ring-waves { opacity: 1; }
+.surge-ring-waves span {
+  position: absolute; inset: 0; border: 2px solid rgba(245,197,66,0.55); border-radius: 50%;
+  animation: surgeRingExpand 1.8s steps(8,end) infinite;
+}
+.surge-ring-waves span:nth-child(2) { animation-delay: 0.55s; }
+.surge-ring-waves span:nth-child(3) { animation-delay: 1.1s; }
+@keyframes surgeRingExpand { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.15); opacity: 0; } }
+
+.surge-phone-screen {
+  position: absolute; left: 36%; top: 22%; width: 38%; height: 50%; z-index: 3;
+  transform: rotate(-14deg);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding-bottom: 8%;
+  pointer-events: none;
+}
+.surge-notif-banner {
+  width: 86%;
+  background: rgba(26,20,12,0.94); border: 1px solid #000;
+  box-shadow: inset 0 0 0 1px var(--px-gold-dark);
+  padding: 6px 8px; display: flex; gap: 6px; align-items: flex-start;
+  opacity: 0; transform: translateY(14px);
+  transition: transform 320ms steps(6,end), opacity 320ms steps(6,end);
+}
+.surge-notif-banner.show { opacity: 1; transform: translateY(0); animation: surgeNotifWiggle 2.4s steps(2,end) 600ms infinite; }
+@keyframes surgeNotifWiggle { 0%,92%,100% { transform: translateY(0); } 95% { transform: translateY(-2px); } }
+.surge-notif-icon {
+  flex: none; width: 15px; height: 15px; background: var(--px-gold);
+  border: 1px solid #000; display: grid; place-items: center; font-size: 8px;
+}
+.surge-notif-body { flex: 1; min-width: 0; }
+.surge-notif-name { font-family: 'Galmuri11', monospace; font-size: 8px; color: #1a1512; font-weight: bold; }
+.surge-notif-preview {
+  margin-top: 1px; font-family: 'Galmuri11', monospace; font-size: 7px; color: #3a3020;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* 친구가 공유한 종목 카드 */
+.surge-tip-card {
+  /* 아래 .choice-strip.pair(bottom:290px)와 안 겹치도록 위쪽에 앉힌다 */
+  position: absolute; left: 50%; top: 27%; transform: translate(-50%, -50%);
+  width: 640px; max-width: 86%; z-index: 6;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(245,197,66,0.05) 30px 31px), var(--px-panel);
+  border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px var(--px-gold-dark), inset 0 0 0 6px var(--px-frame), 8px 8px 0 #000, 0 0 34px rgba(245,197,66,0.18);
+  padding: 22px 28px 24px;
+  animation: surgeCardPop 280ms steps(5,end);
+}
+@keyframes surgeCardPop { from { opacity: 0; transform: translate(-50%,-50%) translateY(16px) scale(0.96); } to { opacity: 1; transform: translate(-50%,-50%); } }
+.surge-tip-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.surge-tip-name { font-family: 'Galmuri11', monospace; font-size: 26px; color: var(--px-gold); letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+.surge-hot-tag {
+  font-family: 'Press Start 2P', monospace; font-size: 9px; color: #fff;
+  background: #ff5a4a; border: 1px solid #000; padding: 3px 6px; letter-spacing: 1px;
+  animation: surgeHotBlink 0.9s steps(2,end) infinite;
+}
+@keyframes surgeHotBlink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0.55; } }
+.surge-tip-sub { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--px-ink-dim); letter-spacing: 2px; margin-bottom: 14px; }
+.surge-tip-divider { height: 0; border-top: 3px double var(--px-gold-dark); margin: 4px 0 16px; }
+.surge-tip-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 2px; border-bottom: 1px dashed #3a2c17; }
+.surge-tip-row .k { font-family: 'Galmuri11', monospace; font-size: 15px; color: var(--px-ink-dim); letter-spacing: 1px; }
+.surge-tip-row .v { font-family: 'Galmuri11', monospace; font-size: 19px; color: var(--px-ink); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+.surge-tip-row .v.gold { color: var(--px-gold); font-weight: bold; }
+.surge-tip-warn { margin-top: 12px; font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--px-ink-dim); line-height: 1.6; }
+.surge-tip-warn .em { color: var(--px-gold); }
+.surge-tip-warn .red { color: #ff5a4a; }
+.surge-qty-row { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+.surge-qty-row label { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--px-ink-dim); letter-spacing: 1px; flex: none; }
+.surge-qty-row input {
+  flex: 1; background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--px-gold-dark);
+  color: var(--px-ink); font-family: 'Galmuri11', monospace; font-size: 18px; padding: 7px 10px;
+  letter-spacing: 1px; outline: none;
+}
+.surge-qty-row input:focus { box-shadow: inset 0 0 0 1px var(--px-gold); }
+.surge-est-row { margin-top: 8px; text-align: right; font-family: 'Galmuri11', monospace; font-size: 14px; color: var(--px-ink-dim); }
+.surge-est-row b { color: var(--px-gold); font-size: 17px; }
+
+.choice-strip.pair { grid-template-columns: repeat(2, 1fr); max-width: 640px; margin: 0 auto; left: 0; right: 0; }
+
+/* 정산 결과 receipt */
+.surge-result-card {
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  width: 640px; max-width: 90%; z-index: 6;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(245,197,66,0.05) 30px 31px), var(--px-panel);
+  border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px var(--px-gold-dark), inset 0 0 0 6px var(--px-frame), 8px 8px 0 #000, 0 0 34px rgba(245,197,66,0.18);
+  padding: 22px 28px 24px;
+  animation: surgeCardPop 280ms steps(5,end);
+}
+.surge-rc-head { text-align: center; padding-bottom: 14px; margin-bottom: 8px; border-bottom: 3px double var(--px-gold-dark); }
+.surge-rc-icon { font-family: 'Press Start 2P', monospace; font-size: 22px; margin-bottom: 8px; }
+.surge-rc-icon.gain { text-shadow: 0 0 10px rgba(255,90,74,0.5); }
+.surge-rc-icon.loss { text-shadow: 0 0 10px rgba(59,130,246,0.5); }
+.surge-rc-title { font-family: 'Press Start 2P', monospace; font-size: 15px; color: var(--px-gold); letter-spacing: 3px; text-shadow: 2px 2px 0 #000; }
+.surge-rc-sub { font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--px-ink-dim); letter-spacing: 1px; margin-top: 8px; }
+.surge-rc-row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 4px; border-bottom: 1px dashed #3a2c17; }
+.surge-rc-row .k { font-family: 'Galmuri11', monospace; font-size: 15px; color: var(--px-ink-dim); letter-spacing: 1px; }
+.surge-rc-row .v { font-family: 'Galmuri11', monospace; font-size: 19px; color: var(--px-ink); font-variant-numeric: tabular-nums; letter-spacing: 1px; text-align: right; }
+.surge-rc-row .v.gain { color: #ff5a4a; font-weight: bold; }
+.surge-rc-row .v.loss { color: #3b82f6; font-weight: bold; }
+.surge-rc-row .v.up { color: var(--px-red); font-weight: bold; }
+.surge-rc-row .v.down { color: var(--px-green); font-weight: bold; }
+.surge-rc-row.result { border-bottom: none; padding-top: 14px; }
+.surge-rc-row.result .v { font-size: 14px; max-width: 60%; line-height: 1.55; text-align: right; }
+
+.surge-confirm-btn {
+  position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); z-index: 7;
+  background: var(--px-gold); border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #fff1c4, inset 0 -7px 0 var(--px-gold-dark), 5px 5px 0 #000;
+  padding: 13px 42px; cursor: pointer;
+  font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--px-bg-deep);
+  letter-spacing: 4px; font-weight: bold;
+}
+.surge-confirm-btn:hover { background: #ffd968; transform: translateX(-50%) translateY(-1px); }
+.surge-confirm-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: inset 0 0 0 2px #fff1c4, inset 0 -3px 0 var(--px-gold-dark), 2px 2px 0 #000; }
+.surge-confirm-btn .arr { font-family: 'Press Start 2P', monospace; font-size: 12px; margin-right: 10px; }
+
 /* --- 캘린더 (픽셀 월 그리드: 디자인 cal-overlay 이식) --- */
 .cal-body { display: flex; align-items: stretch; gap: 0; margin: 0 -18px; }
 .cal-grid-wrap { flex: 1 1 auto; min-width: 0; padding: 4px 18px 12px; }
