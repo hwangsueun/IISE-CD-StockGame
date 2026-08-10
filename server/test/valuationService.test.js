@@ -84,6 +84,44 @@ test('computeTotalAsset honors in-transaction cash and next-turn trade date over
   assert.deepEqual(holdingsParams, ['session-1', '2026-08-10']);
 });
 
+test('active purchased surge stock remains part of holdings and total assets until resolution', async () => {
+  const service = loadService(async () => {
+    throw new Error('global query must not be used when a transaction client is supplied');
+  });
+  const client = {
+    query: async (sql) => {
+      assert.match(sql, /FROM surge_stocks/);
+      return {
+        rows: [{
+          asset_id: 'SURGE_7',
+          asset_type: 'stock',
+          name: '명세검증테크',
+          sector: '급등주 이벤트',
+          quantity: '4',
+          avg_price: '12500',
+          price: '12500',
+          is_event_asset: true,
+        }],
+      };
+    },
+  };
+
+  const holdings = await service.evaluateHoldings('session-1', client, { tradeDate: '2026-08-10' });
+  assert.deepEqual(holdings, [{
+    assetId: 'SURGE_7',
+    assetType: 'stock',
+    name: '명세검증테크',
+    sector: '급등주 이벤트',
+    quantity: 4,
+    avgPrice: 12500,
+    price: 12500,
+    value: 50000,
+    isEventAsset: true,
+    unrealizedPnl: 0,
+    returnRate: 0,
+  }]);
+});
+
 test('getPortfolioHistory rejects unknown sessions', async () => {
   const service = loadService(async () => ({ rows: [] }));
   await assert.rejects(
@@ -106,26 +144,37 @@ test('dashboard day/week/month are aggregation units over every played turn', ()
   const daily = service.buildDashboardPeriods(points, [], 'day', 'all');
   assert.equal(daily.periods.length, 12);
   assert.deepEqual(
-    daily.periods.map(({ fromTurn, toTurn }) => [fromTurn, toTurn]),
-    Array.from({ length: 12 }, (_, index) => [index + 1, index + 2])
+    daily.periods.map(({ label }) => label),
+    Array.from({ length: 12 }, (_, index) => `${12 - index}일차`)
   );
 
   const weekly = service.buildDashboardPeriods(points, [], 'week', 'all');
   assert.deepEqual(
-    weekly.periods.map(({ fromTurn, toTurn }) => [fromTurn, toTurn]),
-    [[1, 6], [6, 11], [11, 13]]
+    weekly.periods.map(({ label, startValue, endValue }) => [label, startValue, endValue]),
+    [
+      ['3주차', 51000000, 51200000],
+      ['2주차', 50500000, 51000000],
+      ['1주차', 50000000, 50500000],
+    ]
   );
-  assert.ok(weekly.periods.every((period) => !Object.hasOwn(period, 'isPartial')));
+  assert.ok(weekly.periods.every((period) =>
+    !Object.hasOwn(period, 'fromTurn') &&
+    !Object.hasOwn(period, 'toTurn') &&
+    !Object.hasOwn(period, 'isPartial')
+  ));
 
   const monthly = service.buildDashboardPeriods(points, [], 'month', 'all');
-  assert.deepEqual(
-    monthly.periods.map(({ fromTurn, toTurn }) => [fromTurn, toTurn]),
-    [[1, 13]]
-  );
-  assert.ok(monthly.periods.every((period) => !Object.hasOwn(period, 'isPartial')));
+  assert.deepEqual(monthly.periods.map(({ label }) => label), ['1개월차']);
+  assert.ok(monthly.periods.every((period) =>
+    !Object.hasOwn(period, 'fromTurn') &&
+    !Object.hasOwn(period, 'toTurn') &&
+    !Object.hasOwn(period, 'isPartial')
+  ));
 
   const all = service.buildDashboardPeriods(points, [], 'all', 'all');
   assert.equal(all.periods.length, 1);
+  assert.ok(!Object.hasOwn(all.periods[0], 'fromTurn'));
+  assert.ok(!Object.hasOwn(all.periods[0], 'toTurn'));
   assert.equal(all.periods[0].netAmount, 1200000);
   assert.equal(all.periods[0].returnRate, 0.024);
 });

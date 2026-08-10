@@ -39,14 +39,33 @@ async function evaluateHoldings(sessionId, client, { tradeDate } = {}) {
   const q = client || { query };
   const valuationDate = tradeDate || await getCurrentTradeDate(sessionId, client);
   const { rows } = await q.query(
-    `SELECT h.asset_id, h.quantity, h.avg_price,
-            a.asset_type, a.masked_name AS name, a.sector,
-            (SELECT p.close_price FROM asset_prices p
-             WHERE p.asset_id = h.asset_id AND p.trade_date <= $2
-             ORDER BY p.trade_date DESC LIMIT 1) AS price
-     FROM holdings h
-     JOIN assets a ON a.asset_id = h.asset_id
-     WHERE h.session_id = $1`,
+    `SELECT valued.* FROM (
+       SELECT h.asset_id, h.quantity, h.avg_price,
+              a.asset_type, a.masked_name AS name, a.sector,
+              (SELECT p.close_price FROM asset_prices p
+               WHERE p.asset_id = h.asset_id AND p.trade_date <= $2
+               ORDER BY p.trade_date DESC LIMIT 1) AS price,
+              FALSE AS is_event_asset
+       FROM holdings h
+       JOIN assets a ON a.asset_id = h.asset_id
+       WHERE h.session_id = $1
+
+       UNION ALL
+
+       SELECT 'SURGE_' || s.id::text AS asset_id,
+              s.quantity::numeric AS quantity,
+              s.buy_price AS avg_price,
+              'stock' AS asset_type,
+              s.display_name AS name,
+              '급등주 이벤트' AS sector,
+              s.buy_price AS price,
+              TRUE AS is_event_asset
+       FROM surge_stocks s
+       WHERE s.session_id = $1
+         AND s.resolved = FALSE
+         AND s.quantity > 0
+         AND s.invested_amount > 0
+     ) valued`,
     [sessionId, valuationDate]
   );
   return rows.map((r) => {
@@ -77,6 +96,7 @@ async function evaluateHoldings(sessionId, client, { tradeDate } = {}) {
       avgPrice,
       price,
       value,
+      isEventAsset: Boolean(r.is_event_asset),
       unrealizedPnl: value - cost,
       returnRate: cost > 0 ? (value - cost) / cost : 0,
     };
@@ -272,8 +292,6 @@ function makeDashboardPeriod(start, end, trades, assetType, unit, index) {
   return {
     index,
     label: labels[unit],
-    fromTurn: start.turn,
-    toTurn: end.turn,
     startValue: Math.round(startValue),
     endValue: Math.round(endValue),
     netFlow: Math.round(netFlow),
@@ -286,7 +304,7 @@ function makeDashboardPeriod(start, end, trades, assetType, unit, index) {
 /**
  * 일/주/월은 "최근 N턴" 필터가 아니라 전체 플레이 구간을 나누는 집계 단위다.
  * 1턴=1일, 5턴=1주, 20턴=1개월이며 마지막 구간은 현재까지 완료된 턴으로 정상 집계한다.
- * 달력상 주·월이 끝나지 않았다는 별도 상태는 두지 않는다.
+ * 달력상 주·월이 끝나지 않았다는 별도 상태나 턴 범위 표현은 두지 않으며, 최신 구간부터 반환한다.
  */
 function buildDashboardPeriods(points, trades, unit, assetType, currentPoint) {
   if (!points.length) return { periods: [], summary: null };
@@ -318,7 +336,7 @@ function buildDashboardPeriods(points, trades, unit, assetType, currentPoint) {
     ));
     startIndex = endIndex;
   }
-  return { periods, summary };
+  return { periods: periods.reverse(), summary };
 }
 
 function buildAllocation(portfolio, assetType) {
@@ -393,9 +411,31 @@ async function getPortfolioDashboard(sessionId, unit = 'day', assetType = 'all')
       [sessionId]
     ),
     query(
-      `SELECT t.created_at, a.asset_type, t.trade_type, t.amount
-         FROM trades t JOIN assets a ON a.asset_id = t.asset_id
-        WHERE t.session_id = $1 ORDER BY t.created_at, t.id`,
+      `SELECT flow.created_at, flow.asset_type, flow.trade_type, flow.amount
+       FROM (
+         SELECT t.created_at, a.asset_type, t.trade_type, t.amount, t.id::bigint AS sort_id
+           FROM trades t JOIN assets a ON a.asset_id = t.asset_id
+          WHERE t.session_id = $1
+
+         UNION ALL
+
+         SELECT COALESCE(s.purchased_at, s.created_at), 'stock', 'buy',
+                s.invested_amount, (s.id::bigint * 2) AS sort_id
+           FROM surge_stocks s
+          WHERE s.session_id = $1 AND s.invested_amount > 0
+
+         UNION ALL
+
+         SELECT s.resolved_at, 'stock', 'sell',
+                s.invested_amount + s.cash_delta, (s.id::bigint * 2 + 1) AS sort_id
+           FROM surge_stocks s
+          WHERE s.session_id = $1
+            AND s.invested_amount > 0
+            AND s.resolved = TRUE
+            AND s.resolved_at IS NOT NULL
+            AND s.cash_delta IS NOT NULL
+       ) flow
+       ORDER BY flow.created_at, flow.sort_id`,
       [sessionId]
     ),
     getPortfolio(sessionId),

@@ -1,6 +1,6 @@
 // 급등주 이벤트 (미팅5 §4, 기능명세서 §이벤트/급등주)
 // 흐름: 스트레스 구간별 확률로 당일 장에 임시 작전주 등장
-//   -> 플레이어 매수(금액 입력)/관망 선택
+//   -> 플레이어 매수(1개 이상의 정수 수량)/관망 선택
 //   -> 다음 턴에 결과 공개 (수익률 구간별 자산/스트레스 변화)
 //   -> 작전주는 자동 매도 후 시장에서 제거
 const { query } = require('../db');
@@ -15,10 +15,20 @@ function spawnProb(stress) {
   return C.SURGE_STOCK.PROB_BY_BAND[band] ?? 0;
 }
 
-/** 급등주 등장 (eventEngine의 surge_stock_tip 트리거 안에서 호출, 같은 트랜잭션) */
-async function spawn(client, session) {
-  const name = C.SURGE_STOCK.NAMES[Math.floor(Math.random() * C.SURGE_STOCK.NAMES.length)];
-  const buyPrice = 1000 * (1 + Math.floor(Math.random() * 50)); // 1,000~50,000원 임시가
+/** 급등주 등장 (eventEngine의 surge_stock 트리거 안에서 호출, 같은 트랜잭션) */
+async function spawn(client, session, random = Math.random) {
+  // 한 세션에는 아직 정산되지 않은 이벤트성 종목이 하나만 존재해야 한다.
+  // advanceTurn이 세션 행을 잠그지만, 이 서비스 자체도 중복 생성을 fail-close 한다.
+  const { rows: activeRows } = await client.query(
+    `SELECT id FROM surge_stocks
+     WHERE session_id = $1 AND resolved = FALSE
+     ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+    [session.id]
+  );
+  if (activeRows[0]) throw conflict('이미 진행 중인 급등주 이벤트가 있습니다');
+
+  const name = C.SURGE_STOCK.NAMES[Math.floor(random() * C.SURGE_STOCK.NAMES.length)];
+  const buyPrice = 1000 * (1 + Math.floor(random() * 50)); // 1,000~50,000원 이벤트 가격
   const { rows } = await client.query(
     `INSERT INTO surge_stocks (session_id, spawn_turn, display_name, buy_price)
      VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -30,7 +40,8 @@ async function spawn(client, session) {
 /** 당일 매수 가능한(미해결) 급등주 조회 */
 async function getActive(sessionId) {
   const { rows } = await query(
-    `SELECT s.*, g.current_turn
+    `SELECT s.*, g.current_turn, g.cash, g.status,
+            g.action_locked_until_turn, g.side_job_turn
      FROM surge_stocks s JOIN game_sessions g ON g.id = s.session_id
      WHERE s.session_id = $1 AND s.resolved = FALSE
      ORDER BY s.id DESC LIMIT 1`,
@@ -38,47 +49,105 @@ async function getActive(sessionId) {
   );
   const s = rows[0];
   if (!s) return null;
+  const buyPrice = Number(s.buy_price);
+  const cash = Number(s.cash);
+  const quantity = Number(s.quantity);
+  const currentTurn = Number(s.current_turn);
+  const spawnTurn = Number(s.spawn_turn);
+  const maxBuyQuantity = buyPrice > 0 ? Math.floor(cash / buyPrice) : 0;
   return {
     surgeStockId: s.id,
     displayName: s.display_name,
-    buyPrice: Number(s.buy_price),
+    spawnTurn,
+    buyPrice,
+    quantity,
     investedAmount: Number(s.invested_amount),
-    canBuy: s.spawn_turn === s.current_turn && Number(s.invested_amount) === 0,
+    maxBuyQuantity,
+    canBuy:
+      s.status === 'active' &&
+      spawnTurn === currentTurn &&
+      currentTurn > Number(s.action_locked_until_turn) &&
+      Number(s.side_job_turn) !== currentTurn &&
+      quantity === 0 &&
+      Number(s.invested_amount) === 0 &&
+      maxBuyQuantity >= 1,
   };
 }
 
-/** 매수 (금액 입력). 관망은 그냥 아무것도 안 하면 된다. */
-async function buy(sessionId, surgeStockId, amount, client) {
+/** 매수 (정수 수량 입력). 관망은 매수 API를 호출하지 않으면 된다. */
+async function buy(sessionId, surgeStockId, quantity, client) {
   const q = client || { query };
-  if (!(amount > 0)) throw badRequest('amount(>0)가 필요합니다');
+  if (!Number.isSafeInteger(surgeStockId) || surgeStockId <= 0) {
+    throw badRequest('surgeStockId는 1 이상의 정수여야 합니다');
+  }
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+    throw badRequest('quantity는 1 이상의 정수여야 합니다');
+  }
+
   const { rows } = await q.query(
-    `SELECT s.*, g.cash, g.current_turn
+    `SELECT s.*, g.cash, g.current_turn, g.status,
+            g.action_locked_until_turn, g.side_job_turn
      FROM surge_stocks s JOIN game_sessions g ON g.id = s.session_id
-     WHERE s.id = $1 AND s.session_id = $2`,
+     WHERE s.id = $1 AND s.session_id = $2
+     FOR UPDATE OF s, g`,
     [surgeStockId, sessionId]
   );
   const s = rows[0];
   if (!s) throw notFound('급등주를 찾을 수 없습니다');
+  if (s.status !== 'active') throw conflict('종료된 게임입니다');
   if (s.resolved) throw conflict('이미 종료된 급등주입니다');
-  if (s.spawn_turn !== s.current_turn) throw conflict('매수 가능 시간이 지났습니다');
-  if (Number(s.invested_amount) > 0) throw conflict('이미 매수했습니다');
-  if (amount > Number(s.cash)) throw conflict('현금이 부족합니다', { cash: Number(s.cash) });
+  if (Number(s.spawn_turn) !== Number(s.current_turn)) throw conflict('매수 가능 시간이 지났습니다');
+  if (Number(s.current_turn) <= Number(s.action_locked_until_turn)) {
+    throw conflict('현재 턴에는 투자 행동을 할 수 없습니다');
+  }
+  if (Number(s.side_job_turn) === Number(s.current_turn)) {
+    throw conflict('부업을 한 턴에는 투자할 수 없습니다');
+  }
+  if (Number(s.quantity) > 0 || Number(s.invested_amount) > 0) throw conflict('이미 매수했습니다');
 
-  await q.query(
-    `UPDATE surge_stocks SET invested_amount = $2 WHERE id = $1`, [surgeStockId, amount]
+  const buyPrice = Number(s.buy_price);
+  const cash = Number(s.cash);
+  const totalAmount = buyPrice * quantity;
+  if (!Number.isSafeInteger(buyPrice) || buyPrice <= 0 || !Number.isSafeInteger(totalAmount)) {
+    throw conflict('급등주 체결 금액을 계산할 수 없습니다');
+  }
+  const maxBuyQuantity = Math.floor(cash / buyPrice);
+  if (quantity > maxBuyQuantity) {
+    throw conflict('현금이 부족합니다', { cash, buyPrice, maxBuyQuantity });
+  }
+
+  const bought = await q.query(
+    `UPDATE surge_stocks
+     SET quantity = $2, invested_amount = $3, purchased_at = NOW()
+     WHERE id = $1 AND resolved = FALSE AND quantity = 0 AND invested_amount = 0
+     RETURNING id`,
+    [surgeStockId, quantity, totalAmount]
   );
-  await q.query(
-    `UPDATE game_sessions SET cash = cash - $2, updated_at = NOW() WHERE id = $1`,
-    [sessionId, amount]
+  if (!bought.rows[0]) throw conflict('이미 매수했거나 종료된 급등주입니다');
+
+  const debited = await q.query(
+    `UPDATE game_sessions
+     SET cash = cash - $2, updated_at = NOW()
+     WHERE id = $1 AND status = 'active' AND cash >= $2
+     RETURNING cash`,
+    [sessionId, totalAmount]
   );
-  return { surgeStockId, investedAmount: amount };
+  if (!debited.rows[0]) throw conflict('현금이 부족합니다', { cash, buyPrice, maxBuyQuantity });
+
+  return {
+    surgeStockId,
+    quantity,
+    buyPrice,
+    totalAmount,
+    cashAfter: Number(debited.rows[0].cash),
+  };
 }
 
 /** 결과 가중치 추첨 */
-function rollOutcome() {
+function rollOutcome(random = Math.random) {
   const outcomes = C.SURGE_STOCK.OUTCOMES;
   const total = outcomes.reduce((s, o) => s + o.weight, 0);
-  let r = Math.random() * total;
+  let r = random() * total;
   for (const o of outcomes) {
     r -= o.weight;
     if (r <= 0) return o;
@@ -89,47 +158,88 @@ function rollOutcome() {
 /**
  * 다음 턴 진행 시 미해결 급등주 정산 (turnService.advanceTurn 트랜잭션 안에서 호출)
  * - 매수분: 수익률 추첨 -> 자동 매도 정산 + 스트레스 반영
- * - 관망분: 결과만 기록하고 제거
- * @returns 정산 결과 (프론트 연출용) 또는 null
+ * - 관망분: 결과 추첨 없이 관망 상태로 정리
+ * @returns 정산 결과 목록
  */
-async function resolvePending(client, session) {
+async function resolvePending(client, session, random = Math.random) {
   const { rows } = await client.query(
     `SELECT * FROM surge_stocks
-     WHERE session_id = $1 AND resolved = FALSE AND spawn_turn < $2`,
+     WHERE session_id = $1 AND resolved = FALSE AND spawn_turn < $2
+     ORDER BY id FOR UPDATE`,
     [session.id, session.current_turn]
   );
   const results = [];
   for (const s of rows) {
-    const outcome = rollOutcome();
-    const ret = outcome.retMin + Math.random() * (outcome.retMax - outcome.retMin);
     const invested = Number(s.invested_amount);
-    const proceeds = invested > 0 ? Math.round(invested * (1 + ret)) : 0;
-    const cashDelta = proceeds; // 매수금은 이미 차감됨 -> 정산액 전액 입금
-    const stressDelta = invested > 0 ? outcome.stressDelta : 0; // 관망이면 심리 영향 없음
+    const quantity = Number(s.quantity);
+
+    if (invested <= 0) {
+      await client.query(
+        `UPDATE surge_stocks
+         SET resolved = TRUE, resolved_at = NOW(),
+             outcome = 'skipped', return_rate = 0, cash_delta = 0, stress_delta = 0
+         WHERE id = $1 AND resolved = FALSE`,
+        [s.id]
+      );
+      results.push({
+        surgeStockId: s.id,
+        displayName: s.display_name,
+        purchased: false,
+        quantity: 0,
+        buyPrice: Number(s.buy_price),
+        investedAmount: 0,
+        outcome: 'skipped',
+        returnRate: 0,
+        proceeds: 0,
+        pnl: 0,
+        stressDelta: 0,
+      });
+      continue;
+    }
+
+    const outcome = rollOutcome(random);
+    const ret = outcome.retMin + random() * (outcome.retMax - outcome.retMin);
+    const proceeds = Math.round(invested * (1 + ret));
+    const pnl = proceeds - invested;
+    const stressDelta = outcome.stressDelta;
 
     await client.query(
       `UPDATE surge_stocks
-       SET resolved = TRUE, outcome = $2, return_rate = $3, cash_delta = $4, stress_delta = $5
-       WHERE id = $1`,
-      [s.id, outcome.key, ret, invested > 0 ? proceeds - invested : 0, stressDelta]
+       SET resolved = TRUE, resolved_at = NOW(),
+           outcome = $2, return_rate = $3, cash_delta = $4, stress_delta = $5
+       WHERE id = $1 AND resolved = FALSE`,
+      [s.id, outcome.key, ret, pnl, stressDelta]
     );
-    if (invested > 0) {
-      session.cash = Number(session.cash) + cashDelta;
-      session.stress = clamp100(session.stress + stressDelta);
-      await client.query(
-        `INSERT INTO event_log (session_id, turn_number, event_type, detail, cash_delta, stress_delta, resolved)
-         VALUES ($1, $2, 'surge_stock_result', $3, $4, $5, TRUE)`,
-        [session.id, session.current_turn,
-         JSON.stringify({ displayName: s.display_name, outcome: outcome.key, returnRate: ret, invested }),
-         proceeds - invested, stressDelta]
-      );
-    }
+    session.cash = Number(session.cash) + proceeds; // 매수 원금은 이미 차감되어 정산액 전액 입금
+    session.stress = clamp100(Number(session.stress) + stressDelta);
+    await client.query(
+      `INSERT INTO event_log (session_id, turn_number, event_type, detail, cash_delta, stress_delta, resolved)
+       VALUES ($1, $2, 'surge_stock_result', $3, $4, $5, TRUE)`,
+      [session.id, session.current_turn,
+       JSON.stringify({
+         surgeStockId: s.id,
+         displayName: s.display_name,
+         quantity,
+         buyPrice: Number(s.buy_price),
+         investedAmount: invested,
+         outcome: outcome.key,
+         returnRate: ret,
+         proceeds,
+         pnl,
+       }),
+       pnl, stressDelta]
+    );
     results.push({
+      surgeStockId: s.id,
       displayName: s.display_name,
-      invested,
+      purchased: true,
+      quantity,
+      buyPrice: Number(s.buy_price),
+      investedAmount: invested,
       outcome: outcome.key,
       returnRate: ret,
-      pnl: invested > 0 ? proceeds - invested : 0,
+      proceeds,
+      pnl,
       stressDelta,
     });
   }

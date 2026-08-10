@@ -7,12 +7,17 @@ exports.getActive = async (req, res) => {
   res.json(await surgeStockService.getActive(req.params.sessionId));
 };
 
-/** POST /api/game/:sessionId/surge/buy { surgeStockId, amount } */
+/** POST /api/game/:sessionId/surge/buy { surgeStockId, quantity } */
 exports.buy = async (req, res) => {
-  const { surgeStockId, amount } = req.body || {};
-  if (!surgeStockId || !(Number(amount) > 0)) throw badRequest('surgeStockId, amount(>0)가 필요합니다');
+  const { surgeStockId, quantity } = req.body || {};
+  const parsedId = Number(surgeStockId);
+  const parsedQuantity = Number(quantity);
+  if (!Number.isSafeInteger(parsedId) || parsedId <= 0 ||
+      !Number.isSafeInteger(parsedQuantity) || parsedQuantity <= 0) {
+    throw badRequest('surgeStockId와 quantity는 1 이상의 정수여야 합니다');
+  }
   const result = await withTransaction((client) =>
-    surgeStockService.buy(req.params.sessionId, Number(surgeStockId), Number(amount), client)
+    surgeStockService.buy(req.params.sessionId, parsedId, parsedQuantity, client)
   );
   res.json(result);
 };

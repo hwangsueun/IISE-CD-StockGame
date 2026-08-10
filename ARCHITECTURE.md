@@ -461,7 +461,7 @@ erDiagram
 | POST | `/api/game/:sessionId/side-job/play` | 미니게임 원점수 제출 `{ gameKey, rawScore }` -> 서버가 등급/보상 판정 |
 | GET | `/api/game/:sessionId/side-job/history` | 부업 이력 |
 | GET | `/api/game/:sessionId/surge/active` | 매수 가능한 급등주 조회 |
-| POST | `/api/game/:sessionId/surge/buy` | 급등주 매수 `{ surgeStockId, amount }` (관망 = 미호출) |
+| POST | `/api/game/:sessionId/surge/buy` | 급등주 매수 `{ surgeStockId, quantity }` (이벤트 가격 × 정수 수량, 관망 = 미호출) |
 | GET | `/api/game/:sessionId/log` | 거래/상환/이벤트 통합 타임라인 (기능명세서 §기록) |
 | GET | `/api/game/:sessionId/result` | 최종 결산 |
 
