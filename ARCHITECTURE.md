@@ -470,6 +470,8 @@ erDiagram
 | Method | Endpoint | 설명 |
 |---|---|---|
 | GET | `/api/game/:sessionId/portfolio` | 보유자산, 평가금액, 수익률, 자산군 비중 |
+| GET | `/api/game/:sessionId/portfolio/history` | 턴별 총자산·순자산과 초기자본 대비 수익률 추이 |
+| GET | `/api/game/:sessionId/portfolio/dashboard?unit=&assetType=` | 전체/주식/채권/코인별 구성과 일(1턴)/주(5턴)/월(20턴)/전체 단위 순수 손익금액·수익률 |
 | GET | `/api/game/:sessionId/portfolio/pnl?period=&assetType=` | 기간별(일/주/월/연/전체)·자산군별·종목별 실현손익 (기능명세서 §자산) |
 | GET | `/api/game/:sessionId/report/weekly/:weekIndex` | 주간 수익률 평가 (기획서 Weekly 평가서, LLM 연동 TODO) |
 | GET | `/api/game/:sessionId/report/monthly/:monthIndex` | 월간 리포트 |

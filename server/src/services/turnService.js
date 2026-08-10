@@ -148,7 +148,12 @@ async function advanceTurn(sessionId) {
     const surgeResults = await surgeStockService.resolvePending(client, session);
 
     // --- 보유자산 평가 + 일일 손익률 기반 스트레스 (미팅4 §2) ---
-    const totalAssetBefore = await valuationService.computeTotalAsset(sessionId, client);
+    // DB의 current_turn/cash는 아직 이전 턴 값이다. 다음 거래일과 메모리상의 현금을 명시해
+    // 강제청산·월급/생활비·급등주 정산을 반영한 실제 다음 턴 자산으로 평가한다.
+    const totalAssetBefore = await valuationService.computeTotalAsset(sessionId, client, {
+      tradeDate: nextDate,
+      cash: session.cash,
+    });
     const { rows: prevSnap } = await client.query(
       `SELECT total_asset FROM session_snapshots
        WHERE session_id = $1 AND snapshot_type = 'daily'
@@ -167,6 +172,12 @@ async function advanceTurn(sessionId) {
       totalAsset: totalAssetBefore,
     });
 
+    // 이벤트가 현금을 바꿀 수 있으므로 화면/스냅샷에는 이벤트 처리 뒤 자산을 기록한다.
+    const totalAssetAfter = await valuationService.computeTotalAsset(sessionId, client, {
+      tradeDate: nextDate,
+      cash: session.cash,
+    });
+
     // --- 상태 반영 + 자동저장 (부채는 이벤트가 이미 반영, 여기서 동기화) ---
     await client.query(
       `UPDATE game_sessions
@@ -178,12 +189,12 @@ async function advanceTurn(sessionId) {
 
     // --- 주간/일간 스냅샷 (리포트·차트용) ---
     await reportService.writeSnapshot(client, sessionId, nextTurn, 'daily', {
-      totalAsset: totalAssetBefore,
+      totalAsset: totalAssetAfter,
       session,
     });
     if (nextTurn % C.TURNS_PER_WEEK === 1 && nextTurn > 1) {
       await reportService.writeSnapshot(client, sessionId, nextTurn, 'weekly', {
-        totalAsset: totalAssetBefore,
+        totalAsset: totalAssetAfter,
         session,
       });
     }
@@ -206,7 +217,7 @@ async function advanceTurn(sessionId) {
       newsLimit: stressPolicy.newsLimitFor(session.stress),
       state: {
         cash: Math.round(Number(session.cash)),
-        totalAsset: totalAssetBefore,
+        totalAsset: totalAssetAfter,
         debt: Number(session.debt),
         stress: session.stress,
         trust: session.trust,
