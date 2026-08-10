@@ -3,6 +3,10 @@
 //       ③ 자산군 성과 ④ 종목별 수익률 랭킹(0 기준 발산 막대)
 // 색 규칙: 손익은 발산형(한국 증시 관례 — 이익=빨강 / 손실=파랑, 중립=회색).
 //          자산군은 기존 게임 팔레트를 그대로 쓰되 색에만 의존하지 않도록 항상 라벨을 붙인다.
+//
+// ③ 자산군 성과의 손익 수치는 보유 종목 스냅샷이 아니라 백엔드 getPortfolioDashboard(§valuationService)
+// 의 "전체 기간 순수 손익"(매수·매도 자금 이동을 제외한 값, 이미 매도한 종목의 실현손익도 포함)을 쓴다 —
+// 보유 중인 것만 보던 미실현 손익 합보다 그 자산군에서 실제로 얼마를 벌었는지를 더 정확히 보여준다.
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { won, pct, signed, changeClass } from '../utils/format';
@@ -129,24 +133,45 @@ function HoldingRanking({ holdings }) {
   );
 }
 
+// getPortfolioDashboard가 지원하는 자산군만 조회한다 (cash는 대시보드 API 대상이 아님 — 아래에서 별도 처리).
+const DASHBOARD_TYPES = ['stock', 'bond', 'coin'];
+
 export default function ReturnsDashboard({ sessionId, pf }) {
   const [history, setHistory] = useState(null);
   const [pnl, setPnl] = useState(null);
+  // 자산군별 "전체 기간 순수 손익" — getPortfolioDashboard(unit='all')로 매수·매도 자금 이동을
+  // 제외하고 계산한 값. 보유 중인 것만 잡히는 미실현 손익과 달리 이미 매도한 종목분도 반영된다.
+  const [periodByType, setPeriodByType] = useState({});
 
   useEffect(() => {
     api.getPortfolioHistory(sessionId).then(setHistory).catch(console.error);
     api.getRealizedPnl(sessionId, 'all').then(setPnl).catch(console.error);
+
+    let active = true;
+    setPeriodByType({});
+    Promise.all(
+      DASHBOARD_TYPES.map((t) =>
+        api.getPortfolioDashboard(sessionId, 'all', t)
+          .then((res) => [t, res.summary])
+          .catch((err) => {
+            console.error(err);
+            return [t, null];
+          })
+      )
+    ).then((entries) => {
+      if (active) setPeriodByType(Object.fromEntries(entries));
+    });
+    return () => { active = false; };
   }, [sessionId]);
 
   const initial = history?.initialCapital ?? 0;
   const totalReturn = initial > 0 ? (pf.totalAsset - initial) / initial : 0;
 
-  // 자산군별 평가손익 (보유 종목 집계)
+  // 자산군별 평가액 (보유 종목 집계) — 손익은 아래에서 periodByType으로 대체한다.
   const byType = {};
   for (const h of pf.holdings) {
-    byType[h.assetType] = byType[h.assetType] || { value: 0, pnl: 0, count: 0 };
+    byType[h.assetType] = byType[h.assetType] || { value: 0, count: 0 };
     byType[h.assetType].value += h.value;
-    byType[h.assetType].pnl += h.unrealizedPnl;
     byType[h.assetType].count += 1;
   }
 
@@ -184,18 +209,19 @@ export default function ReturnsDashboard({ sessionId, pf }) {
 
       {/* ③ 자산군 성과 */}
       <section className="dash-sec">
-        <h4 className="dash-h">자산군 성과</h4>
+        <h4 className="dash-h">자산군 성과 <small>전체 기간 순수 손익 · 매수·매도 자금 이동 제외</small></h4>
         <ul className="dash-types">
           {['stock', 'bond', 'coin', 'cash'].map((t) => {
             const w = pf.weights[t] ?? 0;
             const d = byType[t];
+            const period = periodByType[t]; // undefined=로딩 전, null=조회 실패, 객체=정상
             return (
               <li key={t}>
                 <span className="lg"><i style={{ background: TYPE_COLOR[t] }} />{TYPE_LABEL[t]}</span>
                 <span className="wt">{pct(w, 1)}</span>
                 <span className="amt">{t === 'cash' ? won(pf.cash) : won(d?.value ?? 0)}</span>
-                <span className={`pl ${d ? changeClass(d.pnl) : ''}`}>
-                  {t === 'cash' ? '—' : d ? won(d.pnl) : '—'}
+                <span className={`pl ${period ? changeClass(period.netAmount) : ''}`}>
+                  {t === 'cash' ? '—' : period ? won(period.netAmount) : period === null ? '—' : '…'}
                 </span>
               </li>
             );

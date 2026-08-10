@@ -6,7 +6,7 @@ const surge = require('../controllers/surgeController');
 // 현재 매수 가능한(미해결) 급등주
 router.get('/active', asyncHandler(surge.getActive));
 
-// 매수 { surgeStockId, amount } — 관망은 아무것도 하지 않으면 됨
+// 매수 { surgeStockId, quantity } — 이벤트 가격 x 정수 수량, 관망은 미호출
 router.post('/buy', asyncHandler(surge.buy));
 
 module.exports = router;
