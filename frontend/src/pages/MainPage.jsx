@@ -15,6 +15,7 @@ import ReportModal from '../components/ReportModal';
 import SideJobModal from '../components/SideJobModal';
 import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 import FaintOverlay from '../components/FaintOverlay';
+import GuideModal from '../components/GuideModal';
 
 const MODALS = {
   market: MarketModal,
@@ -26,6 +27,7 @@ const MODALS = {
   repay: RepaymentModal,
   report: ReportModal,
   sidejob: SideJobModal,
+  guide: GuideModal,
 };
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];

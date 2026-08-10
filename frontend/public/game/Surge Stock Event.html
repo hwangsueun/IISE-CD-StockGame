@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>주식게임 — 급등주 정보 이벤트</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #120e07;
+    --frame: #241a0d;
+    --panel: #1c140b;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --ink-faint: #7c6248;
+    --gold: #f5c542;
+    --gold-dark: #b8862a;
+    --amber: #ffb84d;
+    /* 한국 증시 관례: 상승=빨강, 하락=파랑 (스트레스 등 다른 지표의 적/녹과는 별개) */
+    --gain: #ff5a4a;
+    --loss: #3b82f6;
+    --green: #4ade80;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #050301;
+    font-family: 'Galmuri11', monospace;
+    color: var(--ink);
+    overflow: hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+    background: radial-gradient(ellipse at center, #1a1206 0%, #050301 78%), #050301;
+  }
+
+  /* ========== game frame ========== */
+  .game {
+    position: relative;
+    width: 1280px; height: 820px;
+    background: #000;
+    border: 6px solid var(--frame);
+    box-shadow:
+      0 0 0 2px #000, 0 0 0 6px var(--frame), 0 0 0 8px #000,
+      0 24px 60px rgba(0,0,0,0.7),
+      0 0 80px rgba(245,197,66,0.14);
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+
+  /* 침대에 누워 천장을 보는 시점 — 밤에 휴대폰이 울리는 장면. warm gold wash (excited/greedy mood, not dread) */
+  .room {
+    position: absolute; inset: 0; z-index: 0;
+    background: #2a2013;
+    background-image: url("assets/room_ceiling.png");
+    background-size: cover;
+    background-position: center;
+    image-rendering: pixelated;
+    filter: brightness(0.4) saturate(1.15) sepia(0.15);
+  }
+  .room::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 42% at 50% 30%, rgba(245,197,66,0.16), transparent 72%),
+      radial-gradient(ellipse 90% 72% at 50% 62%, transparent 24%, rgba(8,5,2,0.68) 100%),
+      linear-gradient(180deg, rgba(8,5,2,0.2) 0%, rgba(8,5,2,0.6) 66%, rgba(5,3,1,0.86) 100%);
+  }
+  .room::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 38px, rgba(0,0,0,0.12) 38px 39px);
+    mix-blend-mode: multiply; opacity: 0.5;
+  }
+
+  .title-plate {
+    position: absolute; top: -28px; left: 24px;
+    background: var(--bg-deep); border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold); letter-spacing: 2px; z-index: 200;
+    text-shadow: 0 0 6px rgba(245,197,66,0.5);
+  }
+  .nav-strip { position: absolute; top: -28px; right: 24px; display: flex; gap: 6px; z-index: 200; }
+  .nav-strip button {
+    background: var(--bg-deep); border: 3px solid var(--frame);
+    padding: 4px 10px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 1px; cursor: pointer;
+  }
+  .nav-strip button:hover { color: var(--gold); }
+
+  /* CRT */
+  .crt {
+    position: absolute; inset: 0; pointer-events: none; z-index: 100;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.62) 100%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.0) 0 2px, rgba(0,0,0,0.10) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+
+  .screen-tag { position: absolute; top: 18px; left: 22px; display: flex; align-items: center; gap: 10px; z-index: 30; }
+  .screen-tag .num {
+    background: var(--gold); color: var(--bg-deep);
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    padding: 4px 8px; border: 2px solid #000; letter-spacing: 1px;
+  }
+  .screen-tag .nm {
+    background: var(--bg-deep); border: 2px solid var(--gold-dark);
+    box-shadow: 2px 2px 0 #000;
+    color: var(--ink); padding: 4px 10px;
+    font-family: 'Galmuri11', monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  .screen-tag .step {
+    margin-left: 6px;
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    color: var(--gold); letter-spacing: 1px; text-shadow: 1px 1px 0 #000;
+  }
+
+  @keyframes hotBlink { 0%,49%{opacity:1;} 50%,100%{opacity:0.55;} }
+
+  /* stage */
+  .stage { position: absolute; left: 0; right: 0; top: 0; bottom: 250px; display: flex; align-items: center; justify-content: center; padding: 70px 60px 16px; z-index: 5; }
+
+  /* ---- phone (assets/phone.png 실물 이미지 위에 잠금화면 알림을 겹친다) ----
+     기울어진 각도·흔들림 효과는 독촉전화 이벤트(.phone-wrap/.phone-screen)와 동일한 기법,
+     다만 색은 이 이벤트의 gold 팔레트로, 위치는 화면 오른쪽 하단으로 옮겼다. */
+  .phone-wrap {
+    position: absolute; right: 3%; bottom: 4%;
+    width: 380px; height: 380px; z-index: 6;
+    filter: drop-shadow(0 0 22px rgba(245,197,66,0.22));
+  }
+  .phone-wrap.ringing { animation: surgePhoneShake 0.16s steps(2,end) infinite alternate; }
+  @keyframes surgePhoneShake { 0% { transform: rotate(-1.2deg); } 100% { transform: rotate(1.2deg); } }
+  .phone-wrap img {
+    position: relative; z-index: 2;
+    width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;
+  }
+
+  .phone-glow {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 70%; height: 70%; border-radius: 50%; pointer-events: none; z-index: 1;
+    box-shadow: 0 0 0 6px rgba(245,197,66,0.18), 0 0 60px 16px rgba(245,197,66,0.22);
+    opacity: 0;
+  }
+  .phone-wrap.ringing .phone-glow { animation: surgeGlowPulse 1s steps(2,end) infinite; }
+  @keyframes surgeGlowPulse { 0%,100% { opacity: 0.35; } 50% { opacity: 0.85; } }
+
+  .ring-waves {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 90%; height: 90%; pointer-events: none; z-index: 1; opacity: 0;
+  }
+  .phone-wrap.ringing .ring-waves { opacity: 1; }
+  .ring-waves span {
+    position: absolute; inset: 0; border: 2px solid rgba(245,197,66,0.55); border-radius: 50%;
+    animation: surgeRingExpand 1.8s steps(8,end) infinite;
+  }
+  .ring-waves span:nth-child(2) { animation-delay: 0.55s; }
+  .ring-waves span:nth-child(3) { animation-delay: 1.1s; }
+  @keyframes surgeRingExpand { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.15); opacity: 0; } }
+
+  .phone-screen {
+    position: absolute; left: 36%; top: 22%; width: 38%; height: 50%; z-index: 3;
+    transform: rotate(-14deg);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding-bottom: 8%;
+    pointer-events: none;
+  }
+
+  .notif-banner {
+    width: 86%;
+    background: rgba(26,20,12,0.94); border: 1px solid #000;
+    box-shadow: inset 0 0 0 1px var(--gold-dark);
+    padding: 6px 8px; display: flex; gap: 6px; align-items: flex-start;
+    transform: translateY(14px); opacity: 0;
+    transition: transform 320ms steps(6,end), opacity 320ms steps(6,end);
+  }
+  .notif-banner.show { transform: translateY(0); opacity: 1; animation: notifWiggle 2.4s steps(2,end) 600ms infinite; }
+  @keyframes notifWiggle { 0%,92%,100% { transform: translateY(0); } 95% { transform: translateY(-2px); } }
+  .notif-icon {
+    flex: none; width: 15px; height: 15px; background: var(--gold);
+    border: 1px solid #000; display: grid; place-items: center; font-size: 8px;
+  }
+  .notif-body { flex: 1; min-width: 0; }
+  .notif-name { font-family: 'Galmuri11', monospace; font-size: 8px; color: #1a1512; font-weight: bold; }
+  .notif-preview {
+    margin-top: 1px; font-family: 'Galmuri11', monospace; font-size: 7px; color: #3a3020;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---- tip card ---- */
+  .tip-card {
+    /* flex-center에 맡기면 내용 높이에 따라 아래 .choices(bottom:280px)와 겹쳐서,
+       고정 top으로 앉혀 겹치지 않게 한다 */
+    position: absolute; left: 50%; top: 90px; transform: translateX(-50%);
+    width: 640px; max-width: 92%;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(245,197,66,0.05) 30px 31px), var(--panel);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--gold-dark), inset 0 0 0 6px #140d06, 8px 8px 0 #000, 0 0 34px rgba(245,197,66,0.18);
+    padding: 22px 28px 24px;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .tip-card::before {
+    content: "친구 제보 · UNVERIFIED"; position: absolute; top: 12px; right: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--ink-faint); letter-spacing: 1px;
+  }
+  @keyframes cardPop { from { opacity:0; transform: translateX(-50%) translateY(16px) scale(.96);} to {opacity:1; transform: translateX(-50%);} }
+
+  .tip-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .tip-head .stock-name { font-family: 'Galmuri11', monospace; font-size: 28px; color: var(--gold); letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+  .tip-head .hot-tag {
+    font-family: 'Press Start 2P', monospace; font-size: 9px; color: #fff;
+    background: var(--gain); border: 1px solid #000; padding: 3px 6px; letter-spacing: 1px;
+    animation: hotBlink 0.9s steps(2,end) infinite;
+  }
+  .tip-sub { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 2px; margin-bottom: 14px; }
+  .tip-divider { height: 0; border-top: 3px double var(--gold-dark); margin: 4px 0 16px; }
+
+  .tip-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 2px; border-bottom: 1px dashed #3a2c17; }
+  .tip-row .k { font-family: 'Galmuri11', monospace; font-size: 15px; color: var(--ink-dim); letter-spacing: 1px; }
+  .tip-row .v { font-family: 'Galmuri11', monospace; font-size: 19px; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+  .tip-row .v.gold { color: var(--gold); font-weight: bold; }
+
+  .tip-warn {
+    margin-top: 12px; font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--ink-dim);
+    line-height: 1.6; text-wrap: pretty;
+  }
+  .tip-warn .em { color: var(--gold); }
+  .tip-warn .red { color: var(--gain); }
+
+  /* quantity input row */
+  .qty-row { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+  .qty-row label { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; flex: none; }
+  .qty-row input {
+    flex: 1; background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--gold-dark);
+    color: var(--ink); font-family: 'Galmuri11', monospace; font-size: 18px; padding: 7px 10px;
+    letter-spacing: 1px; outline: none;
+  }
+  .qty-row input:focus { box-shadow: inset 0 0 0 1px var(--gold); }
+  .qty-row .max-btn {
+    flex: none; background: var(--frame); border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--gold-dark);
+    color: var(--ink-dim); font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px;
+    padding: 8px 10px; cursor: pointer;
+  }
+  .qty-row .max-btn:hover { color: var(--gold); }
+  .est-row { margin-top: 8px; text-align: right; font-family: 'Galmuri11', monospace; font-size: 14px; color: var(--ink-dim); }
+  .est-row b { color: var(--gold); font-size: 17px; }
+
+  /* ---- choice buttons ---- */
+  .choices { position: absolute; left: 0; right: 0; bottom: 280px; display: flex; justify-content: center; gap: 26px; z-index: 7; opacity: 0; pointer-events: none; transition: opacity 240ms steps(4,end); }
+  .choices.show { opacity: 1; pointer-events: all; }
+  .choice-btn {
+    min-width: 260px; border: 4px solid #000; cursor: pointer; padding: 14px 22px;
+    font-family: 'Galmuri11', monospace; letter-spacing: 3px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: transform 90ms steps(2,end);
+  }
+  .choice-btn .key { font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; }
+  .choice-btn .name { font-size: 21px; font-weight: bold; }
+  .choice-btn .hint { font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px; }
+  .choice-btn:hover { transform: translate(-1px,-2px); }
+  .choice-btn:active { transform: translate(2px,2px); }
+  .choice-btn.buy {
+    background: var(--gold); color: var(--bg-deep);
+    box-shadow: inset 0 0 0 2px #fff1c4, inset 0 -7px 0 var(--gold-dark), 5px 5px 0 #000;
+  }
+  .choice-btn.buy .key, .choice-btn.buy .hint { color: #6b4a10; }
+  .choice-btn.buy:hover { background: #ffd968; }
+  .choice-btn.buy:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.6); transform: none; }
+  .choice-btn.watch {
+    background: #241a0d; color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--ink-faint), inset 0 -7px 0 #140d06, 5px 5px 0 #000;
+  }
+  .choice-btn.watch .key { color: var(--gold); }
+  .choice-btn.watch .hint { color: var(--ink-dim); }
+  .choice-btn.watch:hover { background: #342510; }
+
+  /* ---- result / receipt card ---- */
+  .result-card {
+    position: absolute; left: 50%; top: 90px; transform: translateX(-50%);
+    width: 700px; max-width: 94%;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 30px, rgba(245,197,66,0.05) 30px 31px), var(--panel);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--gold-dark), inset 0 0 0 6px #140d06, 8px 8px 0 #000, 0 0 34px rgba(245,197,66,0.18);
+    padding: 20px 28px 24px;
+    animation: cardPop 280ms steps(5,end);
+  }
+  .result-card::before {
+    content: "체결 내역 · SETTLEMENT"; position: absolute; top: 10px; right: 20px;
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-faint); letter-spacing: 2px;
+  }
+  .rc-head { text-align: center; padding-bottom: 14px; margin-bottom: 8px; border-bottom: 3px double var(--gold-dark); }
+  .rc-head .rings { display: inline-block; font-family: 'Press Start 2P', monospace; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px; }
+  .rc-head .rings.gain { color: var(--gain); text-shadow: 0 0 8px rgba(255,90,74,0.5); }
+  .rc-head .rings.loss { color: var(--loss); text-shadow: 0 0 8px rgba(59,130,246,0.5); }
+  .rc-head .ttl { font-family: 'Press Start 2P', monospace; font-size: 15px; color: var(--gold); letter-spacing: 3px; text-shadow: 2px 2px 0 #000; }
+  .rc-head .sub { font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--ink-dim); letter-spacing: 1px; margin-top: 8px; }
+  .rc-row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 4px; border-bottom: 1px dashed #3a2c17; }
+  .rc-row .k { font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--ink-dim); letter-spacing: 1px; }
+  .rc-row .k small { display: block; font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--ink-faint); letter-spacing: 2px; margin-top: 4px; }
+  .rc-row .v { font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 1px; text-align: right; }
+  .rc-row .v.gold { color: var(--gold); font-weight: bold; }
+  .rc-row .v.gain { color: var(--gain); font-weight: bold; }
+  .rc-row .v.loss { color: var(--loss); font-weight: bold; }
+  .rc-row .v.stress-up { color: var(--red); font-weight: bold; }
+  .rc-row .v.stress-down { color: var(--green); font-weight: bold; }
+  .rc-row.result { border-bottom: none; padding-top: 14px; }
+  .rc-row.result .v { font-size: 15px; max-width: 62%; line-height: 1.55; text-wrap: pretty; }
+
+  /* ---- confirm / next button ---- */
+  .confirm-strip { position: absolute; left: 0; right: 0; bottom: 280px; display: flex; justify-content: center; z-index: 7; }
+  .confirm-btn {
+    background: var(--gold); border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px #fff1c4, inset 0 -7px 0 var(--gold-dark), 5px 5px 0 #000;
+    padding: 15px 50px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--bg-deep);
+    letter-spacing: 5px; font-weight: bold;
+  }
+  .confirm-btn:hover { background: #ffd968; transform: translate(-1px,-1px); }
+  .confirm-btn:active { transform: translate(2px,2px); box-shadow: inset 0 0 0 2px #fff1c4, inset 0 -3px 0 var(--gold-dark), 2px 2px 0 #000; }
+  .confirm-btn .arr { font-family: 'Press Start 2P', monospace; font-size: 13px; margin-right: 10px; }
+  .confirm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  /* ========== narration ========== */
+  .narration {
+    position: absolute; left: 30px; right: 30px; bottom: 30px;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--gold-dark), inset 0 0 0 6px #140d06, 6px 6px 0 #000;
+    padding: 16px 22px 18px; z-index: 8; height: 200px;
+    display: flex; flex-direction: column;
+  }
+  .nar-head { display: flex; align-items: center; gap: 10px; border-bottom: 2px dashed #3a2c17; padding-bottom: 8px; margin-bottom: 10px; }
+  .nar-portrait {
+    width: 42px; height: 42px; background: #140d06; border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--gold-dark);
+    display: grid; place-items: center;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold);
+  }
+  .nar-name { font-family: 'Galmuri11', monospace; font-size: 18px; color: var(--gold); letter-spacing: 1px; }
+  .nar-tag { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-dim); letter-spacing: 1px; border: 1px solid var(--gold-dark); padding: 2px 6px; }
+  .nar-prog { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 1px; }
+  .nar-prog b { color: var(--gold); }
+  .nar-body { flex: 1; font-family: 'Galmuri11', monospace; font-size: 19px; line-height: 1.6; color: var(--ink); text-wrap: pretty; letter-spacing: 0.5px; overflow: hidden; }
+  .nar-body .em { color: var(--gold); }
+  .nar-body .gain { color: var(--gain); }
+  .nar-body .loss { color: var(--loss); }
+  .nar-body .green { color: var(--green); }
+  .nar-body .cursor { display: inline-block; width: 10px; height: 18px; background: var(--gold); vertical-align: -3px; margin-left: 4px; animation: blinkFast 0.55s steps(2,end) infinite; }
+  @keyframes blinkFast { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .nar-next {
+    position: absolute; right: 22px; bottom: 18px;
+    font-family: 'Press Start 2P', monospace; font-size: 12px; color: var(--gold);
+    letter-spacing: 2px; animation: nextBob 0.7s steps(2,end) infinite; user-select: none;
+  }
+  @keyframes nextBob { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  .fade-mask { position: absolute; inset: 0; background: #000; z-index: 90; pointer-events: none; opacity: 1; transition: opacity 420ms steps(6,end); }
+  .fade-mask.off { opacity: 0; }
+  .fade-mask.on { opacity: 1; pointer-events: all; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="game" id="game" data-screen-label="급등주 정보 이벤트">
+  <div class="title-plate">▲ 급등주 정보 ▲</div>
+  <div class="nav-strip">
+    <button id="replayBtn" title="처음부터 다시보기">↺ 다시보기</button>
+  </div>
+
+  <div class="room"></div>
+
+  <div class="screen-tag">
+    <span class="num" id="tagNum">S1</span>
+    <span class="nm" id="tagName">급등주 정보</span>
+    <span class="step" id="tagStep">STEP 1 / 2</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="choices" id="choices"></div>
+  <div class="confirm-strip hidden" id="confirmStrip"></div>
+
+  <div class="narration" id="narration" hidden>
+    <div class="nar-head">
+      <div class="nar-portrait" id="narPortrait">😏</div>
+      <span class="nar-name" id="narName">재현</span>
+      <span class="nar-tag" id="narTag">친구</span>
+      <span class="nar-prog">STEP <b id="narStep">1</b> / 2</span>
+    </div>
+    <div class="nar-body" id="narBody"></div>
+    <div class="nar-next" id="narNext">▶ 계속</div>
+  </div>
+
+  <div class="fade-mask on" id="fade"></div>
+  <div class="crt"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  SURGE STOCK EVENT — display-only prototype.
+  //  Mirrors SurgeStockPopup + SurgeResultPopup as a single flow:
+  //  STEP 1: rumor arrives -> 매수(수량) / 관망 선택
+  //  STEP 2: 매수 시 "다음 턴으로" 버튼으로 정산 결과를 시뮬레이션.
+  //          관망 시 바로 종료 화면.
+  //  실제 결과 분포는 server/src/config/constants.js SURGE_STOCK.OUTCOMES
+  //  가중치를 그대로 반영(현재값은 기획 미확정 임시값).
+  // ============================================================
+  const STOCK = { name: '텐배거바이오', price: 42300 };
+  const fmtWon = n => Math.round(n).toLocaleString('ko-KR') + '원';
+
+  // 급등주 소식을 전해주는 친구 (앱/서버엔 대응 개념 없는 프론트 전용 플레이버)
+  const FRIEND = { name: '재현', avatar: '😏' };
+  const CHAT_LINES = [
+    '야 자냐?',
+    `<span class="em">${STOCK.name}</span> 얘기 들었어?`,
+    '사촌이 그러는데 내일 완전 터진다던데 ㄷㄷ',
+    '나만 알고 있으라 했는데... 너한테만 말해주는거야',
+  ];
+
+  const OUTCOMES = [
+    { key: 'surge',      retMin: 0.30, retMax: 0.80, stressDelta: -20, weight: 8,  label: '소문이 맞았다! 상한가를 찍었다.' },
+    { key: 'rise',        retMin: 0.10, retMax: 0.30, stressDelta: -12, weight: 15, label: '기대만큼은 아니어도 확실히 올랐다.' },
+    { key: 'small_rise',  retMin: 0.0,  retMax: 0.10, stressDelta: -5,  weight: 17, label: '소폭 상승, 나쁘지 않은 결과다.' },
+    { key: 'fall',        retMin: -0.15, retMax: -0.05, stressDelta: 10, weight: 25, label: '기대와 달리 소폭 하락했다.' },
+    { key: 'plunge',      retMin: -0.35, retMax: -0.15, stressDelta: 20, weight: 25, label: '작전주였다... 크게 물렸다.' },
+    { key: 'crash',       retMin: -0.60, retMax: -0.35, stressDelta: 30, weight: 10, label: '휴지조각이 됐다. 완전히 속았다.' },
+  ];
+
+  let phase = 'phone';   // 'phone' | 'chat' | 'decision' | 'buy-confirm' | 'result' | 'watch-end'
+  let qty = 0;
+  let amount = 0;
+  let outcome = null;
+  let locked = false;
+  let typingFn = null;
+  let chatIdx = 0;   // 'chat' 단계에서 몇 번째 대사까지 읽었는지
+
+  const stage    = () => document.getElementById('stage');
+  const choices  = () => document.getElementById('choices');
+  const confirm  = () => document.getElementById('confirmStrip');
+  const narEl    = () => document.getElementById('narration');
+
+  // ============================================================
+  //  STEP 0 — phone.png(잠금화면) 위에 재현의 메시지 알림이 뜬다.
+  //  탭 없이, 알림을 잠깐 보여준 뒤 자동으로 재현의 대사로 이어진다.
+  // ============================================================
+  function renderPhoneIntro() {
+    stage().innerHTML = `
+      <div class="phone-wrap ringing" id="phoneWrap">
+        <div class="phone-glow"></div>
+        <div class="ring-waves"><span></span><span></span><span></span></div>
+        <img src="assets/phone.png" alt="phone" />
+        <div class="phone-screen">
+          <div class="notif-banner" id="notifBanner">
+            <div class="notif-icon">💬</div>
+            <div class="notif-body">
+              <div class="notif-name">${FRIEND.name}</div>
+              <div class="notif-preview">야 이거 봐봐... ㄷㄷ</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    setTimeout(() => {
+      const banner = document.getElementById('notifBanner');
+      if (banner) banner.classList.add('show');
+    }, 500);
+
+    setTimeout(() => {
+      if (phase === 'phone') startChat();
+    }, 1800);
+  }
+
+  // ============================================================
+  //  STEP 0.5 — 재현의 대사는 하단 narration 창(기존 타자 연출)을 그대로 사용한다.
+  // ============================================================
+  function startChat() {
+    const banner = document.getElementById('notifBanner');
+    if (banner) banner.classList.remove('show');
+    const wrap = document.getElementById('phoneWrap');
+    if (wrap) wrap.classList.remove('ringing');   // 확인했으니 진동을 멈춘다
+    phase = 'chat';
+    chatIdx = 0;
+    showChatLine();
+  }
+
+  function showChatLine() {
+    narration(true, { who: FRIEND.name, portrait: FRIEND.avatar, tag: '친구', text: CHAT_LINES[chatIdx] });
+  }
+
+  function advanceChat() {
+    chatIdx += 1;
+    if (chatIdx < CHAT_LINES.length) {
+      showChatLine();
+    } else {
+      goDecision();
+    }
+  }
+
+  function goDecision() {
+    phase = 'decision';
+    fadeTo(() => {
+      setTag('S1', '급등주 정보', 'STEP 1 / 2', '1');
+      renderTipCard();
+      renderChoices();
+      narration(true, { who: FRIEND.name, portrait: FRIEND.avatar, tag: '친구',
+        text: `${FRIEND.name}가 보낸 정보다. 어떻게 할까?` });
+    });
+  }
+
+  // ============================================================
+  //  STEP 1 — rumor card + qty input + choices
+  // ============================================================
+  function renderTipCard() {
+    stage().innerHTML = `
+      <div class="tip-card">
+        <div class="tip-head">
+          <span class="stock-name">${STOCK.name}</span>
+          <span class="hot-tag">떡상예감</span>
+        </div>
+        <div class="tip-sub">${FRIEND.name} (친구) · 대화방에서 공유됨</div>
+        <div class="tip-divider"></div>
+        <div class="tip-row"><span class="k">현재가</span><span class="v gold">${fmtWon(STOCK.price)}</span></div>
+        <div class="tip-row"><span class="k">매수 가능 시간</span><span class="v">오늘 하루만</span></div>
+        <p class="tip-warn">"내일 <span class="em">${STOCK.name}</span> 터진다던데..." <span class="red">친구 말이라고 다 믿을 건 아니다</span>. 판단은 내 몫이다.</p>
+        <div class="qty-row">
+          <label>매수 수량</label>
+          <input type="number" min="0" step="1" id="qtyInput" value="" placeholder="0" />
+          <button type="button" class="max-btn" id="maxBtn">MAX</button>
+        </div>
+        <div class="est-row">예상 매수금액 <b id="estAmount">0원</b></div>
+      </div>`;
+
+    const qtyInput = document.getElementById('qtyInput');
+    const estAmount = document.getElementById('estAmount');
+    const buyBtn = () => document.querySelector('.choice-btn.buy');
+
+    function recalc() {
+      qty = Math.max(0, Math.floor(Number(qtyInput.value) || 0));
+      amount = Math.round(STOCK.price * qty);
+      estAmount.textContent = fmtWon(amount);
+      const b = buyBtn();
+      if (b) b.disabled = !(qty > 0);
+    }
+    qtyInput.addEventListener('input', recalc);
+    document.getElementById('maxBtn').addEventListener('click', () => {
+      qtyInput.value = 10; // display-only demo cap (실제 게임은 보유 현금 기준)
+      recalc();
+    });
+    recalc();
+  }
+
+  function renderChoices() {
+    const c = choices();
+    c.innerHTML = `
+      <button type="button" class="choice-btn buy" data-choice="buy" disabled>
+        <span class="key">［ 1 ］</span>
+        <span class="name">매수한다</span>
+        <span class="hint">수량 입력 필요</span>
+      </button>
+      <button type="button" class="choice-btn watch" data-choice="watch">
+        <span class="key">［ 2 ］</span>
+        <span class="name">관망한다</span>
+        <span class="hint">SKIP THE RUMOR</span>
+      </button>`;
+    c.querySelectorAll('.choice-btn').forEach(b => {
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        if (b.disabled) return;
+        pick(b.dataset.choice);
+      });
+    });
+  }
+
+  function pick(which) {
+    if (locked) return;
+    choices().classList.remove('show');
+    if (which === 'buy') {
+      phase = 'buy-confirm';
+      goBuyConfirm();
+    } else {
+      phase = 'watch-end';
+      goWatchEnd();
+    }
+  }
+
+  // ============================================================
+  //  STEP 1.5 — buy confirmation (still "오늘", 결과는 다음 턴)
+  // ============================================================
+  function renderBuyConfirm() {
+    stage().innerHTML = `
+      <div class="result-card">
+        <div class="rc-head">
+          <div class="rings">▲</div>
+          <div class="ttl">매수 완료</div>
+          <div class="sub">SETTLEMENT PENDING · 결과는 다음 턴 공개</div>
+        </div>
+        <div class="rc-row"><span class="k">종목<small>STOCK</small></span><span class="v gold">${STOCK.name}</span></div>
+        <div class="rc-row"><span class="k">매수 수량<small>QTY</small></span><span class="v">${qty}주</span></div>
+        <div class="rc-row"><span class="k">매수 단가<small>PRICE</small></span><span class="v">${fmtWon(STOCK.price)}</span></div>
+        <div class="rc-row result"><span class="k">매수 금액<small>TOTAL</small></span><span class="v gold">${fmtWon(amount)}</span></div>
+      </div>`;
+  }
+
+  function goBuyConfirm() {
+    fadeTo(() => {
+      setTag('S1', '매수 완료', 'STEP 1 / 2', '1');
+      renderBuyConfirm();
+      narration(true, { who:'시스템', portrait:'▲', tag:'PENDING',
+        text:`<span class="em">${STOCK.name}</span> ${qty}주, ${fmtWon(amount)}어치를 매수했다. 결과는 <span class="em">내일</span> 공개된다...` });
+    });
+  }
+
+  // ============================================================
+  //  STEP 2 — 다음 턴 결과 (수익률 랜덤 추첨, OUTCOMES 가중치 반영)
+  // ============================================================
+  function rollOutcome() {
+    const total = OUTCOMES.reduce((s, o) => s + o.weight, 0);
+    let r = Math.random() * total;
+    for (const o of OUTCOMES) {
+      if (r < o.weight) return o;
+      r -= o.weight;
+    }
+    return OUTCOMES[OUTCOMES.length - 1];
+  }
+
+  function renderResult() {
+    const o = outcome;
+    const retRate = o.retMin + Math.random() * (o.retMax - o.retMin);
+    const pnl = Math.round(amount * retRate);
+    const gain = pnl >= 0;
+    const cls = gain ? 'gain' : 'loss';
+    const stressCls = o.stressDelta < 0 ? 'stress-down' : o.stressDelta > 0 ? 'stress-up' : '';
+    outcome._retRate = retRate;
+    outcome._pnl = pnl;
+
+    stage().innerHTML = `
+      <div class="result-card">
+        <div class="rc-head">
+          <div class="rings ${cls}">${gain ? '📈' : '📉'}</div>
+          <div class="ttl">급등주 결과</div>
+          <div class="sub">${STOCK.name} · 자동 매도 정산</div>
+        </div>
+        <div class="rc-row"><span class="k">수익률<small>RETURN</small></span><span class="v ${cls}">${(retRate >= 0 ? '+' : '')}${(retRate * 100).toFixed(1)}%</span></div>
+        <div class="rc-row"><span class="k">손익<small>P&amp;L</small></span><span class="v ${cls}">${pnl >= 0 ? '+' : ''}${fmtWon(pnl)}</span></div>
+        <div class="rc-row"><span class="k">스트레스 변화<small>STRESS</small></span><span class="v ${stressCls}">${o.stressDelta > 0 ? '+' : ''}${o.stressDelta}</span></div>
+        <div class="rc-row result"><span class="k">결과<small>OUTCOME</small></span><span class="v ${cls}">${o.label}</span></div>
+      </div>`;
+  }
+
+  function goResult() {
+    outcome = rollOutcome();
+    fadeTo(() => {
+      setTag('S2', '결과', 'STEP 2 / 2', '2');
+      renderResult();
+      const gain = outcome._pnl >= 0;
+      narration(true, { who:'시스템', portrait: gain ? '📈' : '📉', tag:'RESULT',
+        text: gain
+          ? `<span class="gain">소문이 맞았다!</span> 자동 매도로 수익을 실현했다. 급등주는 시장에서 사라졌다.`
+          : `<span class="loss">작전주에 물렸다...</span> 자동 매도로 손절했다. 급등주는 시장에서 사라졌다.` });
+    });
+  }
+
+  // ============================================================
+  //  watch (관망) 종료 화면 — 실제 게임은 결과 팝업 없이 바로 닫힘
+  // ============================================================
+  function renderWatchEnd() {
+    stage().innerHTML = `
+      <div class="result-card">
+        <div class="rc-head">
+          <div class="rings">▲</div>
+          <div class="ttl">관망</div>
+          <div class="sub">${STOCK.name} · 참여하지 않음</div>
+        </div>
+        <div class="rc-row"><span class="k">선택<small>CHOICE</small></span><span class="v gold">관망한다</span></div>
+        <div class="rc-row result"><span class="k">결과<small>OUTCOME</small></span><span class="v">소문은 소문일 뿐. 급등주는 다음 턴 시장에서 사라진다.</span></div>
+      </div>`;
+  }
+
+  function goWatchEnd() {
+    fadeTo(() => {
+      setTag('S1', '관망', 'STEP 1 / 2', '1');
+      renderWatchEnd();
+      narration(true, { who:'시스템', portrait:'▲', tag:'SKIP',
+        text:`${FRIEND.name}의 메시지를 <span class="em">무시했다.</span> 친구 말이라고 굳이 움직일 필요는 없었다.` });
+    });
+  }
+
+  // ============================================================
+  //  UI HELPERS
+  // ============================================================
+  function setTag(num, name, step, narStep) {
+    document.getElementById('tagNum').textContent = num;
+    document.getElementById('tagName').textContent = name;
+    document.getElementById('tagStep').textContent = step;
+    document.getElementById('narStep').textContent = narStep;
+  }
+  function fadeTo(fn) {
+    const fade = document.getElementById('fade');
+    fade.classList.remove('off'); fade.classList.add('on');
+    setTimeout(() => { fn(); fade.classList.remove('on'); fade.classList.add('off'); }, 220);
+  }
+  function narration(show, info) {
+    const el = narEl();
+    el.hidden = !show;
+    if (show && info) {
+      document.getElementById('narPortrait').textContent = info.portrait || '▲';
+      document.getElementById('narName').textContent = info.who;
+      document.getElementById('narTag').textContent = info.tag || 'RUMOR';
+      typeWriter(info.text);
+    }
+  }
+  function typeWriter(html) {
+    locked = true;
+    document.getElementById('narNext').style.display = 'none';
+    const body = document.getElementById('narBody');
+    body.innerHTML = '';
+    const root = document.createElement('span');
+    body.appendChild(root);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    body.appendChild(cursor);
+    let i = 0, buf = '';
+    const src = html;
+    let cancelled = false;
+    const finish = () => {
+      root.innerHTML = src; cursor.remove(); locked = false;
+      document.getElementById('narNext').style.display = '';
+      onTypedDone();
+      typingFn = null;
+    };
+    typingFn = () => { cancelled = true; finish(); };
+    function tick() {
+      if (cancelled) return;
+      if (i >= src.length) { finish(); return; }
+      if (src[i] === '<') {
+        const close = src.indexOf('>', i);
+        buf += src.slice(i, close+1); i = close + 1;
+      } else { buf += src[i++]; }
+      root.innerHTML = buf;
+      setTimeout(tick, 24);
+    }
+    tick();
+  }
+
+  function onTypedDone() {
+    if (phase === 'decision') {
+      choices().classList.add('show');
+    } else if (phase === 'buy-confirm' || phase === 'watch-end' || phase === 'result') {
+      showConfirm();
+    }
+  }
+
+  function showConfirm() {
+    const wrap = confirm();
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'confirm-btn';
+    if (phase === 'buy-confirm') {
+      btn.innerHTML = `<span class="arr">▶</span>다음 턴으로`;
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        wrap.classList.add('hidden');
+        phase = 'result';
+        goResult();
+      });
+    } else {
+      btn.innerHTML = `<span class="arr">▶</span>확인`;
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.55';
+        btn.innerHTML = `확인됨`;
+      });
+    }
+    wrap.appendChild(btn);
+  }
+
+  // ============================================================
+  //  CONTROL
+  // ============================================================
+  document.getElementById('game').addEventListener('click', e => {
+    if (e.target.closest('.choice-btn') || e.target.closest('.confirm-btn') || e.target.closest('.qty-row') || e.target.closest('.nav-strip')) return;
+    if (locked && typingFn) { typingFn(); return; }
+    if (phase === 'chat') { advanceChat(); return; }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (phase !== 'decision' || locked) return;
+    if (e.key === '2') pick('watch');
+  });
+
+  document.getElementById('replayBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    start();
+  });
+
+  function start() {
+    phase = 'phone';
+    qty = 0; amount = 0; outcome = null;
+    locked = false;
+    chatIdx = 0;
+    choices().classList.remove('show');
+    choices().innerHTML = '';
+    confirm().classList.add('hidden');
+    confirm().innerHTML = '';
+    setTag('S1', '메시지 도착', 'STEP 1 / 2', '1');
+    const fade = document.getElementById('fade');
+    fade.classList.add('on'); fade.classList.remove('off');
+    narEl().hidden = true;
+    stage().innerHTML = '';
+    setTimeout(() => {
+      renderPhoneIntro();
+      fade.classList.remove('on'); fade.classList.add('off');
+    }, 260);
+  }
+
+  start();
+</script>
+
+</body>
+</html>

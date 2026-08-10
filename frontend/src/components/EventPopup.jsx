@@ -1,5 +1,7 @@
 // 이벤트 팝업 — 선택형(choice) 이벤트는 해결 전 턴 진행 불가 (§10)
-// 독촉전화(loan_shark_call)는 디자인 원본 Loanshark Call.html 픽셀 연출 이식, 나머지 이벤트 타입은 공용 모달 유지.
+// 독촉전화(loan_shark_call)는 디자인 원본 Loanshark Call.html, 투자 스터디(invest_study)는
+// game-live/Invest Study Event.html, 여행(travel)은 public/game/Travel Event.html 픽셀
+// 연출을 이식. 나머지 이벤트 타입은 공용 모달 유지.
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
@@ -15,6 +17,8 @@ const AMOUNT_CHOICES = new Set(['loan_shark_call:pay']);
 export default function EventPopup({ event }) {
   const eventType = event.eventType || event.event_type;
   if (eventType === 'loan_shark_call') return <LoanSharkCallEvent event={event} />;
+  if (eventType === 'invest_study') return <InvestStudyEvent event={event} />;
+  if (eventType === 'travel') return <TravelEvent event={event} />;
   return <GenericEventPopup event={event} />;
 }
 
@@ -222,6 +226,352 @@ function LoanSharkCallEvent({ event }) {
             </div>
           )}
         </div>
+
+        <div className="crt" />
+      </div>
+    </div>
+  );
+}
+
+// --- 투자/경제 개념 문제 풀 (프론트 전용 플레이버. 서버엔 대응 개념이 없어 채점하지 않고
+//     정답만 바로 보여준다 — 문제은행을 서버로 옮길 계획이 생기면 이 배열을 그쪽으로 옮길 것) ---
+const CONCEPT_QUIZ = [
+  { chip: '기초 원칙', q: '"계란을 한 바구니에 담지 마라"가 강조하는 원칙은?',
+    opts: ['한 종목에 몰빵', '분산투자', '초단타 매매', '빚내서 투자'], answer: 1,
+    explain: '여러 종목에 나눠 담아야 하나가 무너져도 계좌 전체는 버틴다 — 분산투자.' },
+  { chip: '위험 관리', q: '미리 정한 손실 한계에서 감정 없이 파는 규칙은?',
+    opts: ['물타기', '손절선', '존버', 'FOMO'], answer: 1,
+    explain: '감정이 아니라 규칙이 팔게 해야 큰 손실을 막는다 — 손절선.' },
+  { chip: '사기 주의', q: '누군가 "무위험 고수익"을 약속한다면?',
+    opts: ['당장 전 재산 투자', '사기일 가능성이 높다', '대출받아 투자', '친구도 데려간다'], answer: 1,
+    explain: '위험 없는 고수익은 없다. 무위험 고수익 제안은 대부분 사기다.' },
+  { chip: '시간의 힘', q: '이자가 다시 이자를 낳으며 눈덩이처럼 불어나는 효과는?',
+    opts: ['단리', '복리', '인플레이션', '레버리지'], answer: 1,
+    explain: '복리는 시간이 길수록 강해진다.' },
+  { chip: '거시 경제', q: '기준금리가 오르면 일반적으로 나타나는 현상은?',
+    opts: ['대출 이자 부담이 커진다', '예금 이자가 사라진다', '물가가 반드시 오른다', '주가가 항상 오른다'], answer: 0,
+    explain: '금리가 오르면 빚의 무게가 무거워진다 — 대출 이자 부담 증가.' },
+  { chip: '거시 경제', q: '물가가 올라 돈의 가치가 떨어지는 현상은?',
+    opts: ['디플레이션', '인플레이션', '스프레드', '리밸런싱'], answer: 1,
+    explain: '현금만 쥐고 있어도 가치가 줄어들 수 있다 — 인플레이션.' },
+  { chip: '매매 습관', q: '"남들 다 벌었대"라는 소문에 뒤늦게 뛰어드는 심리는?',
+    opts: ['FOMO', '손절', '분산', '복리'], answer: 0,
+    explain: '조급함이 개미의 가장 큰 적이다 — FOMO.' },
+];
+function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// 옆자리 동료의 제안 대사 (프론트 전용 플레이버 — 서버 prompt와 별개로, 선택은 event.choices를 그대로 사용)
+const STUDY_OFFER_LINES = [
+  '아직 안 갔네? 나도 방금 끝났어.',
+  '있잖아… 나 요즘 <span class="em">투자 스터디</span> 하거든.<br>오늘 배운 거 하나만 같이 볼래?',
+  '오래 안 걸려. 딱 하나만.<br>아무거나 찍어서 사는 것보단 낫잖아. 어때?',
+];
+
+/**
+ * 디자인 원본: public/game/Invest Study Event.html (옆자리 동료 제안 → 참여/거절 → 흰 스터디 창)
+ * onResolve/onDismiss: 실제 게임에서는 생략하면 스토어의 resolveEvent/dismissEvent를 그대로 쓴다.
+ * IntroPage의 [개발용] 미리보기처럼 세션 없이 렌더링할 때만 목업 함수로 대체해서 넘긴다.
+ */
+export function InvestStudyEvent({ event, onResolve, onDismiss }) {
+  const storeResolveEvent = useGameStore((s) => s.resolveEvent);
+  const storeDismissEvent = useGameStore((s) => s.dismissEvent);
+  const resolveEvent = onResolve || storeResolveEvent;
+  const dismissEvent = onDismiss || storeDismissEvent;
+  const eventLogId = event.eventLogId || event.event_log_id;
+  const choices = event.choices || event.detail?.choices || [];
+
+  const [lineIdx, setLineIdx] = useState(0);
+  const [phase, setPhase] = useState('offer'); // 'offer' | 'submitting' | 'study' | 'summary' | 'declined'
+  const [result, setResult] = useState(null);
+  const [showQuiz] = useState(() => Math.random() < 0.5);
+  const [quiz] = useState(() => pickOne(CONCEPT_QUIZ));
+  const [quizPicked, setQuizPicked] = useState(null);
+
+  const atLastLine = lineIdx === STUDY_OFFER_LINES.length - 1;
+  const { html, done, skip } = useTypewriter(STUDY_OFFER_LINES[lineIdx], phase === 'offer');
+
+  const advanceLine = () => {
+    if (phase !== 'offer') return;
+    if (!done) { skip(); return; }
+    if (!atLastLine) setLineIdx((i) => i + 1);
+  };
+
+  const choose = async (key) => {
+    setPhase('submitting');
+    const r = await resolveEvent(eventLogId, key);
+    setResult(r);
+    setPhase(key === 'decline' ? 'declined' : 'study');
+  };
+
+  const stressDelta = result?.stressDelta;
+  const detail = result?.detail || {};
+  // 퀴즈는 정답을 확인해야, 인사이트는 바로 다음으로 넘어갈 수 있다
+  const canContinue = showQuiz ? quizPicked !== null : true;
+
+  return (
+    <div className="cutscene-overlay">
+      <div className="game-frame study-frame">
+        <div className="title-plate">★ EVENT · 투자 스터디 ★</div>
+        <div className="study-stage" />
+
+        {(phase === 'offer' || phase === 'submitting') && (
+          <div className="narration" onClick={advanceLine}>
+            <div className="nar-head">
+              <div className="nar-portrait">🙂</div>
+              <span className="nar-name">김대리</span>
+              <span className="nar-tag">옆자리 · 동료</span>
+            </div>
+            <div className="nar-body">
+              <span dangerouslySetInnerHTML={{ __html: html }} />
+              {!done && <span className="cursor" />}
+            </div>
+
+            {done && atLastLine && (
+              <div className="nar-choices" onClick={(e) => e.stopPropagation()}>
+                {choices.map((c) => (
+                  <div key={c.key} className="choice">
+                    <span className="num">CHOICE</span>
+                    <span className="text">{c.label}</span>
+                    <button
+                      className="choice-confirm"
+                      disabled={phase === 'submitting'}
+                      onClick={() => choose(c.key)}
+                    >
+                      선택한다 ▶
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {phase === 'declined' && (
+          <div className="narration">
+            <div className="nar-head">
+              <div className="nar-portrait">🙂</div>
+              <span className="nar-name">김대리</span>
+              <span className="nar-tag">옆자리 · 동료</span>
+            </div>
+            <div className="nar-body">
+              에이, 아쉽네. 뭐 오늘은 피곤하겠지.<br />다음엔 꼭 같이 하자. 자료는 남겨둘게.
+            </div>
+            <div className="nar-next" onClick={() => dismissEvent(eventLogId)}>▶ 확인</div>
+          </div>
+        )}
+
+        {phase === 'study' && result && (
+          <div className="study-card-overlay">
+            <div className="study-card">
+              <div className="study-card-bar">
+                <span className="logo">ANT INVEST ACADEMY</span>
+                <span className="sub">{showQuiz ? '오늘의 개념' : '오늘의 인사이트'}</span>
+              </div>
+
+              <div className="study-card-body">
+                {showQuiz ? (
+                  <>
+                    <span className="study-chip">{quiz.chip}</span>
+                    <p className="study-q">{quiz.q}</p>
+                    <div className="study-opts">
+                      {quiz.opts.map((o, i) => (
+                        <button
+                          key={i}
+                          className={
+                            'study-opt' +
+                            (quizPicked === null ? '' : i === quiz.answer ? ' correct' : ' locked')
+                          }
+                          disabled={quizPicked !== null}
+                          onClick={() => setQuizPicked(i)}
+                        >
+                          <span className="key">{['A', 'B', 'C', 'D'][i]}</span>{o}
+                        </button>
+                      ))}
+                    </div>
+                    {quizPicked !== null && <p className="study-explain">→ {quiz.explain}</p>}
+                  </>
+                ) : (
+                  <>
+                    <span className="study-chip">오늘의 인사이트</span>
+                    <p className="study-text">{detail.insight}</p>
+                    {detail.directionHint && (
+                      <p className="study-hint">🧭 {detail.directionHint.text}</p>
+                    )}
+                    {detail.omenHint && (
+                      <p className="study-hint omen">🔮 {detail.omenHint.text}</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="study-card-foot">
+                <span className="spacer" />
+                <button
+                  className="choice-confirm"
+                  disabled={!canContinue}
+                  onClick={() => setPhase('summary')}
+                >
+                  다음 ▶
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {phase === 'summary' && (
+          <div className="narration">
+            <div className="nar-head">
+              <div className="nar-portrait">🙂</div>
+              <span className="nar-name">김대리</span>
+              <span className="nar-tag">옆자리 · 동료</span>
+            </div>
+            <div className="nar-body">
+              오늘도 하나 배웠다. 사무실 불이 꺼지기 전에, 김대리가 씩 웃었다.
+              {!!stressDelta && (
+                <div className="study-stress-badge study-stress-badge--dark">
+                  🧘 스트레스 {stressDelta}
+                </div>
+              )}
+            </div>
+            <div className="nar-next" onClick={() => dismissEvent(eventLogId)}>▶ 확인</div>
+          </div>
+        )}
+
+        <div className="crt" />
+      </div>
+    </div>
+  );
+}
+
+// 결과 카드의 "선택" 표시용 짧은 라벨 (버튼 자체엔 서버가 준 c.label을 그대로 쓴다)
+const TRAVEL_CHOICE_LABEL = { go: '여행을 간다', skip: '가지 않는다' };
+// 서버 choice.label은 "간다 (-1,000,000원, 스트레스 -15)"처럼 괄호 안에 수치가 붙어 온다.
+// 버튼엔 이걸 이름/부제 두 줄로 나눠 보여준다 (숫자는 항상 서버 값 그대로).
+function splitChoiceLabel(label) {
+  const m = /^(.+?)\s*\((.+)\)$/.exec(label);
+  return m ? { name: m[1], hint: m[2] } : { name: label, hint: null };
+}
+
+/**
+ * 디자인 원본: public/game/Travel Event.html (여행 티켓 안내 -> 간다/가지 않는다 -> 결과 영수증)
+ * onResolve/onDismiss: 생략하면 스토어의 resolveEvent/dismissEvent를 그대로 쓴다.
+ * IntroPage [개발용] 미리보기처럼 세션 없이 렌더링할 때만 목업으로 대체해서 넘긴다.
+ */
+export function TravelEvent({ event, onResolve, onDismiss }) {
+  const storeResolveEvent = useGameStore((s) => s.resolveEvent);
+  const storeDismissEvent = useGameStore((s) => s.dismissEvent);
+  const resolveEvent = onResolve || storeResolveEvent;
+  const dismissEvent = onDismiss || storeDismissEvent;
+  const eventLogId = event.eventLogId || event.event_log_id;
+  const choices = event.choices || event.detail?.choices || [];
+  const prompt = event.prompt || event.detail?.prompt || '주말 여행을 떠나볼까?';
+
+  const [phase, setPhase] = useState('offer'); // 'offer' | 'submitting' | 'result'
+  const [result, setResult] = useState(null);
+
+  const { html, done, skip } = useTypewriter(prompt, phase === 'offer' || phase === 'submitting');
+
+  const choose = async (key) => {
+    setPhase('submitting');
+    const r = await resolveEvent(eventLogId, key);
+    setResult({ ...r, chosen: key });
+    setPhase('result');
+  };
+
+  // 'go'인데 cashDelta가 없다 == 서버가 "여행 갈 돈이 없다" 분기를 탔다는 뜻
+  const couldNotAfford = result?.chosen === 'go' && result.cashDelta === undefined;
+  const resultText = result && (
+    result.chosen === 'skip'
+      ? '돈은 아꼈지만, 답답한 하루가 계속됩니다.'
+      : couldNotAfford
+        ? (result.detail?.message || '여행 갈 돈이 없다...')
+        : '잠시 일상에서 벗어나 숨을 돌렸습니다. 스트레스가 낮아졌습니다.'
+  );
+
+  return (
+    <div className="cutscene-overlay">
+      <div className="game-frame travel-frame">
+        <div className="title-plate">✈ EVENT · 여행 ✈</div>
+        <div className="travel-stage" />
+
+        {(phase === 'offer' || phase === 'submitting') && (
+          <>
+            <div className="travel-ticket">
+              <div className="travel-ticket-rings">✈</div>
+              <div className="travel-ticket-ttl">여행 이벤트</div>
+              <div className="travel-ticket-eng">TIME FOR A TRIP</div>
+              <div className="travel-ticket-divider" />
+              <div className="travel-ticket-body">
+                <div className="row"><span className="bullet">✈</span><span>반복되는 투자와 빚 독촉 속에서 잠시 <span className="sky">떠날 기회</span>가 생겼습니다.</span></div>
+                <div className="row"><span className="bullet">✈</span><span>여행을 가면 비용이 들지만 <span className="green">스트레스가 감소</span>합니다.</span></div>
+                <div className="row"><span className="bullet">✈</span><span>가지 않으면 <span className="em">돈은 아낄 수 있습니다.</span></span></div>
+              </div>
+            </div>
+
+            {done && (
+              <div className="choice-strip pair">
+                {choices.map((c, i) => {
+                  const { name, hint } = splitChoiceLabel(c.label);
+                  return (
+                    <button
+                      key={c.key}
+                      className={'choice-btn' + (c.key === 'go' ? ' gold' : '')}
+                      disabled={phase === 'submitting'}
+                      onClick={() => choose(c.key)}
+                    >
+                      <span className="num">［ {i + 1} ］</span>
+                      <span className="text">{name}</span>
+                      {hint && <span className="sub">{hint}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="narration" onClick={() => { if (!done) skip(); }}>
+              <div className="nar-head">
+                <div className="nar-portrait">✈</div>
+                <span className="nar-name">시스템</span>
+                <span className="nar-tag">EVENT</span>
+              </div>
+              <div className="nar-body">
+                <span dangerouslySetInnerHTML={{ __html: html }} />
+                {!done && <span className="cursor" />}
+              </div>
+            </div>
+          </>
+        )}
+
+        {phase === 'result' && result && (
+          <div className="surge-result-card">
+            <div className="surge-rc-head">
+              <div className="surge-rc-icon">✈</div>
+              <div className="surge-rc-title">여행 결과</div>
+              <div className="surge-rc-sub">TRAVEL · 여행 이벤트 정산</div>
+            </div>
+            <div className="surge-rc-row">
+              <span className="k">선택</span>
+              <span className="v gold">{TRAVEL_CHOICE_LABEL[result.chosen]}</span>
+            </div>
+            <div className="surge-rc-row">
+              <span className="k">여행비</span>
+              <span className="v">{result.cashDelta ? won(result.cashDelta) : '0원'}</span>
+            </div>
+            <div className="surge-rc-row">
+              <span className="k">스트레스 변화</span>
+              <span className={'v ' + (result.stressDelta < 0 ? 'down' : result.stressDelta > 0 ? 'up' : '')}>
+                {result.stressDelta > 0 ? '+' : ''}{result.stressDelta ?? 0}
+              </span>
+            </div>
+            <div className="surge-rc-row result">
+              <span className="k">결과</span>
+              <span className="v">{resultText}</span>
+            </div>
+            <button className="surge-confirm-btn" onClick={() => dismissEvent(eventLogId)}>
+              <span className="arr">▶</span>확인
+            </button>
+          </div>
+        )}
 
         <div className="crt" />
       </div>

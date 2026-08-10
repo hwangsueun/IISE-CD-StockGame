@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import FaintOverlay from '../components/FaintOverlay';
+import { InvestStudyEvent, TravelEvent } from '../components/EventPopup';
+import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 import CatchWaxon from '../components/minigames/CatchWaxon';
 import AvoidProfessor from '../components/minigames/AvoidProfessor';
 
@@ -16,6 +18,81 @@ const DEV_MOCK_FAINT_EVENT = {
   kind: 'immediate',
   detail: { message: '극심한 스트레스로 기절했다.', skipDays: 4, hospitalCost: 2_000_000, cashPaid: 2_000_000, debtAdded: 0 },
 };
+
+// [개발용 임시] 백엔드 없이 투자 스터디 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정
+const DEV_MOCK_STUDY_EVENT = {
+  eventLogId: 'dev-invest-study',
+  eventType: 'invest_study',
+  choices: [
+    { key: 'join', label: '참여한다' },
+    { key: 'decline', label: '거절한다 (기회 소멸)' },
+  ],
+};
+// eventEngine.js의 실제 invest_study 로직(§B)과 동일한 수치로 흉내낸 목업 resolveEvent
+function devResolveStudy(eventLogId, choice) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (choice === 'decline') { resolve({ eventLogId, chosen: 'decline' }); return; }
+      const rare = Math.random() < 0.1;
+      const stressDelta = rare ? -15 : Math.round(-12 + Math.random() * 6);
+      resolve({
+        eventLogId, chosen: 'join', stressDelta,
+        detail: {
+          insight: '분산 투자는 개별 종목 리스크를 줄여준다.',
+          directionHint: Math.random() < 0.4
+            ? { scope: 'market', text: '다음 주 시장 변동성이 커질 조짐이 있다.' }
+            : null,
+          omenHint: rare ? { scope: 'event', text: '조만간 큰 지출이 생길 것 같은 예감이 든다.' } : null,
+          rare,
+        },
+      });
+    }, 250);
+  });
+}
+
+// [개발용 임시] 백엔드 없이 급등주 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정
+// surgeStockService.getActive()가 실제로 돌려주는 필드 그대로 흉내낸다
+const DEV_MOCK_SURGE_ACTIVE = {
+  surgeStockId: 'dev-surge',
+  displayName: '텐배거바이오',
+  buyPrice: 1000 * (1 + Math.floor(Math.random() * 50)),
+  investedAmount: 0,
+  canBuy: true,
+};
+function devBuySurge(surgeStockId, amount) {
+  return new Promise((resolve) => setTimeout(() => resolve({ surgeStockId, investedAmount: amount }), 250));
+}
+// surgeStockService.resolvePending()이 다음 턴에 돌려주는 정산 결과 한 건을 흉내낸다
+const DEV_MOCK_SURGE_RESULT = {
+  displayName: '텐배거바이오', invested: 300000, outcome: 'plunge', returnRate: -0.22, pnl: -66000, stressDelta: 20,
+};
+
+// [개발용 임시] 백엔드 없이 여행 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정
+// eventEngine.js travel 정의(§C.constants.TRAVEL: cost 1,000,000 / go -15 / skip +3)와 동일한 라벨
+const DEV_MOCK_TRAVEL_EVENT = {
+  eventLogId: 'dev-travel',
+  eventType: 'travel',
+  prompt: '주말 여행을 떠나볼까?',
+  choices: [
+    { key: 'go', label: '간다 (-1,000,000원, 스트레스 -15)' },
+    { key: 'skip', label: '안 간다' },
+  ],
+};
+// eventEngine.js travel.choices[].effect()를 그대로 흉내낸 목업 resolveEvent
+// (현금 부족 분기까지 재현하려면 DEV_TRAVEL_CASH를 1,000,000 미만으로 낮춰서 테스트)
+const DEV_TRAVEL_CASH = 50_000_000;
+function devResolveTravel(eventLogId, choice) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (choice === 'skip') { resolve({ eventLogId, chosen: 'skip', stressDelta: 3 }); return; }
+      if (DEV_TRAVEL_CASH >= 1_000_000) {
+        resolve({ eventLogId, chosen: 'go', cashDelta: -1_000_000, stressDelta: -15 });
+      } else {
+        resolve({ eventLogId, chosen: 'go', stressDelta: 2, detail: { message: '여행 갈 돈이 없다...' } });
+      }
+    }, 250);
+  });
+}
 
 const INITIAL_CASH = 50_000_000;
 
@@ -45,6 +122,10 @@ export default function IntroPage() {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState(null);
   const [devPreviewFaint, setDevPreviewFaint] = useState(false);
+  const [devPreviewStudy, setDevPreviewStudy] = useState(false);
+  const [devPreviewTravel, setDevPreviewTravel] = useState(false);
+  const [devPreviewSurge, setDevPreviewSurge] = useState(false);
+  const [devPreviewSurgeResult, setDevPreviewSurgeResult] = useState(false);
   const [devPreviewGame, setDevPreviewGame] = useState(null); // null | 'waxon' | 'professor'
   const [devGameResult, setDevGameResult] = useState(null);
 
@@ -201,6 +282,61 @@ export default function IntroPage() {
       </button>
       {devPreviewFaint && (
         <FaintOverlay event={DEV_MOCK_FAINT_EVENT} onDismiss={() => setDevPreviewFaint(false)} />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewStudy(true)}
+      >
+        [개발용] 투자 스터디 미리보기
+      </button>
+      {devPreviewStudy && (
+        <InvestStudyEvent
+          event={DEV_MOCK_STUDY_EVENT}
+          onResolve={devResolveStudy}
+          onDismiss={() => setDevPreviewStudy(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewTravel(true)}
+      >
+        [개발용] 여행 이벤트 미리보기
+      </button>
+      {devPreviewTravel && (
+        <TravelEvent
+          event={DEV_MOCK_TRAVEL_EVENT}
+          onResolve={devResolveTravel}
+          onDismiss={() => setDevPreviewTravel(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewSurge(true)}
+      >
+        [개발용] 급등주 이벤트 미리보기
+      </button>
+      {devPreviewSurge && (
+        <SurgeStockPopup
+          activeOverride={DEV_MOCK_SURGE_ACTIVE}
+          onBuy={devBuySurge}
+          onDismiss={() => setDevPreviewSurge(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewSurgeResult(true)}
+      >
+        [개발용] 급등주 결과 미리보기
+      </button>
+      {devPreviewSurgeResult && (
+        <SurgeResultPopup
+          resultOverride={DEV_MOCK_SURGE_RESULT}
+          onDismiss={() => setDevPreviewSurgeResult(false)}
+        />
       )}
       <div style={{ display: 'flex', gap: 8 }}>
         {Object.entries(DEV_MINIGAMES).map(([key, g]) => (
