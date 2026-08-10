@@ -115,7 +115,7 @@ export const useGameStore = create((set, get) => ({
         lastTurnResult: r,
         status: r.status,
         pendingEvents: (r.events || []).filter((e) => e.kind === 'choice'),
-        surgeResults: (r.surgeResults || []).filter((s) => s.invested > 0),
+        surgeResults: (r.surgeResults || []).filter((s) => s.investedAmount > 0),
       });
       if (r.status === 'active' && !r.finished) await get().loadTurn(r.turnNumber);
     } catch (e) {
