@@ -83,8 +83,8 @@ const httpApi = {
 
   // 급등주 (미팅5 §4)
   getActiveSurge: (sid) => get(`/api/game/${sid}/surge/active`),
-  buySurge: (sid, surgeStockId, amount) =>
-    post(`/api/game/${sid}/surge/buy`, { surgeStockId, amount }),
+  buySurge: (sid, surgeStockId, quantity) =>
+    post(`/api/game/${sid}/surge/buy`, { surgeStockId, quantity }),
 
   // 실현손익 (기간별/자산군별) + 게임 로그
   getRealizedPnl: (sid, period = 'all', assetType) => {

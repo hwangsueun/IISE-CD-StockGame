@@ -78,7 +78,7 @@ export function SurgeStockPopup({ activeOverride, onBuy, onDismiss } = {}) {
   const buy = async () => {
     try {
       if (onBuy) await onBuy(active.surgeStockId, estAmount);
-      else await api.buySurge(sessionId, active.surgeStockId, estAmount);
+      else await api.buySurge(sessionId, active.surgeStockId, qty);
       setBought({ qty, amount: estAmount });
       setPhase('bought');
     } catch (e) {
