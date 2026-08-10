@@ -39,7 +39,7 @@ async function getTurnData(sessionId, turnNumber) {
 
   const [prices, assets, newsResult, totalAsset] = await Promise.all([
     pricingService.getPricesAt(iso),
-    // 코인은 세션 유니버스 20개로 제한한다 (migration 005). 주식/채권은 asset_type <> 'coin'로
+    // 코인은 세션 유니버스 10종으로 제한한다 (migration 005). 주식/채권은 asset_type <> 'coin'로
     // 그대로 통과한다(전역, is_active만 적용) — pricingService.listAssets와 동일한 필터 형태.
     query(
       `SELECT a.asset_id, a.asset_type, a.masked_name AS name, a.sector

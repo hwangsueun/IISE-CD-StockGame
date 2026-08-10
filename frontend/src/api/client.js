@@ -101,8 +101,8 @@ const httpApi = {
   deleteMemo: (sid, memoId) => del(`/api/game/${sid}/memo/${memoId}`),
 
   // 자산 / 시장
-  // sessionId는 코인 목록에 필수다. 코인은 세션마다 시총 규모별로 랜덤 층화추출한 20종만
-  // 거래 대상이라(session_coin_universe, migration 005), 서버가 세션을 모르면 어떤 20개를
+  // sessionId는 코인 목록에 필수다. 코인은 세션마다 시총 규모별로 랜덤 층화추출한 10종만
+  // 거래 대상이라(session_coin_universe, migration 005), 서버가 세션을 모르면 어떤 10종을
   // 보여줄지 결정할 수 없어 코인을 빈 배열로 돌려준다. 주식/채권은 전역이라 영향 없다.
   listAssets: ({ type, sort, date, sessionId } = {}) => {
     const q = new URLSearchParams();
@@ -114,8 +114,10 @@ const httpApi = {
   },
   getAssetDetail: (assetId, date) =>
     get(`/api/assets/${assetId}${date ? `?date=${date}` : ''}`),
-  getPriceSeries: (assetId, from, to) =>
-    get(`/api/assets/${assetId}/prices?from=${from}&to=${to}`),
+  // unit(day|week|month, 기본 day) = 증권사 일·주·월봉과 같은 봉 단위.
+  // day는 종가 시계열(라인), week/month는 서버가 달력 경계로 묶은 OHLC → PriceChart가 캔들로 그린다.
+  getPriceSeries: (assetId, from, to, unit = 'day') =>
+    get(`/api/assets/${assetId}/prices?from=${from}&to=${to}&unit=${unit}`),
   getMacro: (date) => get(`/api/macro/${date}`),
 
   // 뉴스 / 종토방
@@ -148,7 +150,7 @@ const mockAdapter = {
   resolveEvent: (sid, eventLogId, choice) => mockApi.resolveEvent(sid, { eventLogId, choice }),
   listAssets: ({ type, sort } = {}) => mockApi.getAssets({ type, sort }),
   getAssetDetail: (assetId) => mockApi.getAsset(assetId),
-  getPriceSeries: (assetId, from, to) => mockApi.getAssetPrices(assetId, { from, to }),
+  getPriceSeries: (assetId, from, to) => mockApi.getAssetPrices(assetId, { from, to }), // mock은 종가만 → 항상 라인
   getNews: (date) => mockApi.getNews(date),
   getAssetNews: (date, assetId) => mockApi.getNewsByAsset(date, assetId),
   getCommunityPosts: (assetId) => mockApi.getCommunity(assetId),

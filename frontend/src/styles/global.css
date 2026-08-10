@@ -577,6 +577,7 @@ button { cursor: pointer; font: inherit; }
   box-shadow: inset 0 -3px 0 #b8862a, 2px 2px 0 #000;
 }
 .filter-bar .spacer { flex: 1; }
+.filter-bar .divider { width: 2px; height: 18px; background: #5a3624; margin: 0 4px; }
 .filter-bar .btn-buy { background: #7f1d1d; color: var(--px-ink); box-shadow: inset 0 0 0 1px #ef4444; }
 .filter-bar .btn-buy:hover { background: #b91c1c; }
 .filter-bar .btn-sell { background: #1e3a8a; color: var(--px-ink); box-shadow: inset 0 0 0 1px #3b82f6; }

@@ -23,7 +23,8 @@ services:
       DATABASE_URL: postgresql://admin:password@db:5432/antsurvival
       PORT: 3001
       CORS_ORIGIN: http://localhost:5173
-      GAME_START_RANGE: 2013-01-02..2023-12-31
+      # 게임 시작일이 뽑히는 구간. 2013년치는 룩백 버퍼라 시작 후보에서 제외한다 (§9-1).
+      GAME_START_RANGE: 2014-01-02..2023-12-31
     volumes:
       - ./server/seeds:/app/seeds
       - ./data:/app/data
