@@ -1,238 +1,197 @@
-// 수익률 대시보드 (포트폴리오 §10)
-// 구성: ① KPI 타일(단일 헤드라인 수치) ② 수익률 추이 라인차트(단일 측정치·0% 기준선·호버)
-//       ③ 자산군 성과 ④ 종목별 수익률 랭킹(0 기준 발산 막대)
-// 색 규칙: 손익은 발산형(한국 증시 관례 — 이익=빨강 / 손실=파랑, 중립=회색).
-//          자산군은 기존 게임 팔레트를 그대로 쓰되 색에만 의존하지 않도록 항상 라벨을 붙인다.
-//
-// ③ 자산군 성과의 손익 수치는 보유 종목 스냅샷이 아니라 백엔드 getPortfolioDashboard(§valuationService)
-// 의 "전체 기간 순수 손익"(매수·매도 자금 이동을 제외한 값, 이미 매도한 종목의 실현손익도 포함)을 쓴다 —
-// 보유 중인 것만 보던 미실현 손익 합보다 그 자산군에서 실제로 얼마를 벌었는지를 더 정확히 보여준다.
-import { useEffect, useState } from 'react';
+// 포트폴리오 대시보드: 자산군별 구성 파이 + 전체 플레이 기간의 일/주/월 단위 성과
+// 2026-08-13: 팀원 브랜치(agent/backend-portfolio-surge) 디자인으로 전면 교체
+// (구 버전: 라인차트+KPI+종목별 랭킹 — git log로 확인 가능)
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { won, pct, signed, changeClass } from '../utils/format';
 
-const TYPE_LABEL = { cash: '현금', stock: '주식', bond: '채권', coin: '코인' };
-const TYPE_COLOR = { cash: '#8a8f98', stock: '#e2504c', bond: '#3b6fd4', coin: '#e8a33d' };
-const GAIN = '#e2504c';
-const LOSS = '#3b6fd4';
-const FLAT = '#8a8f98';
-const pnlColor = (v) => (v > 0 ? GAIN : v < 0 ? LOSS : FLAT);
+const UNIT_TABS = [
+  { key: 'day', label: '일', turns: '1턴' },
+  { key: 'week', label: '주', turns: '5턴' },
+  { key: 'month', label: '월', turns: '20턴' },
+  { key: 'all', label: '전체', turns: '1턴부터' },
+];
+const TYPE_LABEL = { all: '전체', stock: '주식', bond: '채권', coin: '코인' };
+const BASE_COLORS = {
+  cash: '#9a8d7d', stock: '#e2504c', bond: '#4f7ed8', coin: '#e8a33d',
+};
+const HOLDING_COLORS = ['#e2504c', '#4f7ed8', '#e8a33d', '#7bb36a', '#b56bd4', '#d97945', '#55a9a5', '#d86d91'];
 
-/** 수익률 추이 라인차트 — 단일 시리즈(축 1개), 0% 기준선, 크로스헤어 + 툴팁 */
-function ReturnTrendChart({ points, width = 620, height = 190 }) {
-  const [hover, setHover] = useState(null);
-  if (!points || points.length < 2) {
-    return <p className="dash-empty">아직 추이를 그릴 기록이 없다. 하루가 지나면 쌓인다.</p>;
-  }
+const signedWon = (value) => {
+  if (value === null || value === undefined) return '-';
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? '+' : ''}${rounded.toLocaleString('ko-KR')}원`;
+};
 
-  const rates = points.map((p) => p.returnRate);
-  const rawMin = Math.min(...rates, 0);
-  const rawMax = Math.max(...rates, 0);
-  const padRange = (rawMax - rawMin) * 0.15 || 0.01;
-  const min = rawMin - padRange;
-  const max = rawMax + padRange;
-  const span = max - min || 1;
+function chartRows(allocation, assetType) {
+  if (allocation.length <= 8) return allocation;
+  const visible = allocation.slice(0, 7);
+  const rest = allocation.slice(7).reduce((sum, row) => sum + row.value, 0);
+  const total = visible.reduce((sum, row) => sum + row.value, rest);
+  return [
+    ...visible.map((row) => ({ ...row, weight: total ? row.value / total : 0 })),
+    { key: `${assetType}-other`, label: `기타 ${allocation.length - 7}종`, value: rest, weight: total ? rest / total : 0 },
+  ];
+}
 
-  const padL = 46, padR = 12, padT = 12, padB = 20;
-  const x = (i) => padL + (i / (points.length - 1)) * (width - padL - padR);
-  const y = (v) => padT + (1 - (v - min) / span) * (height - padT - padB);
-
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.returnRate).toFixed(1)}`).join('');
-  const area = `${line}L${x(points.length - 1).toFixed(1)},${y(min).toFixed(1)}L${x(0).toFixed(1)},${y(min).toFixed(1)}Z`;
-
-  const last = points[points.length - 1];
-  const stroke = pnlColor(last.returnRate);
-  const zeroY = y(0);
-
-  // 마우스 x -> 가장 가까운 데이터 포인트
-  const onMove = (e) => {
-    const box = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - box.left) / box.width) * width;
-    const ratio = (px - padL) / (width - padL - padR);
-    const i = Math.max(0, Math.min(points.length - 1, Math.round(ratio * (points.length - 1))));
-    setHover(i);
-  };
-
-  const hp = hover === null ? null : points[hover];
+function DonutChart({ allocation, assetType, currentValue }) {
+  const rows = useMemo(() => chartRows(allocation, assetType), [allocation, assetType]);
+  let offset = 0;
 
   return (
-    <div className="dash-chart-wrap">
-      <svg
-        className="dash-chart" viewBox={`0 0 ${width} ${height}`} width="100%"
-        onMouseMove={onMove} onMouseLeave={() => setHover(null)} role="img"
-        aria-label={`수익률 추이: ${points.length}일, 현재 ${signed(last.returnRate)}`}
-      >
-        {/* 0% 기준선(본전) — 손익 발산의 중립 기준 */}
-        <line x1={padL} x2={width - padR} y1={zeroY} y2={zeroY}
-              stroke="#5a3624" strokeWidth="1" strokeDasharray="3 3" />
-        <text x={4} y={zeroY + 3} className="dash-axis">0%</text>
-        <text x={4} y={y(max) + 9} className="dash-axis">{signed(max, 1)}</text>
-        <text x={4} y={y(min) - 2} className="dash-axis">{signed(min, 1)}</text>
-
-        <path d={area} fill={stroke} opacity="0.13" />
-        <path d={line} fill="none" stroke={stroke} strokeWidth="2"
-              strokeLinejoin="round" strokeLinecap="round" />
-
-        {/* 마지막 지점만 선택적 직접 라벨 (모든 점에 숫자를 찍지 않는다) */}
-        <circle cx={x(points.length - 1)} cy={y(last.returnRate)} r="4" fill={stroke}
-                stroke="#0c0704" strokeWidth="2" />
-
-        {hp && (
-          <g>
-            <line x1={x(hover)} x2={x(hover)} y1={padT} y2={height - padB}
-                  stroke="#c9a888" strokeWidth="1" strokeDasharray="2 2" />
-            <circle cx={x(hover)} cy={y(hp.returnRate)} r="5" fill={stroke}
-                    stroke="#0c0704" strokeWidth="2" />
-          </g>
-        )}
-        <text x={padL} y={height - 6} className="dash-axis">{points[0].turn}일</text>
-        <text x={width - padR} y={height - 6} className="dash-axis" textAnchor="end">{last.turn}일</text>
-      </svg>
-
-      <div className="dash-tip" aria-live="polite">
-        {hp ? (
-          <>
-            <b>{hp.turn}일차</b>
-            <span>총자산 {won(hp.totalAsset)}</span>
-            <span className={changeClass(hp.returnRate)}>수익률 {signed(hp.returnRate)}</span>
-          </>
-        ) : (
-          <span className="muted">그래프에 마우스를 올리면 그날 수치를 볼 수 있다.</span>
-        )}
+    <div className="dash-pie-grid">
+      <div className="dash-donut" role="img" aria-label={`${TYPE_LABEL[assetType]} 자산 구성 파이차트`}>
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle className="dash-donut-track" cx="60" cy="60" r="46" pathLength="100" />
+          {rows.map((row, index) => {
+            const size = row.weight * 100;
+            const start = offset;
+            offset += size;
+            return (
+              <circle
+                key={row.key}
+                className="dash-donut-segment"
+                cx="60" cy="60" r="46" pathLength="100"
+                stroke={BASE_COLORS[row.key] || HOLDING_COLORS[index % HOLDING_COLORS.length]}
+                strokeDasharray={`${size} ${100 - size}`}
+                strokeDashoffset={-start}
+              >
+                <title>{row.label} {pct(row.weight, 1)} · {won(row.value)}</title>
+              </circle>
+            );
+          })}
+        </svg>
+        <div className="dash-donut-center">
+          <span>{TYPE_LABEL[assetType]} 평가액</span>
+          <b>{won(currentValue)}</b>
+        </div>
       </div>
+
+      <ul className="dash-pie-legend">
+        {rows.map((row, index) => (
+          <li key={row.key}>
+            <i style={{ background: BASE_COLORS[row.key] || HOLDING_COLORS[index % HOLDING_COLORS.length] }} />
+            <span className="name" title={row.label}>{row.label}</span>
+            <b>{pct(row.weight, 1)}</b>
+            <span>{won(row.value)}</span>
+          </li>
+        ))}
+        {rows.length === 0 && <li className="empty">현재 보유한 {TYPE_LABEL[assetType]} 자산이 없다.</li>}
+      </ul>
     </div>
   );
 }
 
-/** 종목별 수익률 랭킹 — 0 기준 좌(손실)/우(이익) 발산 막대 + 직접 라벨 */
-function HoldingRanking({ holdings }) {
-  if (!holdings.length) return <p className="dash-empty">보유 중인 종목이 없다.</p>;
-  const sorted = [...holdings].sort((a, b) => b.returnRate - a.returnRate);
-  const maxAbs = Math.max(...sorted.map((h) => Math.abs(h.returnRate)), 0.01);
-
+function PeriodTable({ periods, unit }) {
+  if (!periods.length) {
+    return <p className="dash-empty">아직 완성된 성과 구간이 없다. 다음 턴부터 일 단위 기록이 생긴다.</p>;
+  }
   return (
-    <ul className="dash-rank">
-      {sorted.map((h) => {
-        const w = (Math.abs(h.returnRate) / maxAbs) * 50; // 중앙 기준 편측 최대 50%
-        const gain = h.returnRate >= 0;
-        return (
-          <li key={h.assetId}>
-            <span className="nm" title={h.name}>{h.name}</span>
-            <span className="bar">
-              <i className="zero" />
-              <i
-                className={`fill ${gain ? 'gain' : 'loss'}`}
-                style={{ width: `${w}%`, [gain ? 'left' : 'right']: '50%' }}
-              />
-            </span>
-            <span className={`val ${changeClass(h.returnRate)}`}>{signed(h.returnRate)}</span>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="dash-period-scroll">
+      <table className="data-table dash-period-table">
+        <thead>
+          <tr><th>구간</th><th>턴 범위</th><th>마감 평가액</th><th>순수 손익</th><th>수익률</th></tr>
+        </thead>
+        <tbody>
+          {periods.map((period) => (
+            <tr key={`${unit}-${period.index}-${period.fromTurn}`}>
+              <td>{period.label}</td>
+              <td>{period.fromTurn} → {period.toTurn}턴</td>
+              <td>{won(period.endValue)}</td>
+              <td className={changeClass(period.netAmount)}>{signedWon(period.netAmount)}</td>
+              <td className={changeClass(period.returnRate)}>{signed(period.returnRate)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-// getPortfolioDashboard가 지원하는 자산군만 조회한다 (cash는 대시보드 API 대상이 아님 — 아래에서 별도 처리).
-const DASHBOARD_TYPES = ['stock', 'bond', 'coin'];
-
-export default function ReturnsDashboard({ sessionId, pf }) {
-  const [history, setHistory] = useState(null);
-  const [pnl, setPnl] = useState(null);
-  // 자산군별 "전체 기간 순수 손익" — getPortfolioDashboard(unit='all')로 매수·매도 자금 이동을
-  // 제외하고 계산한 값. 보유 중인 것만 잡히는 미실현 손익과 달리 이미 매도한 종목분도 반영된다.
-  const [periodByType, setPeriodByType] = useState({});
+export default function ReturnsDashboard({ sessionId, assetType }) {
+  const [unit, setUnit] = useState('day');
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getPortfolioHistory(sessionId).then(setHistory).catch(console.error);
-    api.getRealizedPnl(sessionId, 'all').then(setPnl).catch(console.error);
-
     let active = true;
-    setPeriodByType({});
-    Promise.all(
-      DASHBOARD_TYPES.map((t) =>
-        api.getPortfolioDashboard(sessionId, 'all', t)
-          .then((res) => [t, res.summary])
-          .catch((err) => {
-            console.error(err);
-            return [t, null];
-          })
-      )
-    ).then((entries) => {
-      if (active) setPeriodByType(Object.fromEntries(entries));
-    });
+    setLoading(true);
+    setDashboard(null);
+    setError('');
+    api.getPortfolioDashboard(sessionId, unit, assetType)
+      .then((result) => { if (active) setDashboard(result); })
+      .catch((err) => { if (active) setError(err.message || '대시보드를 불러오지 못했다.'); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [sessionId]);
+  }, [sessionId, unit, assetType]);
 
-  const initial = history?.initialCapital ?? 0;
-  const totalReturn = initial > 0 ? (pf.totalAsset - initial) / initial : 0;
-
-  // 자산군별 평가액 (보유 종목 집계) — 손익은 아래에서 periodByType으로 대체한다.
-  const byType = {};
-  for (const h of pf.holdings) {
-    byType[h.assetType] = byType[h.assetType] || { value: 0, count: 0 };
-    byType[h.assetType].value += h.value;
-    byType[h.assetType].count += 1;
-  }
+  const summary = dashboard?.summary;
+  const unitMeta = UNIT_TABS.find((item) => item.key === unit);
 
   return (
     <div className="dash">
-      {/* ① KPI 타일 — 차트가 아니라 단일 헤드라인 수치 */}
-      <div className="dash-kpis">
-        <div className="dash-kpi hero">
-          <span className="k">총 수익률</span>
-          <b className={`v ${changeClass(totalReturn)}`}>{signed(totalReturn)}</b>
-          <span className="sub">초기자본 {won(initial)} 대비</span>
-        </div>
-        <div className="dash-kpi">
-          <span className="k">평가손익</span>
-          <b className={`v ${changeClass(pf.unrealizedPnl)}`}>{won(pf.unrealizedPnl)}</b>
-          <span className="sub">보유 중 미실현</span>
-        </div>
-        <div className="dash-kpi">
-          <span className="k">실현손익</span>
-          <b className={`v ${changeClass(pnl?.totalPnl ?? 0)}`}>{pnl ? won(pnl.totalPnl) : '-'}</b>
-          <span className="sub">누적 {pnl?.tradeCount ?? 0}회 거래</span>
-        </div>
-        <div className="dash-kpi">
-          <span className="k">순자산</span>
-          <b className="v">{won(pf.netAsset)}</b>
-          <span className="sub">빚 {won(pf.debt)} 차감</span>
-        </div>
-      </div>
-
-      {/* ② 수익률 추이 */}
-      <section className="dash-sec">
-        <h4 className="dash-h">수익률 추이 <small>초기자본 대비 · 0%가 본전</small></h4>
-        {history ? <ReturnTrendChart points={history.points} /> : <p className="dash-empty">불러오는 중…</p>}
+      <section className="dash-pie-card">
+        <h4 className="dash-h">{TYPE_LABEL[assetType]} 포트폴리오 구성 <small>현재 평가액 기준</small></h4>
+        {dashboard ? (
+          <DonutChart
+            allocation={dashboard.allocation}
+            assetType={assetType}
+            currentValue={dashboard.currentValue}
+          />
+        ) : !loading && error ? (
+          <p className="dash-error">{error}</p>
+        ) : <p className="dash-empty">구성을 불러오는 중…</p>}
       </section>
 
-      {/* ③ 자산군 성과 */}
-      <section className="dash-sec">
-        <h4 className="dash-h">자산군 성과 <small>전체 기간 순수 손익 · 매수·매도 자금 이동 제외</small></h4>
-        <ul className="dash-types">
-          {['stock', 'bond', 'coin', 'cash'].map((t) => {
-            const w = pf.weights[t] ?? 0;
-            const d = byType[t];
-            const period = periodByType[t]; // undefined=로딩 전, null=조회 실패, 객체=정상
-            return (
-              <li key={t}>
-                <span className="lg"><i style={{ background: TYPE_COLOR[t] }} />{TYPE_LABEL[t]}</span>
-                <span className="wt">{pct(w, 1)}</span>
-                <span className="amt">{t === 'cash' ? won(pf.cash) : won(d?.value ?? 0)}</span>
-                <span className={`pl ${period ? changeClass(period.netAmount) : ''}`}>
-                  {t === 'cash' ? '—' : period ? won(period.netAmount) : period === null ? '—' : '…'}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <section className="dash-performance">
+        <div className="dash-unit-head">
+          <div>
+            <h4 className="dash-h">성과 집계</h4>
+            <p>최근 기간 필터가 아니라 n턴 전체를 선택한 단위로 나눈 결과다.</p>
+          </div>
+          <div className="dash-unit-tabs" role="tablist" aria-label="성과 집계 단위">
+            {UNIT_TABS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={unit === item.key}
+                className={unit === item.key ? 'active' : ''}
+                onClick={() => setUnit(item.key)}
+              >
+                {item.label}<small>{item.turns}</small>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* ④ 종목별 수익률 랭킹 */}
-      <section className="dash-sec">
-        <h4 className="dash-h">종목별 수익률 <small>이익 ▶ 빨강 · 손실 ◀ 파랑</small></h4>
-        <HoldingRanking holdings={pf.holdings} />
+        {summary && (
+          <div className="dash-kpis">
+            <div className="dash-kpi">
+              <span className="k">현재 평가액</span>
+              <b className="v">{won(dashboard.currentValue)}</b>
+              <span className="sub">현재 {dashboard.currentTurn}턴</span>
+            </div>
+            <div className="dash-kpi hero">
+              <span className="k">전체 순수 손익</span>
+              <b className={`v ${changeClass(summary.netAmount)}`}>{signedWon(summary.netAmount)}</b>
+              <span className="sub">매수·매도 자금 이동 제외</span>
+            </div>
+            <div className="dash-kpi">
+              <span className="k">전체 수익률</span>
+              <b className={`v ${changeClass(summary.returnRate)}`}>{signed(summary.returnRate)}</b>
+              <span className="sub">1턴 → {dashboard.currentTurn}턴</span>
+            </div>
+          </div>
+        )}
+
+        <div className="dash-period-head">
+          <h4>{unitMeta?.label} 단위 구간</h4>
+          <span>{unit === 'all' ? '게임 시작부터 현재 턴까지' : `${unitMeta?.turns} 단위 · 마지막은 현재 턴까지`}</span>
+        </div>
+        {loading && <p className="dash-empty">성과를 계산하는 중…</p>}
+        {!loading && !error && dashboard && <PeriodTable periods={dashboard.periods} unit={unit} />}
       </section>
     </div>
   );

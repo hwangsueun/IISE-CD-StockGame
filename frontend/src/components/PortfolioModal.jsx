@@ -18,11 +18,19 @@ const PNL_TYPES = [
   { key: '', label: '전체' }, { key: 'stock', label: '주식' },
   { key: 'bond', label: '채권' }, { key: 'coin', label: '코인' },
 ];
+// 대시보드 탭 전용 자산군 사이드바 (2026-08-13: 팀원 브랜치 디자인 채택, ReturnsDashboard.jsx 참고)
+const ASSET_TABS = [
+  { key: 'all', label: '전체', icon: '◆' },
+  { key: 'stock', label: '주식', icon: '▥' },
+  { key: 'bond', label: '채권', icon: '▤' },
+  { key: 'coin', label: '코인', icon: '●' },
+];
 
 export default function PortfolioModal() {
   const { sessionId, openModal } = useGameStore();
   const [pf, setPf] = useState(null);
   const [tab, setTab] = useState('dashboard'); // dashboard | holdings | pnl
+  const [assetType, setAssetType] = useState('all'); // 대시보드 탭 전용 자산군 필터
   const [pnlPeriod, setPnlPeriod] = useState('all');
   const [pnlType, setPnlType] = useState('');
   const [pnl, setPnl] = useState(null);
@@ -72,7 +80,26 @@ export default function PortfolioModal() {
       {/* 보유자산·수익분석은 고정 높이 패널 안에서만 스크롤한다 (5종목까지 스크롤 없이 보임).
           대시보드는 내용이 길어 고정하지 않고 자연 높이로 둔다. */}
       <div className={`pf-panel${tab === 'dashboard' ? ' auto' : ''}`}>
-      {tab === 'dashboard' && <ReturnsDashboard sessionId={sessionId} pf={pf} />}
+      {tab === 'dashboard' && (
+        <div className="pf-dashboard-layout">
+          <aside className="pf-scope-side" aria-label="자산 구분">
+            <span className="pf-scope-title">자산 구분</span>
+            {ASSET_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className={assetType === t.key ? 'active' : ''}
+                onClick={() => setAssetType(t.key)}
+              >
+                <i>{t.icon}</i><span>{t.label}</span>
+              </button>
+            ))}
+          </aside>
+          <div className="pf-dashboard-main">
+            <ReturnsDashboard sessionId={sessionId} assetType={assetType} />
+          </div>
+        </div>
+      )}
 
       {tab === 'holdings' && (
         <table className="data-table">
