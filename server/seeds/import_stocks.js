@@ -39,15 +39,38 @@ function parseSheet(ws) {
     if (!codeRow[i]) continue;
     columns.push({ idx: i, code: toCode(codeRow[i]), name: nameRow?.[i] || '', item: itemRow[i] || '' });
   }
-  const rows = grid.filter((r) => r && r[0] instanceof Date);
+  // 데이터행 = 첫 셀이 엑셀 날짜 serial인 행. cellDates:false로 읽으므로 Date가 아니라 숫자다
+  // (Date도 허용해 두면 호출자가 옵션을 바꿔도 깨지지 않는다).
+  // 메타행의 첫 셀은 '코드'/'코드명' 같은 문자열이라 자연히 걸러진다. 하한 30000은
+  // 1982년 이후 — 시세 데이터 범위(2012~)보다 한참 이르면서 일반 수치와는 겹치지 않는다.
+  const isDateCell = (v) => v instanceof Date || (typeof v === 'number' && v > 30000 && v < 60000);
+  const rows = grid.filter((r) => r && isDateCell(r[0]));
   return { columns, rows };
 }
 
-const isoDate = (d) => d.toISOString().slice(0, 10);
+// 엑셀 날짜 -> 'YYYY-MM-DD'
+//
+// 2026-07-20 버그 수정: 이전 구현은 `d.toISOString().slice(0,10)`이었다.
+// SheetJS가 cellDates로 만드는 Date는 자정이 아니라 **23:59:08**로 나온다(엑셀 serial ->
+// ms 변환의 부동소수 반올림 오차). 여기서 날짜만 잘라내면 **하루 전날**이 된다.
+// 실측: serial 41271(엑셀 표시 2012-12-28 금) -> Date "Thu Dec 27 2012 23:59:08" -> "2012-12-27".
+// 그 결과 주식 시세 전체가 하루씩 당겨져 적재됐다 — 거래일 요일 분포가 월~금이 아니라
+// 일~목으로 나왔고(금요일 0건, 일요일 56,358건), CSV에서 문자열로 들어오는 거시·채권·코인,
+// 그리고 뉴스/종토방의 날짜와 하루씩 어긋났다.
+//
+// 해법: Date를 거치지 않고 엑셀 serial을 직접 변환한다(타임존 무관, 반올림 오차 없음).
+// 엑셀 1900 날짜 체계의 기준점은 1899-12-30이다(1900년을 윤년으로 잘못 세는 버그 보정 포함).
+const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30);
+const isoDate = (v) => {
+  // cellDates:false로 읽으면 숫자(serial), 혹시 Date가 오면 ms에서 역산한다
+  const serial = v instanceof Date ? v.getTime() / 86400000 + 25569 : Number(v);
+  if (!Number.isFinite(serial)) return null;
+  return new Date(EXCEL_EPOCH_UTC + Math.round(serial) * 86400000).toISOString().slice(0, 10);
+};
 
 async function importStocks(xlsxPath) {
   console.log(`[import_stocks] 로드: ${xlsxPath}`);
-  const wb = XLSX.readFile(xlsxPath, { cellDates: true });
+  const wb = XLSX.readFile(xlsxPath, { cellDates: false }); // serial 그대로 받아 isoDate가 변환 (위 주석)
 
   // --- 1) 자산 마스터: 종가 컬럼에서 종목 목록 추출 ---
   const stockNames = new Map(); // code -> name
