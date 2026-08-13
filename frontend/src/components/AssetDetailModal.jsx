@@ -7,16 +7,32 @@ import PriceChart from './PriceChart';
 import CommunityBoard from './CommunityBoard';
 import { won } from '../utils/format';
 
+// 조회 기간 — 증권사 차트의 기간 버튼과 같은 구성. 'all'은 그 종목 상장일부터
+// 현재 턴까지 전 구간이다(assets.listed_from, migration 003).
 const RANGES = [
   { key: 30, label: '1개월' },
   { key: 90, label: '3개월' },
+  { key: 180, label: '6개월' },
   { key: 365, label: '1년' },
+  { key: 1095, label: '3년' },
+  { key: 'all', label: '전체' },
+];
+
+// 봉 단위 — 증권사 HTS/MTS의 일·주·월봉과 같은 구성. 틱/분봉은 1턴=1거래일이라 원천이 없고,
+// 년봉은 240턴(약 1년) 게임에서 봉이 하나뿐이라 뺐다.
+// 일봉은 봉 하나에 종가 하나뿐이라 캔들이 성립하지 않아 라인으로 그려진다
+// (PriceChart가 OHLC 유무로 자동 판별). 주봉부터 캔들.
+const BAR_UNITS = [
+  { key: 'day', label: '일' },
+  { key: 'week', label: '주' },
+  { key: 'month', label: '월' },
 ];
 
 export default function AssetDetailModal({ assetId }) {
   const { turn, openModal } = useGameStore();
   const [tab, setTab] = useState('chart'); // chart | news | community | info
   const [rangeDays, setRangeDays] = useState(90);
+  const [barUnit, setBarUnit] = useState('day');
   const [detail, setDetail] = useState(null);
   const [series, setSeries] = useState([]);
   const [news, setNews] = useState([]);
@@ -31,14 +47,22 @@ export default function AssetDetailModal({ assetId }) {
 
   useEffect(() => {
     if (tab === 'chart') {
-      const from = new Date(turn.date);
-      from.setDate(from.getDate() - rangeDays);
-      api.getPriceSeries(assetId, from.toISOString().slice(0, 10), turn.date)
+      // 'all'이면 상장일부터. detail이 아직 안 왔으면 이 effect는 건너뛴다(아래 가드).
+      let fromStr;
+      if (rangeDays === 'all') {
+        fromStr = detail?.listedFrom?.slice(0, 10);
+        if (!fromStr) return;
+      } else {
+        const from = new Date(turn.date);
+        from.setDate(from.getDate() - rangeDays);
+        fromStr = from.toISOString().slice(0, 10);
+      }
+      api.getPriceSeries(assetId, fromStr, turn.date, barUnit)
         .then(setSeries).catch(console.error);
     } else if (tab === 'news') {
       api.getAssetNews(turn.date, assetId).then(setNews).catch(console.error);
     }
-  }, [tab, rangeDays, assetId, turn.date]);
+  }, [tab, rangeDays, barUnit, assetId, turn.date, detail?.listedFrom]);
 
   if (!detail) return <Modal title="로딩 중..." wide />;
 
@@ -61,6 +85,12 @@ export default function AssetDetailModal({ assetId }) {
             {RANGES.map((r) => (
               <button key={r.key} className={rangeDays === r.key ? 'active' : ''} onClick={() => setRangeDays(r.key)}>
                 {r.label}
+              </button>
+            ))}
+            <span className="divider" />
+            {BAR_UNITS.map((u) => (
+              <button key={u.key} className={barUnit === u.key ? 'active' : ''} onClick={() => setBarUnit(u.key)}>
+                {u.label}
               </button>
             ))}
             {detail.assetType !== 'bond' && (

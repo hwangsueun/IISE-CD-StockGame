@@ -30,11 +30,11 @@ async function getPricesAt(date, client) {
 /**
  * 종목 목록 (마켓 모달). date 기준 시세를 붙이고 sort 기준으로 정렬.
  * sort: change(상승률) | volume(거래량, 주식만) | amount(거래대금 근사) | name
- * sessionId: 코인은 이 세션이 층화추출한 20개 유니버스로 제한한다(migration 005). 주식/채권은
+ * sessionId: 코인은 이 세션이 층화추출한 10종 유니버스로 제한한다(migration 005). 주식/채권은
  *   전역이라 영향받지 않는다(asset_type <> 'coin' 분기로 그대로 통과).
  *
  * sessionId 미전달 시 결정: 코인을 결과에서 아예 제외한다(주식/채권만 반환).
- * 근거 — 게임이 실제 거래 대상으로 노출하는 코인은 세션마다 다른 20개뿐이므로(작업 배경),
+ * 근거 — 게임이 실제 거래 대상으로 노출하는 코인은 세션마다 다른 10종뿐이므로(작업 배경),
  * sessionId 없이 a.is_active만으로 걸러 전체 코인(1,267개, 참조 유니버스)을 그대로 보여주면
  * "마켓 목록에 보이는 것 = 실제로 살 수 있는 것"이라는 전제가 깨지고 대부분 거래 불가능한
  * 코인 목록을 노출하게 된다. sessionId 없는 호출은 세션 스코프가 정의되지 않은 상황(세션
@@ -96,7 +96,7 @@ async function listAssets({ type, sort, date, sessionId }) {
 /** 종목 상세 + 자산 타입별 정보 탭 (§10 종목 상세 화면) */
 async function getAssetDetail(assetId, date) {
   const { rows } = await query(
-    `SELECT asset_id, asset_type, masked_name AS name, sector, currency
+    `SELECT asset_id, asset_type, masked_name AS name, sector, currency, listed_from, listed_to
      FROM assets WHERE asset_id = $1`,
     [assetId]
   );
@@ -109,6 +109,10 @@ async function getAssetDetail(assetId, date) {
     name: asset.name,
     sector: asset.sector,
     currency: asset.currency,
+    // 상장기간(migration 003). 차트 "전체" 범위가 이 값을 시작점으로 쓴다.
+    // 게임 시점 이후는 어차피 to=현재 턴 날짜로 잘리므로 미래 정보가 새지 않는다.
+    listedFrom: asset.listed_from,
+    listedTo: asset.listed_to,
     price: date ? await getPriceAt(assetId, date) : null,
     info: null,
   };
@@ -157,20 +161,81 @@ async function getAssetDetail(assetId, date) {
   return detail;
 }
 
-/** 차트용 기간 시세 (asset_prices 기준) */
-async function getPriceSeries(assetId, from, to) {
+/** 차트 봉 단위. 증권사 HTS/MTS의 일·주·월봉과 같은 구성이다.
+ *  틱/분봉은 1턴=1거래일인 게임 구조상 원천 데이터가 없어 제공하지 않고,
+ *  년봉은 240턴(약 1년) 게임에서 봉이 하나뿐이라 뺐다. */
+const BAR_UNITS = ['day', 'week', 'month'];
+
+/**
+ * 기간 시세. unit이 'week'/'month'면 **달력 경계**로 묶어 OHLC 봉을 만든다.
+ *
+ * 증권사 주봉은 "5거래일 묶음"이 아니라 월~금 한 주이고, 월봉도 그 달의 첫 거래일부터
+ * 마지막 거래일까지다. 휴장일이 끼면 한 주가 4일, 한 달이 18~23일로 달라진다.
+ * PostgreSQL date_trunc('week')는 월요일 시작이라 국내 시장 주 구분과 일치한다.
+ *
+ * **원천에 OHLC가 없다.** DataGuide 시세 시트는 종가와 거래량뿐이다. 그래서
+ *   - `day`는 봉 하나에 종가 하나뿐이라 캔들이 성립하지 않는다 → 종가 시계열(라인)로 준다.
+ *   - `week`/`month`는 구간 내 종가들을 모아 OHLC로 집계한다.
+ *
+ * 집계 규칙:
+ *   open  = **직전 봉의 종가** (구간 첫날 종가가 아니다)
+ *           시가가 없으니 가장 가까운 대용값이 직전 종가다. 이래야 봉의 몸통이
+ *           "구간 수익률"과 일치하고 봉 사이에 인위적인 갭이 생기지 않는다.
+ *           첫 봉만 직전 데이터가 없어 그 구간 첫 종가를 open으로 쓴다.
+ *   high  = max(open, 구간 종가들)   low = min(open, 구간 종가들)
+ *           장중 고저가 없으므로 **실제 캔들보다 꼬리가 짧다.**
+ *   close = 구간 마지막 종가,  date = 구간 마지막 거래일
+ *
+ * @param {'day'|'week'|'month'} [unit='day']
+ */
+async function getPriceSeries(assetId, from, to, unit = 'day') {
+  const u = BAR_UNITS.includes(unit) ? unit : 'day';
+  const bucketExpr = u === 'day' ? 'trade_date' : `date_trunc('${u}', trade_date)::date`;
+
   const { rows } = await query(
-    `SELECT trade_date, close_price, change_rate
+    `SELECT trade_date, close_price, change_rate, ${bucketExpr} AS bucket
      FROM asset_prices
      WHERE asset_id = $1 AND trade_date BETWEEN $2 AND $3
      ORDER BY trade_date`,
     [assetId, from, to]
   );
-  return rows.map((r) => ({
-    date: r.trade_date,
-    price: Number(r.close_price),
-    changeRate: r.change_rate === null ? null : Number(r.change_rate),
-  }));
+
+  if (u === 'day') {
+    return rows.map((r) => ({
+      date: r.trade_date,
+      price: Number(r.close_price),
+      changeRate: r.change_rate === null ? null : Number(r.change_rate),
+    }));
+  }
+
+  // 달력 경계별로 묶는다 (SQL이 이미 정렬해 줬으므로 순차 그룹핑으로 충분)
+  const buckets = [];
+  for (const r of rows) {
+    const key = String(r.bucket);
+    const last = buckets[buckets.length - 1];
+    if (last && last.key === key) last.rows.push(r);
+    else buckets.push({ key, rows: [r] });
+  }
+
+  let prevClose = null;
+  return buckets.map((b) => {
+    const closes = b.rows.map((r) => Number(r.close_price));
+    const open = prevClose === null ? closes[0] : prevClose;
+    const close = closes[closes.length - 1];
+    prevClose = close;
+    return {
+      date: b.rows[b.rows.length - 1].trade_date,
+      from: b.rows[0].trade_date,
+      days: b.rows.length,
+      unit: u,
+      open,
+      high: Math.max(open, ...closes),
+      low: Math.min(open, ...closes),
+      close,
+      price: close, // 라인/지표 계산이 price를 그대로 쓸 수 있게 유지
+      changeRate: open ? (close - open) / open : null,
+    };
+  });
 }
 
-module.exports = { getPriceAt, getPricesAt, listAssets, getAssetDetail, getPriceSeries };
+module.exports = { getPriceAt, getPricesAt, listAssets, getAssetDetail, getPriceSeries, BAR_UNITS };

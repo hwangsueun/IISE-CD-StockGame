@@ -82,7 +82,7 @@ async function executeTrade(sessionId, { assetId, tradeType, quantity }) {
     if (!aRows[0]) throw badRequest('유효하지 않은 자산입니다');
     const { asset_type: assetType, listed_from: listedFrom, listed_to: listedTo } = aRows[0];
 
-    // 세션 코인 유니버스 게이트 (migration 005): 코인은 세션 시작 시 층화추출된 20개만 매수
+    // 세션 코인 유니버스 게이트 (migration 005): 코인은 세션 시작 시 층화추출된 10종만 매수
     // 가능하다. 매도는 의도적으로 게이트하지 않는다 — 이 비대칭은 정상 흐름 보호 목적이다.
     // 정상 흐름에서는 매수 자체가 막히므로 유니버스 밖 코인을 보유하게 될 일이 없지만,
     // 혹시라도(과거 세션 잔여 데이터, 향후 유니버스 로직 변경 등) 어떤 경위로 유니버스 밖
