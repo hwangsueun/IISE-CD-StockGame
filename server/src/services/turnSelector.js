@@ -3,10 +3,20 @@
 const { query } = require('../db');
 const C = require('../config/constants');
 
-/** DB에 존재하는 전체 거래일 목록 (오름차순) */
+/**
+ * DB에 존재하는 전체 거래일 목록 (오름차순).
+ * asset_type='stock'로 한정해야 한다 - 채권/코인 시세는 주말에도 존재해서(코인은 24/7,
+ * 채권은 매일 보간 적재) asset_prices 전체로 DISTINCT를 뽑으면 토/일이 거래일로 섞여
+ * 들어간다(버그, 2026-08-16). 주식 시세는 실제로 월~금에만 존재하므로 이걸 기준으로
+ * 삼아야 "금요일 다음 턴 = 월요일"이 보장된다.
+ */
 async function getTradingCalendar() {
   const { rows } = await query(
-    `SELECT DISTINCT trade_date FROM asset_prices ORDER BY trade_date`
+    `SELECT DISTINCT p.trade_date
+     FROM asset_prices p
+     JOIN assets a ON a.asset_id = p.asset_id
+     WHERE a.asset_type = 'stock'
+     ORDER BY p.trade_date`
   );
   return rows.map((r) => r.trade_date);
 }

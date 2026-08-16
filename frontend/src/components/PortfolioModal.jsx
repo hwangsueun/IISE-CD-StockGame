@@ -26,6 +26,21 @@ const ASSET_TABS = [
   { key: 'coin', label: '코인', icon: '●' },
 ];
 
+// 포트폴리오 화면 도움말 (Modal의 ? 버튼으로 토글)
+const PORTFOLIO_HELP = (
+  <>
+    <p><b>보유 자산과 수익 성과</b>를 확인하는 화면이다.</p>
+    <ul>
+      <li><b>총자산</b> — 현금 + 보유 자산 평가액. <b>순자산</b>은 여기서 부채를 뺀 값이다.</li>
+      <li><b>평가손익</b> — 지금 들고 있는 자산의 미실현 손익(팔지 않은 상태의 손익)이다.</li>
+      <li><b>비중 바</b> — 현금·주식·채권·코인이 전체에서 차지하는 비율.</li>
+      <li><b>수익률 대시보드</b> — 왼쪽에서 자산군을 고르고, 일/주/월/전체 단위로 구간별 성과(마감 평가액·순수 손익·수익률)를 본다.</li>
+      <li><b>보유자산</b> — 지금 들고 있는 종목별 수량·평균단가·평가액·수익률 목록. 클릭하면 종목 상세로 이동한다.</li>
+      <li><b>수익분석</b> — 실제로 팔아서 확정된 <b>실현손익</b>을 기간·자산군별로 모아본다.</li>
+    </ul>
+  </>
+);
+
 export default function PortfolioModal() {
   const { sessionId, openModal } = useGameStore();
   const [pf, setPf] = useState(null);
@@ -46,10 +61,10 @@ export default function PortfolioModal() {
     }
   }, [tab, pnlPeriod, pnlType, sessionId]);
 
-  if (!pf) return <Modal title="포트폴리오" wide />;
+  if (!pf) return <Modal title="포트폴리오" wide help={PORTFOLIO_HELP} />;
 
   return (
-    <Modal title="포트폴리오" wide>
+    <Modal title="포트폴리오" wide help={PORTFOLIO_HELP}>
       <dl className="info-list horizontal">
         <div><dt>총자산</dt><dd>{won(pf.totalAsset)}</dd></div>
         <div><dt>순자산</dt><dd>{won(pf.netAsset)}</dd></div>
