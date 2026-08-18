@@ -1,22 +1,11 @@
 // 종목 상세 모달: 차트 / 뉴스 / 종토방 / 타입별 정보 탭 + 매수·매도 진입 (§10)
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import Modal from './Modal';
 import PriceChart from './PriceChart';
 import CommunityBoard from './CommunityBoard';
-import { won } from '../utils/format';
-
-// 조회 기간 — 증권사 차트의 기간 버튼과 같은 구성. 'all'은 그 종목 상장일부터
-// 현재 턴까지 전 구간이다(assets.listed_from, migration 003).
-const RANGES = [
-  { key: 30, label: '1개월' },
-  { key: 90, label: '3개월' },
-  { key: 180, label: '6개월' },
-  { key: 365, label: '1년' },
-  { key: 1095, label: '3년' },
-  { key: 'all', label: '전체' },
-];
+import { relativeDateValue, relativeYearDate, relativeYearLabel, won } from '../utils/format';
 
 // 봉 단위 — 증권사 HTS/MTS의 일·주·월봉과 같은 구성. 틱/분봉은 1턴=1거래일이라 원천이 없고,
 // 년봉은 240턴(약 1년) 게임에서 봉이 하나뿐이라 뺐다.
@@ -28,41 +17,224 @@ const BAR_UNITS = [
   { key: 'month', label: '월' },
 ];
 
+const DEFAULT_VISIBLE_POINTS = 60;
+const MIN_VISIBLE_POINTS = 2;
+const MA_DEFAULTS = [5, 20];
+const MA_PRESETS = [5, 10, 20, 60, 120];
+const MA_MIN = 2;
+const MA_MAX = 240;
+const MA_MAX_COUNT = 8;
+// 실제 API는 listedFrom을 주지만 mock은 주지 않는다. 충분히 이른 날짜를 보내면 두 구현 모두
+// 동일하게 "현재 턴까지 존재하는 전체 이력"을 반환한다.
+const FULL_HISTORY_FALLBACK_FROM = '1900-01-01';
+
+function normalizePriceSeries(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.flatMap((row) => {
+    const price = Number(row?.price ?? row?.close ?? row?.value);
+    if (!Number.isFinite(price)) return [];
+    const normalized = { ...row, price };
+    for (const key of ['open', 'high', 'low', 'close']) {
+      if (row[key] != null) normalized[key] = Number(row[key]);
+    }
+    return [normalized];
+  });
+}
+
 export default function AssetDetailModal({ assetId }) {
   const { turn, openModal } = useGameStore();
   const [tab, setTab] = useState('chart'); // chart | news | community | info
-  const [rangeDays, setRangeDays] = useState(90);
   const [barUnit, setBarUnit] = useState('day');
   const [detail, setDetail] = useState(null);
-  const [series, setSeries] = useState([]);
+  const [fullSeries, setFullSeries] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState('');
+  const [chartReloadKey, setChartReloadKey] = useState(0);
   const [news, setNews] = useState([]);
+  const priceCacheRef = useRef(new Map());
+  const chartWheelRegionRef = useRef(null);
+  const wheelDeltaRef = useRef(0);
   // 기술적 지표 토글 (미팅5 §1: 주식·코인 차트에 MA/볼린저/RSI 제공)
   const [showMa, setShowMa] = useState(true);
   const [showBb, setShowBb] = useState(false);
   const [showRsi, setShowRsi] = useState(false);
+  const [maPeriods, setMaPeriods] = useState(MA_DEFAULTS);
+  const [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
+  const [customMa, setCustomMa] = useState('');
+  const [maError, setMaError] = useState('');
 
   useEffect(() => {
-    api.getAssetDetail(assetId, turn.date).then(setDetail).catch(console.error);
+    let active = true;
+    setDetail(null);
+    api.getAssetDetail(assetId, turn.date)
+      .then((nextDetail) => { if (active) setDetail(nextDetail); })
+      .catch((error) => { if (active) console.error(error); });
+    return () => { active = false; };
   }, [assetId, turn.date]);
 
   useEffect(() => {
-    if (tab === 'chart') {
-      // 'all'이면 상장일부터. detail이 아직 안 왔으면 이 effect는 건너뛴다(아래 가드).
-      let fromStr;
-      if (rangeDays === 'all') {
-        fromStr = detail?.listedFrom?.slice(0, 10);
-        if (!fromStr) return;
-      } else {
-        const from = new Date(turn.date);
-        from.setDate(from.getDate() - rangeDays);
-        fromStr = from.toISOString().slice(0, 10);
-      }
-      api.getPriceSeries(assetId, fromStr, turn.date, barUnit)
-        .then(setSeries).catch(console.error);
-    } else if (tab === 'news') {
-      api.getAssetNews(turn.date, assetId).then(setNews).catch(console.error);
+    if (!detail || String(detail.assetId) !== String(assetId)) return undefined;
+
+    let active = true;
+    const from = detail.listedFrom?.slice(0, 10) || FULL_HISTORY_FALLBACK_FROM;
+    const cacheKey = `${assetId}:${turn.date}:${barUnit}:${from}`;
+    const applyRows = (rows) => {
+      if (!active) return;
+      setFullSeries(rows);
+      setVisibleCount(Math.min(DEFAULT_VISIBLE_POINTS, rows.length));
+      setChartLoading(false);
+      setChartError('');
+    };
+    setChartLoading(true);
+    setChartError('');
+    setFullSeries([]);
+    const cached = priceCacheRef.current.get(cacheKey);
+    const request = cached || api.getPriceSeries(assetId, from, turn.date, barUnit)
+      .then(normalizePriceSeries);
+    // 진행 중 Promise도 캐시해 개발 StrictMode 재실행과 빠른 봉 전환의 중복 요청을 합친다.
+    if (!cached) priceCacheRef.current.set(cacheKey, request);
+    Promise.resolve(request)
+      .then((rows) => {
+        if (priceCacheRef.current.get(cacheKey) === request) {
+          priceCacheRef.current.set(cacheKey, rows);
+        }
+        applyRows(rows);
+      })
+      .catch((error) => {
+        if (priceCacheRef.current.get(cacheKey) === request) {
+          priceCacheRef.current.delete(cacheKey);
+        }
+        if (!active) return;
+        console.error(error);
+        setChartLoading(false);
+        setChartError('전체 가격 이력을 불러오지 못했습니다.');
+      });
+    return () => { active = false; };
+  }, [assetId, barUnit, chartReloadKey, detail, turn.date]);
+
+  useEffect(() => {
+    if (tab !== 'news') return undefined;
+    let active = true;
+    setNews([]);
+    api.getAssetNews(turn.date, assetId)
+      .then((rows) => { if (active) setNews(rows); })
+      .catch((error) => { if (active) console.error(error); });
+    return () => { active = false; };
+  }, [assetId, tab, turn.date]);
+
+  const minVisibleCount = fullSeries.length > 0
+    ? Math.min(MIN_VISIBLE_POINTS, fullSeries.length)
+    : 0;
+  const safeVisibleCount = fullSeries.length > 0
+    ? Math.min(fullSeries.length, Math.max(minVisibleCount, visibleCount || minVisibleCount))
+    : 0;
+  const visibleStart = Math.max(0, fullSeries.length - safeVisibleCount);
+  const visibleSeries = useMemo(
+    () => fullSeries.slice(visibleStart),
+    [fullSeries, visibleStart],
+  );
+  const barUnitLabel = BAR_UNITS.find((unit) => unit.key === barUnit)?.label || '일';
+  const visibleRangeLabel = visibleSeries.length > 0
+    ? `${safeVisibleCount}개 ${barUnitLabel}봉${safeVisibleCount === fullSeries.length ? ' · 전체' : ''} · ${relativeYearDate(visibleSeries[0].date, turn.date)} ~ ${relativeYearDate(visibleSeries[visibleSeries.length - 1].date, turn.date)}`
+    : '표시할 가격 이력 없음';
+
+  const toggleMaPeriod = (period) => {
+    const exists = maPeriods.includes(period);
+    if (!exists && maPeriods.length >= MA_MAX_COUNT) {
+      setMaError(`이동평균선은 최대 ${MA_MAX_COUNT}개까지 표시할 수 있습니다.`);
+      return;
     }
-  }, [tab, rangeDays, barUnit, assetId, turn.date, detail?.listedFrom]);
+    const next = exists
+      ? maPeriods.filter((item) => item !== period)
+      : [...maPeriods, period].sort((a, b) => a - b);
+    setMaPeriods(next);
+    setShowMa(next.length > 0);
+    setMaError('');
+  };
+
+  const addCustomMa = (event) => {
+    event.preventDefault();
+    const period = Number(customMa);
+    if (!Number.isInteger(period) || period < MA_MIN || period > MA_MAX) {
+      setMaError(`${MA_MIN}~${MA_MAX} 사이의 정수를 입력해 주세요.`);
+      return;
+    }
+    if (!maPeriods.includes(period) && maPeriods.length >= MA_MAX_COUNT) {
+      setMaError(`이동평균선은 최대 ${MA_MAX_COUNT}개까지 표시할 수 있습니다.`);
+      return;
+    }
+    setMaPeriods((current) => [...new Set([...current, period])].sort((a, b) => a - b));
+    setShowMa(true);
+    setCustomMa('');
+    setMaError('');
+  };
+
+  const resetIndicators = () => {
+    setMaPeriods(MA_DEFAULTS);
+    setShowMa(true);
+    setShowBb(false);
+    setShowRsi(false);
+    setCustomMa('');
+    setMaError('');
+  };
+
+  const changeZoom = (direction, steps = 1) => {
+    if (fullSeries.length <= minVisibleCount) return;
+    setVisibleCount((current) => {
+      const safeCurrent = Math.min(
+        fullSeries.length,
+        Math.max(minVisibleCount, current || minVisibleCount),
+      );
+      const factor = 1.18 ** Math.max(1, steps);
+      const next = direction > 0
+        ? Math.ceil(safeCurrent * factor)
+        : Math.floor(safeCurrent / factor);
+      return Math.min(fullSeries.length, Math.max(minVisibleCount, next));
+    });
+  };
+
+  const handleChartWheel = (event) => {
+    if (fullSeries.length <= minVisibleCount || chartLoading) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.focus({ preventScroll: true });
+
+    const modeScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1;
+    wheelDeltaRef.current += event.deltaY * modeScale;
+    const threshold = 24;
+    if (Math.abs(wheelDeltaRef.current) < threshold) return;
+
+    const direction = Math.sign(wheelDeltaRef.current); // 아래(+)=축소, 위(-)=확대
+    const steps = Math.min(4, Math.max(1, Math.floor(Math.abs(wheelDeltaRef.current) / threshold)));
+    wheelDeltaRef.current = 0;
+    changeZoom(direction, steps);
+  };
+
+  const handleChartKeyDown = (event) => {
+    if (['ArrowUp', 'ArrowLeft', '+', '='].includes(event.key)) {
+      event.preventDefault();
+      changeZoom(-1);
+    } else if (['ArrowDown', 'ArrowRight', '-', '_'].includes(event.key)) {
+      event.preventDefault();
+      changeZoom(1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setVisibleCount(minVisibleCount);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setVisibleCount(fullSeries.length);
+    }
+  };
+
+  // React의 wheel 위임 리스너는 passive로 등록될 수 있으므로, 차트 확대·축소 중 모달까지
+  // 같이 스크롤되지 않도록 이 영역만 명시적인 non-passive 네이티브 리스너를 사용한다.
+  useEffect(() => {
+    const node = chartWheelRegionRef.current;
+    if (!node) return undefined;
+    node.addEventListener('wheel', handleChartWheel, { passive: false });
+    return () => node.removeEventListener('wheel', handleChartWheel);
+  });
 
   if (!detail) return <Modal title="로딩 중..." wide />;
 
@@ -92,34 +264,115 @@ export default function AssetDetailModal({ assetId }) {
       {tab === 'chart' && (
         <>
           <div className="filter-bar sub">
-            {RANGES.map((r) => (
-              <button key={r.key} className={rangeDays === r.key ? 'active' : ''} onClick={() => setRangeDays(r.key)}>
-                {r.label}
-              </button>
-            ))}
-            <span className="divider" />
             {BAR_UNITS.map((u) => (
-              <button key={u.key} className={barUnit === u.key ? 'active' : ''} onClick={() => setBarUnit(u.key)}>
+              <button
+                key={u.key}
+                type="button"
+                className={barUnit === u.key ? 'active' : ''}
+                aria-pressed={barUnit === u.key}
+                onClick={() => setBarUnit(u.key)}
+              >
                 {u.label}
               </button>
             ))}
             {detail.assetType !== 'bond' && (
               <>
                 <span className="spacer" />
-                <button className={showMa ? 'active' : ''} onClick={() => setShowMa(!showMa)}>MA</button>
-                <button className={showBb ? 'active' : ''} onClick={() => setShowBb(!showBb)}>볼린저</button>
-                <button className={showRsi ? 'active' : ''} onClick={() => setShowRsi(!showRsi)}>RSI</button>
+                <button type="button" className={showMa ? 'active' : ''} aria-pressed={showMa} disabled={maPeriods.length === 0} onClick={() => setShowMa(!showMa)}>MA</button>
+                <button type="button" className={showBb ? 'active' : ''} aria-pressed={showBb} onClick={() => setShowBb(!showBb)}>볼린저</button>
+                <button type="button" className={showRsi ? 'active' : ''} aria-pressed={showRsi} onClick={() => setShowRsi(!showRsi)}>RSI</button>
+                <button
+                  type="button"
+                  className={showIndicatorSettings ? 'active' : ''}
+                  aria-expanded={showIndicatorSettings}
+                  aria-controls="indicator-settings"
+                  onClick={() => setShowIndicatorSettings(!showIndicatorSettings)}
+                >상세 설정</button>
               </>
             )}
           </div>
-          <PriceChart
-            series={series}
-            overlays={detail.assetType === 'bond' ? {} : {
-              ma: showMa ? [5, 10, 60, 120] : null,
-              bollinger: showBb,
-              rsi: showRsi,
-            }}
-          />
+          {detail.assetType !== 'bond' && showIndicatorSettings && (
+            <section id="indicator-settings" className="indicator-settings" aria-label="차트 지표 상세 설정">
+              <div className="indicator-settings-head">
+                <b>이동평균선</b>
+                <button type="button" onClick={resetIndicators}>지표 초기화</button>
+              </div>
+              <div className="indicator-presets" aria-label="이동평균선 프리셋">
+                {MA_PRESETS.map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    className={maPeriods.includes(period) ? 'active' : ''}
+                    aria-pressed={maPeriods.includes(period)}
+                    onClick={() => toggleMaPeriod(period)}
+                  >MA {period}{barUnitLabel}봉</button>
+                ))}
+              </div>
+              <form className="ma-custom-form" onSubmit={addCustomMa}>
+                <label htmlFor="custom-ma-period">사용자 MA</label>
+                <input
+                  id="custom-ma-period"
+                  type="number"
+                  min={MA_MIN}
+                  max={MA_MAX}
+                  step="1"
+                  inputMode="numeric"
+                  value={customMa}
+                  onChange={(event) => setCustomMa(event.target.value)}
+                  placeholder={`${MA_MIN}~${MA_MAX}`}
+                />
+                <span>{barUnitLabel}봉</span>
+                <button type="submit">추가</button>
+              </form>
+              {maError && <p className="error-text" role="alert">{maError}</p>}
+              <div className="ma-chip-list" aria-label="선택된 이동평균선">
+                {maPeriods.length === 0 && <span>선택된 이동평균선 없음</span>}
+                {maPeriods.map((period) => (
+                  <button key={period} type="button" onClick={() => toggleMaPeriod(period)} aria-label={`MA ${period}${barUnitLabel}봉 제거`}>
+                    MA {period}{barUnitLabel}봉 ×
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          {chartLoading ? (
+            <div className="chart-empty" role="status">전체 가격 이력을 불러오는 중...</div>
+          ) : chartError ? (
+            <div className="chart-empty chart-load-error" role="alert">
+              <p>{chartError}</p>
+              <button type="button" onClick={() => setChartReloadKey((key) => key + 1)}>다시 시도</button>
+            </div>
+          ) : (
+            <div
+              ref={chartWheelRegionRef}
+              className="chart-wheel-region"
+              role="slider"
+              tabIndex={fullSeries.length > minVisibleCount ? 0 : -1}
+              aria-label="차트 표시 기간 확대 축소"
+              aria-valuemin={minVisibleCount}
+              aria-valuemax={fullSeries.length}
+              aria-valuenow={safeVisibleCount}
+              aria-valuetext={visibleRangeLabel}
+              onKeyDown={handleChartKeyDown}
+            >
+              <div className="chart-wheel-status" aria-hidden="true">
+                <span>휠 ↑ 확대 · ↓ 축소</span>
+                <span>{visibleRangeLabel}</span>
+              </div>
+              <PriceChart
+                series={visibleSeries}
+                indicatorSeries={fullSeries}
+                visibleStart={visibleStart}
+                barUnitLabel={barUnitLabel}
+                referenceDate={turn.date}
+                overlays={detail.assetType === 'bond' ? {} : {
+                  ma: showMa ? maPeriods : null,
+                  bollinger: showBb,
+                  rsi: showRsi,
+                }}
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -129,7 +382,7 @@ export default function AssetDetailModal({ assetId }) {
             {news.length === 0 && <p className="news-empty">관련 뉴스가 없다.</p>}
             {news.map((n) => (
               <li key={n.newsId}>
-                <span className="news-date">{n.date}</span>
+                <span className="news-date">{relativeYearDate(n.date, turn.date)}</span>
                 <div>{n.lines.map((l, i) => <p key={i}>{l}</p>)}</div>
               </li>
             ))}
@@ -143,13 +396,13 @@ export default function AssetDetailModal({ assetId }) {
         </div>
       )}
 
-      {tab === 'info' && <AssetInfo detail={detail} />}
+      {tab === 'info' && <AssetInfo detail={detail} referenceDate={turn.date} />}
     </Modal>
   );
 }
 
 /** 자산 타입별 정보 탭 (stock: 재무/밸류에이션, bond: 신용/만기, coin: 시총 등) */
-function AssetInfo({ detail }) {
+function AssetInfo({ detail, referenceDate }) {
   const info = detail.info;
   if (!info) return <p>정보 없음</p>;
 
@@ -162,7 +415,7 @@ function AssetInfo({ detail }) {
           <tbody>
             {(info.financials || []).map((f) => (
               <tr key={`${f.fiscal_year}-${f.half}`}>
-                <td>{f.fiscal_year} H{f.half}</td>
+                <td>{relativeYearLabel(f.fiscal_year, referenceDate)} H{f.half}</td>
                 <td>{won(f.revenue)}</td>
                 <td>{won(f.operating_income)}</td>
                 <td>{won(f.net_income)}</td>
@@ -176,7 +429,7 @@ function AssetInfo({ detail }) {
           <tbody>
             {(info.valuation || []).map((v) => (
               <tr key={`${v.fiscal_year}-${v.half}`}>
-                <td>{v.fiscal_year} H{v.half}</td>
+                <td>{relativeYearLabel(v.fiscal_year, referenceDate)} H{v.half}</td>
                 <td>{v.per ?? '-'}</td><td>{v.pbr ?? '-'}</td><td>{v.roe ?? '-'}</td><td>{v.eps ?? '-'}</td>
               </tr>
             ))}
@@ -190,7 +443,7 @@ function AssetInfo({ detail }) {
       <dl className="info-list">
         <div><dt>종류</dt><dd>{info.bond_type}</dd></div>
         <div><dt>신용등급</dt><dd>{info.credit_rating || '-'}</dd></div>
-        <div><dt>만기</dt><dd>{info.maturity || '-'}</dd></div>
+        <div><dt>만기</dt><dd>{relativeDateValue(info.maturity, referenceDate)}</dd></div>
         <div><dt>오늘 수익률</dt><dd>{info.today?.yield_rate ?? '-'}%</dd></div>
       </dl>
     );

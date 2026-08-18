@@ -485,14 +485,14 @@ erDiagram
 |---|---|---|
 | GET | `/api/assets?type=&sort=&date=&sessionId=` | 종목 목록, 자산군 필터, 거래량/상승률/거래대금 정렬. **`sessionId` 필수(코인)** — 코인은 세션마다 다른 10종이라 세션을 모르면 빈 배열을 반환한다. 주식/채권은 전역이라 무관 |
 | GET | `/api/assets/:assetId` | 종목 상세, 타입별 정보 |
-| GET | `/api/assets/:assetId/prices?from=&to=` | 차트용 기간 시세 |
+| GET | `/api/assets/:assetId/prices?from=&to=&unit=` | 차트용 전체 기간 시세. `unit=day|week|month` |
 | GET | `/api/macro/:date` | 기준금리, 환율, CPI, 국채, WTI, 금, 경기선행지수 |
 
 ### 8-4. 뉴스 / 종토방 / 메모
 
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/news/:date?sessionId=&category=` | 날짜별 뉴스. `sessionId` 전달 시 스트레스 열람 제한 + `news_exposure` 기록 |
+| GET | `/api/news/:date?sessionId=&category=&referenceDate=` | 날짜별 뉴스. `sessionId` 전달 시 스트레스 열람 제한 + `news_exposure` 기록. `category`는 호환용 선택 파라미터이며 게임 UI는 넘기지 않는다. `referenceDate`는 과거 뉴스를 다시 볼 때도 현재 게임 턴을 상대연도 기준으로 유지한다. |
 | GET | `/api/news/:date/:assetId` | 날짜+자산별 뉴스 (해당일 이전 30건) |
 | GET | `/api/macro/:date/history?code=&days=` | 지표 차트용 시계열 |
 | GET | `/api/community/:assetId?date=` | 종토방 게시글 목록 |
@@ -549,7 +549,7 @@ erDiagram
 }
 ```
 
-뉴스 DTO는 NEWS_DATA_CONTRACT의 필드를 그대로 반영한다: `headline = news_lines[0]`, `lines = news_lines` 전문, 종목 뉴스는 `assetId`/`assetName`(마스킹명)으로 종목 화면에 라우팅한다.
+뉴스 DTO는 NEWS_DATA_CONTRACT의 필드를 그대로 반영한다: `headline = news_lines[0]`, `lines = news_lines` 전문, 종목 뉴스는 `assetId`/`assetName`(마스킹명)으로 종목 화면에 라우팅한다. 화면에 노출되는 뉴스 문구의 명시적 절대연도는 조회 시점의 게임 날짜를 현재로 삼아 상대 표현(`n년 전`·`올해`·`향후 연도`)으로 치환한다. 구조 식별에 필요한 ISO 날짜와 뉴스 ID, DB 원문은 바꾸지 않고 프론트에서 현재 턴 날짜를 기준으로 ISO 날짜를 `n년 전 MM/DD`로 표시한다.
 
 ## 9. 게임 로직
 
@@ -722,10 +722,10 @@ erDiagram
 | 인트로/빚 설정 | 로그인/회원가입/이어하기(선택) + 난이도 선택, 세션 시작 | `/api/auth/*`, `POST /api/game/start` |
 | 메인 화면 | 상태바, 날짜, 헤드라인, 메뉴, 다음 턴 | `GET /api/game/:sessionId`, `POST /next-turn` |
 | 마켓 모달 | 랭킹, 업종, 지표, 자산군 필터 | `GET /api/assets`, `GET /api/macro/:date` |
-| 종목 상세 | 차트, 뉴스, 종토방, 타입별 정보 | `GET /api/assets/:assetId`, `/prices`, `/news`, `/community` |
+| 종목 상세 | 휠 확대·축소 차트, 기술지표 상세설정, 뉴스, 종토방, 타입별 정보 | `GET /api/assets/:assetId`, `/prices`, `/news`, `/community` |
 | 매수/매도 | 수량 입력, 예상금액, 확정 | `POST /api/game/:sessionId/trade` |
 | 포트폴리오 | 보유자산, 평가손익, 비중, 수익분석 | `GET /api/game/:sessionId/portfolio` |
-| 뉴스 | 필터, 상세, 관련 자산 연결 | `GET /api/news/:date` |
+| 뉴스 | 당일 뉴스 단일 목록, 상대 날짜, 상세·관련 자산 연결 | `GET /api/news/:date` |
 | 캘린더 | 과거 뉴스, 메모 CRUD | `/memo`, `news_exposure` |
 | 이벤트 팝업 | 선택형/강제 이벤트 처리 (미해결 시 턴 진행 잠금, 독촉전화 상환액 입력) | `POST /api/game/:sessionId/event`, `/event/pending` |
 | 부업 모달 | 미니게임 3종 선택/플레이/결과 (§9-6) | `/side-job/status`, `/side-job/play` |
@@ -739,7 +739,10 @@ UI와 데이터 정합:
 - 자산군 필터는 `assets.asset_type`을 사용한다.
 - 종목 상세의 정보 탭은 자산 타입별 테이블을 사용한다.
 - 차트는 `asset_prices`를 기본으로 쓰고, 상세 지표가 필요한 경우 타입별 상세 시세를 추가 조인한다.
+- 종목 차트는 상장일부터 현재 턴까지 이력을 봉 단위별로 한 번 불러오고, 차트 위 마우스 휠(키보드 방향키 보조)로 최신 봉에 고정된 표시 구간을 확대·축소한다. 고정 1·3·6개월 버튼은 두지 않는다.
+- MA는 5·20봉을 기본으로 하며 상세 설정에서 2~240봉 기간을 추가할 수 있다. MA·볼린저(20)·RSI(14)는 전체 이력에서 계산한 뒤 현재 화면 구간만 잘라 그려 줌 경계의 지표 왜곡을 막는다.
 - 뉴스 열람 제한은 서버 응답의 `newsLimit`과 `news_exposure` 기준으로 표시한다.
+- 게임 화면에는 실제 연도를 직접 노출하지 않는다. 날짜·회계연도·만기 등은 실제 시스템 시간이 아니라 현재 게임 턴 날짜와의 차이를 이용한 상대 표현으로 표시하고, 서버의 ISO 날짜와 DB 원본은 계산·조회용으로 유지한다.
 
 ## 11. 서비스 책임
 

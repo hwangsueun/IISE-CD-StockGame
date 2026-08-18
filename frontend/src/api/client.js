@@ -121,10 +121,11 @@ const httpApi = {
   getMacro: (date) => get(`/api/macro/${date}`),
 
   // 뉴스 / 종토방
-  getNews: (date, sessionId, category) => {
+  getNews: (date, sessionId, category, referenceDate) => {
     const q = new URLSearchParams();
     if (sessionId) q.set('sessionId', sessionId);
     if (category) q.set('category', category);
+    if (referenceDate) q.set('referenceDate', referenceDate);
     return get(`/api/news/${date}?${q}`);
   },
   getAssetNews: (date, assetId) => get(`/api/news/${date}/${assetId}`),

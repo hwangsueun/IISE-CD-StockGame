@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
+import { relativeYearLabel } from '../utils/format';
 import Modal from './Modal';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
@@ -45,10 +46,10 @@ export default function CalendarModal() {
 
   useEffect(() => {
     // 선택 날짜에 실제 노출됐던 뉴스 (news_exposure 기준)
-    api.getNews(selectedDate, sessionId).then((r) => setDayNews(r.news)).catch(console.error);
+    api.getNews(selectedDate, sessionId, undefined, turn.date).then((r) => setDayNews(r.news)).catch(console.error);
     const memo = memos.find((m) => String(m.game_date).slice(0, 10) === selectedDate);
     setEditing(memo?.content || '');
-  }, [selectedDate, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedDate, sessionId, turn.date]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentMemo = memos.find((m) => String(m.game_date).slice(0, 10) === selectedDate);
   const isToday = selectedDate === turn.date;
@@ -77,7 +78,7 @@ export default function CalendarModal() {
         <div className="cal-grid-wrap">
           <div className="cal-month-nav">
             <button className="cal-nav" disabled={viewYm <= minYm} onClick={() => moveMonth(-1)}>◀</button>
-            <div className="cal-month-name">{view.y} {MONTH_EN[view.m - 1]}</div>
+            <div className="cal-month-name">{relativeYearLabel(view.y, turn.date)} {MONTH_EN[view.m - 1]}</div>
             <button className="cal-nav" disabled={viewYm >= maxYm} onClick={() => moveMonth(1)}>▶</button>
           </div>
           <div className="cal-dow">{DOW.map((d) => <span key={d}>{d}</span>)}</div>

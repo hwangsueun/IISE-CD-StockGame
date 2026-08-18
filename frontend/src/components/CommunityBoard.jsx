@@ -1,6 +1,7 @@
 // 종토방 (읽기 전용 NPC 게시판) — 종목 상세 모달 내 탭
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { relativeYearDate } from '../utils/format';
 
 export default function CommunityBoard({ assetId, date }) {
   const [posts, setPosts] = useState([]);
@@ -25,7 +26,7 @@ export default function CommunityBoard({ assetId, date }) {
           <li key={p.id} className="community-post">
             <button onClick={() => togglePost(p)}>
               <span className="post-title">{p.title}</span>
-              <span className="post-meta">{p.npc_nickname} · {String(p.post_date).slice(0, 10)} · 추천 {p.recommend_count}</span>
+              <span className="post-meta">{p.npc_nickname} · {relativeYearDate(p.post_date, date)} · 추천 {p.recommend_count}</span>
             </button>
             {openPost?.id === p.id && (
               <div className="post-body">

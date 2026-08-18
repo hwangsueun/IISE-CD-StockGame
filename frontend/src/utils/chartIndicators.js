@@ -1,4 +1,4 @@
-// 기술적 지표 계산 (미팅5 §1: 이동평균 5/10/60/120, 볼린저밴드, RSI, 거래량)
+// 기술적 지표 계산 (미팅5 §1: 이동평균, 볼린저밴드, RSI, 거래량)
 // 입력: prices = number[] (오래된 것 -> 최신 순)
 
 /** 단순 이동평균. 윈도우 미달 구간은 null */
@@ -42,12 +42,19 @@ export function rsi(prices, window = 14) {
   }
   let avgGain = gain / window;
   let avgLoss = loss / window;
-  out[window] = 100 - 100 / (1 + (avgLoss === 0 ? Infinity : avgGain / avgLoss));
+  out[window] = rsiValue(avgGain, avgLoss);
   for (let i = window + 1; i < prices.length; i++) {
     const diff = prices[i] - prices[i - 1];
     avgGain = (avgGain * (window - 1) + Math.max(0, diff)) / window;
     avgLoss = (avgLoss * (window - 1) + Math.max(0, -diff)) / window;
-    out[i] = 100 - 100 / (1 + (avgLoss === 0 ? Infinity : avgGain / avgLoss));
+    out[i] = rsiValue(avgGain, avgLoss);
   }
   return out;
+}
+
+function rsiValue(avgGain, avgLoss) {
+  if (avgGain === 0 && avgLoss === 0) return 50;
+  if (avgLoss === 0) return 100;
+  if (avgGain === 0) return 0;
+  return 100 - 100 / (1 + avgGain / avgLoss);
 }
