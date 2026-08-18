@@ -16,6 +16,38 @@ async function writeSnapshot(client, sessionId, turnNumber, type, { totalAsset, 
 }
 
 /**
+ * 게임 종료가 현재 턴 안에서 확정될 때 환급·상환까지 끝난 최종 상태로 스냅샷을 맞춘다.
+ * daily는 반드시 생성/갱신하고, 같은 턴에 이미 존재하는 다른 리포트 스냅샷도 함께 갱신한다.
+ */
+async function syncTerminalSnapshots(client, sessionId, turnNumber, { totalAsset, session }) {
+  const params = [
+    sessionId,
+    Number(turnNumber),
+    totalAsset,
+    Math.round(Number(session.cash)),
+    Math.round(Number(session.debt)),
+    session.stress,
+    session.trust,
+  ];
+
+  await client.query(
+    `INSERT INTO session_snapshots
+       (session_id, turn_number, snapshot_type, total_asset, cash, debt, stress, trust)
+     VALUES ($1, $2, 'daily', $3, $4, $5, $6, $7)
+     ON CONFLICT (session_id, turn_number, snapshot_type) DO UPDATE
+     SET total_asset = EXCLUDED.total_asset, cash = EXCLUDED.cash, debt = EXCLUDED.debt,
+         stress = EXCLUDED.stress, trust = EXCLUDED.trust`,
+    params
+  );
+  await client.query(
+    `UPDATE session_snapshots
+     SET total_asset = $3, cash = $4, debt = $5, stress = $6, trust = $7
+     WHERE session_id = $1 AND turn_number = $2 AND snapshot_type <> 'daily'`,
+    params
+  );
+}
+
+/**
  * 주간 평가 (기획서: 매주 월요일 지난주 수익률 평가, LLM 사용 예정)
  * weekIndex: 1 ~ 48 (240턴 / 5턴)
  */
@@ -154,4 +186,10 @@ async function getFinalReport(sessionId) {
   };
 }
 
-module.exports = { writeSnapshot, getWeeklyReport, getMonthlyReport, getFinalReport };
+module.exports = {
+  writeSnapshot,
+  syncTerminalSnapshots,
+  getWeeklyReport,
+  getMonthlyReport,
+  getFinalReport,
+};

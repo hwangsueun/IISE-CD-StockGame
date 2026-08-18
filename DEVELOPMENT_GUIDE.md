@@ -76,6 +76,8 @@ npm run dev                   # http://localhost:5173 (/api는 3001로 프록시
 ### 1-3. 마이그레이션 규칙 (중요)
 
 - `server/migrations/*.sql`은 **빈 볼륨에서 컨테이너가 처음 뜰 때만** 자동 실행된다 (`docker-entrypoint-initdb.d`).
+- 턴 달력 규칙 변경은 이미 생성된 `game_turns`를 자동 재작성하지 않는다. 기존 저장은 보존되므로,
+  주말 제외·평일 휴장 턴 규칙을 확인할 때는 새 게임을 시작한다(운영 저장 이관은 별도 정책 필요).
 - **이미 돌아가는 DB에 새 마이그레이션을 추가한 경우** 수동 적용:
   ```bash
   docker exec -i antsurvival_db psql -U admin -d antsurvival < server/migrations/00X_new.sql
@@ -83,7 +85,7 @@ npm run dev                   # http://localhost:5173 (/api는 3001로 프록시
 - DB를 완전히 리셋하고 싶을 때 (스키마 꼬임/처음부터):
   ```bash
   docker compose down -v      # 볼륨 삭제 = 데이터 전부 삭제
-  docker compose up -d db     # 001+002 자동 재실행
+  docker compose up -d db     # 001~006 자동 재실행
   cd server && npm run seed:stub
   ```
 - 새 마이그레이션 작성 규칙: `003_*.sql`처럼 번호를 이어가고, **재실행 가능(idempotent할 필요는 없으나 빈 DB에서 001→002→003 순서로 무조건 성공)**해야 하며, 반영 후 ARCHITECTURE.md §7에 요약을 갱신한다.
@@ -120,7 +122,7 @@ npm run dev                   # http://localhost:5173 (/api는 3001로 프록시
 | `DATABASE_URL` | `postgresql://admin:password@localhost:5432/antsurvival` | pg 접속 문자열 |
 | `PORT` | `3001` | API 포트 |
 | `CORS_ORIGIN` | `http://localhost:5173` | 프론트 오리진 (배포 시 변경) |
-| `GAME_START_RANGE` | `2013-01-02..2023-12-31` | 시작일 랜덤 범위 (240거래일 상한 자동 보정) |
+| `GAME_START_RANGE` | `2014-01-02..2023-12-31` | 시작 개장일 랜덤 범위 (240평일 상한 자동 보정) |
 | `DATA_DIR` | - | 실데이터 적재 시 data-pipeline 루트 |
 
 ### 1-6. 트러블슈팅
@@ -182,7 +184,7 @@ npm run dev                   # http://localhost:5173 (/api는 3001로 프록시
 | A3 | **npq 수급 시트 매핑** (외국인/기관/개인 순매수) | `import_stocks.js`의 NPQ_SHEETS 파싱 (시트 아이템명 확인 후) | data |
 | A4 | **반기 재무/밸류에이션 적재기** (DataGuide 재무 파일 확정 시) | `seeds/import_financials.js` 신규 → `stock_financials`/`stock_valuation` | data |
 | A5 | FICS 섹터 컬럼 채우기 (마켓 모달 업종 필터용) | A1과 같은 매핑표에 섹터 포함 권장 | data |
-| A6 | ~~명절(설/추석) 실제 달력~~ **✅ 완료 (2026-07-07)** | `HOLIDAY.DATES` 22건(2013~2023) + 연휴 직후 첫 거래일 1회 발동 트리거 | data |
+| A6 | ~~명절(설/추석) 실제 달력~~ **✅ 완료 (2026-07-07)** | `HOLIDAY.DATES` 22건(2013~2023) + 평일 명절은 당일·주말 명절은 다음 평일 1회 발동 | data |
 | A7 | 코인 시총 티어 라벨 (층화추출 결과) | `import_coins.js` market_cap_tier | data |
 | A8 | (파이프라인 측) 거시뉴스 전기간 재생성 완료 시 JSONL 교체 재적재 | Drive 파일 교체 → `import_news.js` 재실행 | data |
 

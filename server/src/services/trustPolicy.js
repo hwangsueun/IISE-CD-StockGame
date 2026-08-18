@@ -3,7 +3,7 @@
 const C = require('../config/constants');
 const { clamp100 } = require('../utils/clamp');
 
-/** 독촉전화 발생 확률: (50 − 신뢰도×0.45)% , 하한 5% / 상한 50% */
+/** 독촉전화 발생 확률: (20 − 신뢰도×0.15)% , 하한 5% / 상한 20% */
 function loanSharkCallProb(trust) {
   const { probBase, probSlope, probMin, probMax } = C.LOAN_SHARK_CALL;
   const p = probBase - trust * probSlope;

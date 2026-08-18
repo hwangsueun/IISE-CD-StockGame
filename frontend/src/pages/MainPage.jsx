@@ -41,7 +41,8 @@ function dateParts(dateStr) {
 
 export default function MainPage() {
   const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
-    lastTurnResult, dismissFaint } = useGameStore();
+    lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
+    retryPendingTurn, resumeGame, dismissFaint } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
 
@@ -50,13 +51,33 @@ export default function MainPage() {
   const autoOpenedRepayTurnRef = useRef(null);
   useEffect(() => {
     if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
-    if (pendingEvents.length > 0 || faintEvent || activeModal) return;
+    if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
     if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
     autoOpenedRepayTurnRef.current = turn.turnNumber;
     openModal('repay');
-  }, [turn, pendingEvents, faintEvent, activeModal, openModal]);
+  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal]);
 
-  if (!turn) return <div className="loading-screen">불러오는 중...</div>;
+  if (!turn) {
+    return (
+      <div className="loading-screen">
+        {turnLoadError ? (
+          <>
+            <p>현재 턴을 불러오지 못했습니다.</p>
+            <button className="btn-primary" disabled={loading} onClick={retryPendingTurn}>
+              {loading ? '다시 불러오는 중...' : '다시 불러오기'}
+            </button>
+          </>
+        ) : error ? (
+          <>
+            <p>게임을 불러오지 못했습니다.</p>
+            <button className="btn-primary" disabled={loading} onClick={() => resumeGame()}>
+              {loading ? '다시 불러오는 중...' : '다시 불러오기'}
+            </button>
+          </>
+        ) : '불러오는 중...'}
+      </div>
+    );
+  }
 
   const ActiveModal = activeModal ? MODALS[activeModal] : null;
   const { md, dow } = dateParts(turn.date);
@@ -80,6 +101,7 @@ export default function MainPage() {
           {/* 상태 배지 + HUD 액션 (날짜판 아래) */}
           <div className="hud-side">
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
+            {turn.marketOpen === false && <span className="px-badge lock">휴장일 · 거래 불가</span>}
             {turn.actionLocked && <span className="px-badge lock">입원 중</span>}
             {turn.sideJobDoneToday && <span className="px-badge lock">부업으로 투자 불가</span>}
             <button className="hud-btn" onClick={() => openModal('report', { monthIndex: turn.monthIndex })}>
@@ -117,7 +139,8 @@ export default function MainPage() {
           <div className="nextturn-wrap">
             <button
               className="nextturn-btn"
-              disabled={loading || pendingEvents.length > 0}
+              disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
+                surgePromptPending || pendingTurnNumber !== null}
               onClick={advanceTurn}
               title="다음 턴"
             >
@@ -135,16 +158,43 @@ export default function MainPage() {
       </div>
 
       {/* 선택형 이벤트 팝업 (해결 전 턴 진행 불가) */}
-      {pendingEvents.length > 0 && <EventPopup key={pendingEvents[0].eventLogId} event={pendingEvents[0]} />}
+      {pendingTurnNumber === null && pendingEvents.length > 0 && (
+        <EventPopup key={pendingEvents[0].eventLogId} event={pendingEvents[0]} />
+      )}
 
       {/* 급등주: 정산 결과 -> 신규 등장 순으로 표시 */}
-      <SurgeResultPopup />
-      {pendingEvents.length === 0 && <SurgeStockPopup />}
+      {pendingTurnNumber === null && <SurgeResultPopup />}
+      {pendingTurnNumber === null && pendingEvents.length === 0 && surgeResults.length === 0 && (
+        <SurgeStockPopup />
+      )}
 
       {ActiveModal && <ActiveModal {...modalProps} />}
 
       {/* 기절(입원): 강제 페널티형 즉시 이벤트 — 확인 전까지 최상단에 표시 */}
       {faintEvent && <FaintOverlay event={faintEvent} onDismiss={dismissFaint} />}
+
+      {turnLoadError && pendingTurnNumber !== null && (
+        <div className="cutscene-overlay">
+          <div className="game-frame surge-frame">
+            <div className="title-plate">★ TURN LOAD ERROR ★</div>
+            <div className="surge-stage" />
+            <div className="narration">
+              <div className="nar-head">
+                <div className="nar-portrait">⚠️</div>
+                <span className="nar-name">턴 불러오기 실패</span>
+                <span className="nar-tag">RETRY</span>
+              </div>
+              <div className="nar-body">
+                다음 턴은 서버에 저장되었습니다. 화면을 다시 불러올 때까지 추가 진행을 막았습니다.
+              </div>
+              <button className="surge-confirm-btn" disabled={loading} onClick={retryPendingTurn}>
+                {loading ? '불러오는 중...' : '다시 불러오기'}
+              </button>
+            </div>
+            <div className="crt" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

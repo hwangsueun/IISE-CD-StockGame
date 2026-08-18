@@ -7,7 +7,7 @@
 
 module.exports = {
   // --- 게임 기간 ---
-  TOTAL_TURNS: 240,             // 1턴 = 거래일 하루, 20턴 = 1개월
+  TOTAL_TURNS: 240,             // 1턴 = 평일 하루(휴장일 포함), 20턴 = 1개월
   TURNS_PER_MONTH: 20,
   TURNS_PER_WEEK: 5,            // 주간 평가 주기
 
@@ -86,9 +86,9 @@ module.exports = {
     { minRatio: 0, stressDelta: +35, trustDelta: -25, label: '미납' },
   ],
 
-  // --- 독촉 전화 (미팅5 §3): 발생확률(%) = 50 − 신뢰도×0.45, 하한 5 / 상한 50 ---
+  // --- 독촉 전화 (미팅5 §3): 발생확률(%) = 20 − 신뢰도×0.15, 하한 5 / 상한 20 ---
   LOAN_SHARK_CALL: {
-    probBase: 50, probSlope: 0.45, probMin: 5, probMax: 50,
+    probBase: 20, probSlope: 0.15, probMin: 5, probMax: 20,
     // 신뢰도 구간별 유형 (전화 중 즉시 일부 상환 입력 가능 — 기능명세서 §이벤트/독촉전화)
     tiers: [
       { minTrust: 51, type: 'normal', stressDelta: +8, label: '일반 독촉' },
@@ -145,7 +145,7 @@ module.exports = {
 
   // C. 급등주 (상태 연동형): 스트레스 구간별 발생 확률 (미팅5 §4)
   SURGE_STOCK: {
-    PROB_BY_BAND: { stable: 0.05, tense: 0.10, anxious: 0.20, high_risk: 0.35, critical: 0.55, faint: 0 },
+    PROB_BY_BAND: { stable: 0.02, tense: 0.04, anxious: 0.07, high_risk: 0.10, critical: 0.15, faint: 0 },
     // 다음 턴 결과 분포: [수익률 구간, 스트레스 변화, 발생 가중치]
     // TODO(gamelogic): 가중치는 기획 미확정 - 플레이테스트로 조정
     OUTCOMES: [
@@ -173,7 +173,7 @@ module.exports = {
   // 명절 (미팅4 §8): 랜덤 결과 — 사촌동생 용돈(현금 지출) / 아늑한 우리집(스트레스 하락)
   HOLIDAY: {
     // 설날/추석 당일 (2013~2023 실제 날짜, 음력 기준 공휴일).
-    // 트리거: 명절 당일이 직전 거래일과 이번 거래일 사이에 오면 발동 (연휴 직후 첫 거래일, 명절당 1회)
+    // 트리거: 명절 당일이 직전 평일과 이번 평일 사이에 오면 발동 (평일 명절은 당일, 주말 명절은 다음 평일)
     DATES: [
       '2013-02-10', '2013-09-19',
       '2014-01-31', '2014-09-08',

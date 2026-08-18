@@ -6,6 +6,7 @@ const { roundTradeAmount } = require('../utils/money');
 const C = require('../config/constants');
 const pricingService = require('./pricingService');
 const coinUniverseService = require('./coinUniverseService');
+const turnSelector = require('./turnSelector');
 
 /**
  * 코인 수량 검증: 최소 거래 단위(C.COIN_MIN_TRADE_UNIT) 이상 + 그 배수 +
@@ -72,6 +73,18 @@ async function executeTrade(sessionId, { assetId, tradeType, quantity }) {
       throw conflict('부업한 날에는 투자할 수 없습니다');
     }
 
+    // 평일 휴장일은 게임 턴으로 존재하지만 모든 자산 거래는 닫힌다.
+    // 부업·뉴스·메모 등 비거래 행동은 action_locked와 별개로 계속 가능하다.
+    const { rows: tRows } = await client.query(
+      `SELECT trade_date FROM game_turns WHERE session_id = $1 AND turn_number = $2`,
+      [sessionId, session.current_turn]
+    );
+    if (!tRows[0]) throw conflict('현재 턴 날짜를 찾을 수 없습니다');
+    const tradeDate = tRows[0].trade_date;
+    if (!(await turnSelector.isMarketOpen(tradeDate, client))) {
+      throw conflict('오늘은 휴장일이라 거래할 수 없습니다');
+    }
+
     // 자산 조회: 상장기간도 함께 확보한다. coin_info는 조인하지 않는다 —
     // listed_from/listed_to가 전 자산 공통 단일 기준이다 (migration 003).
     const { rows: aRows } = await client.query(
@@ -100,13 +113,6 @@ async function executeTrade(sessionId, { assetId, tradeType, quantity }) {
     } else if (!Number.isInteger(quantity)) {
       throw badRequest('주식/채권은 정수 수량만 가능합니다');
     }
-
-    // 현재 턴 날짜의 종가로 체결
-    const { rows: tRows } = await client.query(
-      `SELECT trade_date FROM game_turns WHERE session_id = $1 AND turn_number = $2`,
-      [sessionId, session.current_turn]
-    );
-    const tradeDate = tRows[0].trade_date;
 
     // 상장기간 검증 (NULL = 제약 없음). 시세 NULL(휴장/결측)과 원인을 구분할 수 있도록
     // getPriceAt 조회보다 먼저 확인한다 — 상장 전/폐지는 데이터 결측과 다른 문제다.

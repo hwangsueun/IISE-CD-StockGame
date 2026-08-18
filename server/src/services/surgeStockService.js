@@ -1,7 +1,7 @@
 // 급등주 이벤트 (미팅5 §4, 기능명세서 §이벤트/급등주)
 // 흐름: 스트레스 구간별 확률로 당일 장에 임시 작전주 등장
 //   -> 플레이어 매수(1개 이상의 정수 수량)/관망 선택
-//   -> 다음 턴에 결과 공개 (수익률 구간별 자산/스트레스 변화)
+//   -> 다음 개장 턴에 결과 공개 (수익률 구간별 자산/스트레스 변화)
 //   -> 작전주는 자동 매도 후 시장에서 제거
 const { query } = require('../db');
 const { badRequest, conflict, notFound } = require('../utils/errors');
@@ -41,8 +41,25 @@ async function spawn(client, session, random = Math.random) {
 async function getActive(sessionId) {
   const { rows } = await query(
     `SELECT s.*, g.current_turn, g.cash, g.status,
-            g.action_locked_until_turn, g.side_job_turn
+            g.action_locked_until_turn, g.side_job_turn,
+            EXISTS (
+              SELECT 1 FROM asset_prices p
+              JOIN assets a ON a.asset_id = p.asset_id
+              WHERE p.trade_date = gt.trade_date AND a.asset_type = 'stock'
+            ) AS market_open,
+            EXISTS (
+              SELECT 1 FROM game_turns future_gt
+              WHERE future_gt.session_id = g.id
+                AND future_gt.turn_number > g.current_turn
+                AND EXISTS (
+                  SELECT 1 FROM asset_prices future_p
+                  JOIN assets future_a ON future_a.asset_id = future_p.asset_id
+                  WHERE future_p.trade_date = future_gt.trade_date
+                    AND future_a.asset_type = 'stock'
+                )
+            ) AS has_future_market_open
      FROM surge_stocks s JOIN game_sessions g ON g.id = s.session_id
+     JOIN game_turns gt ON gt.session_id = g.id AND gt.turn_number = g.current_turn
      WHERE s.session_id = $1 AND s.resolved = FALSE
      ORDER BY s.id DESC LIMIT 1`,
     [sessionId]
@@ -63,8 +80,12 @@ async function getActive(sessionId) {
     quantity,
     investedAmount: Number(s.invested_amount),
     maxBuyQuantity,
+    marketOpen: s.market_open === true,
+    hasFutureMarketOpen: s.has_future_market_open === true,
     canBuy:
       s.status === 'active' &&
+      s.market_open === true &&
+      s.has_future_market_open === true &&
       spawnTurn === currentTurn &&
       currentTurn > Number(s.action_locked_until_turn) &&
       Number(s.side_job_turn) !== currentTurn &&
@@ -86,8 +107,25 @@ async function buy(sessionId, surgeStockId, quantity, client) {
 
   const { rows } = await q.query(
     `SELECT s.*, g.cash, g.current_turn, g.status,
-            g.action_locked_until_turn, g.side_job_turn
+            g.action_locked_until_turn, g.side_job_turn,
+            EXISTS (
+              SELECT 1 FROM asset_prices p
+              JOIN assets a ON a.asset_id = p.asset_id
+              WHERE p.trade_date = gt.trade_date AND a.asset_type = 'stock'
+            ) AS market_open,
+            EXISTS (
+              SELECT 1 FROM game_turns future_gt
+              WHERE future_gt.session_id = g.id
+                AND future_gt.turn_number > g.current_turn
+                AND EXISTS (
+                  SELECT 1 FROM asset_prices future_p
+                  JOIN assets future_a ON future_a.asset_id = future_p.asset_id
+                  WHERE future_p.trade_date = future_gt.trade_date
+                    AND future_a.asset_type = 'stock'
+                )
+            ) AS has_future_market_open
      FROM surge_stocks s JOIN game_sessions g ON g.id = s.session_id
+     JOIN game_turns gt ON gt.session_id = g.id AND gt.turn_number = g.current_turn
      WHERE s.id = $1 AND s.session_id = $2
      FOR UPDATE OF s, g`,
     [surgeStockId, sessionId]
@@ -96,6 +134,10 @@ async function buy(sessionId, surgeStockId, quantity, client) {
   if (!s) throw notFound('급등주를 찾을 수 없습니다');
   if (s.status !== 'active') throw conflict('종료된 게임입니다');
   if (s.resolved) throw conflict('이미 종료된 급등주입니다');
+  if (s.market_open !== true) throw conflict('오늘은 휴장일이라 급등주를 매수할 수 없습니다');
+  if (s.has_future_market_open !== true) {
+    throw conflict('게임 종료 전 정산 가능한 개장일이 없습니다');
+  }
   if (Number(s.spawn_turn) !== Number(s.current_turn)) throw conflict('매수 가능 시간이 지났습니다');
   if (Number(s.current_turn) <= Number(s.action_locked_until_turn)) {
     throw conflict('현재 턴에는 투자 행동을 할 수 없습니다');
@@ -103,13 +145,28 @@ async function buy(sessionId, surgeStockId, quantity, client) {
   if (Number(s.side_job_turn) === Number(s.current_turn)) {
     throw conflict('부업을 한 턴에는 투자할 수 없습니다');
   }
-  if (Number(s.quantity) > 0 || Number(s.invested_amount) > 0) throw conflict('이미 매수했습니다');
 
   const buyPrice = Number(s.buy_price);
   const cash = Number(s.cash);
   const totalAmount = buyPrice * quantity;
   if (!Number.isSafeInteger(buyPrice) || buyPrice <= 0 || !Number.isSafeInteger(totalAmount)) {
     throw conflict('급등주 체결 금액을 계산할 수 없습니다');
+  }
+  const existingQuantity = Number(s.quantity);
+  const existingAmount = Number(s.invested_amount);
+  if (existingQuantity > 0 || existingAmount > 0) {
+    // 같은 수량 요청의 응답만 유실된 경우에는 현금을 다시 차감하지 않고 확정 결과를 재전송한다.
+    if (existingQuantity === quantity && existingAmount === totalAmount) {
+      return {
+        surgeStockId,
+        quantity: existingQuantity,
+        buyPrice,
+        totalAmount: existingAmount,
+        cashAfter: cash,
+        replayed: true,
+      };
+    }
+    throw conflict('이미 다른 수량으로 매수했습니다');
   }
   const maxBuyQuantity = Math.floor(cash / buyPrice);
   if (quantity > maxBuyQuantity) {
@@ -156,12 +213,13 @@ function rollOutcome(random = Math.random) {
 }
 
 /**
- * 다음 턴 진행 시 미해결 급등주 정산 (turnService.advanceTurn 트랜잭션 안에서 호출)
+ * 다음 개장 턴 진행 시 미해결 급등주 정산 (turnService.advanceTurn 트랜잭션 안에서 호출)
  * - 매수분: 수익률 추첨 -> 자동 매도 정산 + 스트레스 반영
  * - 관망분: 결과 추첨 없이 관망 상태로 정리
  * @returns 정산 결과 목록
  */
-async function resolvePending(client, session, random = Math.random) {
+async function resolvePending(client, session, random = Math.random, marketOpen = false) {
+  if (marketOpen !== true) return [];
   const { rows } = await client.query(
     `SELECT * FROM surge_stocks
      WHERE session_id = $1 AND resolved = FALSE AND spawn_turn < $2
@@ -246,4 +304,77 @@ async function resolvePending(client, session, random = Math.random) {
   return results;
 }
 
-module.exports = { spawnProb, spawn, getActive, buy, resolvePending, rollOutcome };
+/**
+ * 최종 턴을 넘긴 레거시 세션의 미정산 급등주를 중립 정리한다.
+ * 매수분은 손익 없이 원금만 환급하고, 관망분은 skipped 처리한다.
+ */
+async function closePendingAtGameEnd(client, session) {
+  const { rows } = await client.query(
+    `SELECT * FROM surge_stocks
+     WHERE session_id = $1 AND resolved = FALSE
+     ORDER BY id FOR UPDATE`,
+    [session.id]
+  );
+  const results = [];
+
+  for (const s of rows) {
+    const invested = Number(s.invested_amount);
+    const quantity = Number(s.quantity);
+    const purchased = invested > 0;
+    const outcome = purchased ? 'cancelled' : 'skipped';
+
+    await client.query(
+      `UPDATE surge_stocks
+       SET resolved = TRUE, resolved_at = NOW(),
+           outcome = $2, return_rate = 0, cash_delta = 0, stress_delta = 0
+       WHERE id = $1 AND resolved = FALSE`,
+      [s.id, outcome]
+    );
+
+    if (purchased) {
+      session.cash = Number(session.cash) + invested;
+      await client.query(
+        `INSERT INTO event_log (session_id, turn_number, event_type, detail, cash_delta, stress_delta, resolved)
+         VALUES ($1, $2, 'surge_stock_result', $3, 0, 0, TRUE)`,
+        [session.id, session.current_turn,
+         JSON.stringify({
+           surgeStockId: s.id,
+           displayName: s.display_name,
+           quantity,
+           buyPrice: Number(s.buy_price),
+           investedAmount: invested,
+           outcome,
+           returnRate: 0,
+           proceeds: invested,
+           pnl: 0,
+           reason: 'game_end',
+         })]
+      );
+    }
+
+    results.push({
+      surgeStockId: s.id,
+      displayName: s.display_name,
+      purchased,
+      quantity: purchased ? quantity : 0,
+      buyPrice: Number(s.buy_price),
+      investedAmount: purchased ? invested : 0,
+      outcome,
+      returnRate: 0,
+      proceeds: purchased ? invested : 0,
+      pnl: 0,
+      stressDelta: 0,
+    });
+  }
+  return results;
+}
+
+module.exports = {
+  spawnProb,
+  spawn,
+  getActive,
+  buy,
+  resolvePending,
+  closePendingAtGameEnd,
+  rollOutcome,
+};

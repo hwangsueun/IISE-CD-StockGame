@@ -50,7 +50,7 @@ CREATE TABLE side_job_plays (
 
 -- ---------------------------------------------------------------------
 -- 급등주 이벤트 (기획 미팅5 §4: 임시 작전주 등장 -> 매수/관망 ->
---                다음 턴 결과 공개 -> 자동 매도 후 제거)
+--                다음 개장 턴 결과 공개 -> 자동 매도 후 제거)
 -- ---------------------------------------------------------------------
 CREATE TABLE surge_stocks (
   id SERIAL PRIMARY KEY,
@@ -59,7 +59,7 @@ CREATE TABLE surge_stocks (
   display_name VARCHAR(50) NOT NULL,    -- 가상 작전주 이름
   buy_price NUMERIC NOT NULL,           -- 등장 시 표시가
   invested_amount BIGINT NOT NULL DEFAULT 0,  -- 0이면 관망
-  outcome VARCHAR(20),                  -- surge/rise/small_rise/fall/plunge/crash (다음 턴 판정)
+  outcome VARCHAR(20),                  -- surge/rise/small_rise/fall/plunge/crash (다음 개장 턴 판정)
   return_rate NUMERIC,                  -- 실현 수익률
   cash_delta BIGINT,                    -- 자동 매도 정산액 - 투자액
   stress_delta INT,

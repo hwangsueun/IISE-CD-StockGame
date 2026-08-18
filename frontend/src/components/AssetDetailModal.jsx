@@ -75,8 +75,18 @@ export default function AssetDetailModal({ assetId }) {
           </button>
         ))}
         <span className="spacer" />
-        <button className="btn-buy" onClick={() => openModal('trade', { assetId, tradeType: 'buy' })}>매수</button>
-        <button className="btn-sell" onClick={() => openModal('trade', { assetId, tradeType: 'sell' })}>매도</button>
+        <button
+          className="btn-buy"
+          disabled={turn.marketOpen === false}
+          title={turn.marketOpen === false ? '휴장일에는 거래할 수 없습니다' : '매수'}
+          onClick={() => openModal('trade', { assetId, tradeType: 'buy' })}
+        >매수</button>
+        <button
+          className="btn-sell"
+          disabled={turn.marketOpen === false}
+          title={turn.marketOpen === false ? '휴장일에는 거래할 수 없습니다' : '매도'}
+          onClick={() => openModal('trade', { assetId, tradeType: 'sell' })}
+        >매도</button>
       </div>
 
       {tab === 'chart' && (

@@ -57,14 +57,15 @@ const DEV_MOCK_SURGE_ACTIVE = {
   displayName: '텐배거바이오',
   buyPrice: 1000 * (1 + Math.floor(Math.random() * 50)),
   investedAmount: 0,
+  maxBuyQuantity: 9999,
   canBuy: true,
 };
-function devBuySurge(surgeStockId, amount) {
-  return new Promise((resolve) => setTimeout(() => resolve({ surgeStockId, investedAmount: amount }), 250));
+function devBuySurge(surgeStockId, quantity) {
+  return new Promise((resolve) => setTimeout(() => resolve({ surgeStockId, quantity }), 250));
 }
-// surgeStockService.resolvePending()이 다음 턴에 돌려주는 정산 결과 한 건을 흉내낸다
+// surgeStockService.resolvePending()이 다음 개장 턴에 돌려주는 정산 결과 한 건을 흉내낸다
 const DEV_MOCK_SURGE_RESULT = {
-  displayName: '텐배거바이오', invested: 300000, outcome: 'plunge', returnRate: -0.22, pnl: -66000, stressDelta: 20,
+  displayName: '텐배거바이오', investedAmount: 300000, outcome: 'plunge', returnRate: -0.22, pnl: -66000, stressDelta: 20,
 };
 
 // [개발용 임시] 백엔드 없이 여행 이벤트를 미리보기 위한 목데이터 — 확인 끝나면 제거 예정

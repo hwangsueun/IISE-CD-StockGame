@@ -14,6 +14,9 @@ const C = require('../config/constants');
 const stressPolicy = require('./stressPolicy');
 const trustPolicy = require('./trustPolicy');
 const surgeStockService = require('./surgeStockService');
+const gameService = require('./gameService');
+const valuationService = require('./valuationService');
+const reportService = require('./reportService');
 const { clamp100 } = require('../utils/clamp');
 
 const rand = (min, max) => min + Math.random() * (max - min);
@@ -47,7 +50,7 @@ const EVENT_DEFS = {
         stressDelta: C.FAINT_RESET_STRESS - session.stress, // 0으로 리셋
         lockDays: skipDays,
         detail: {
-          message: `극심한 스트레스로 기절했다. ${skipDays}거래일 동안 투자·부업 불가.`,
+          message: `극심한 스트레스로 기절했다. ${skipDays}평일 동안 투자·부업 불가.`,
           skipDays, hospitalCost: C.HOSPITAL_COST, cashPaid, debtAdded,
         },
       };
@@ -55,8 +58,8 @@ const EVENT_DEFS = {
   },
 
   // ------------------------------------------------------------------
-  // C. 독촉 전화 (상태 연동형, 미팅5 §3): 확률 = 50 − 신뢰도×0.45 (%)
-  //    "사채업자의 전화"(loan_shark_call)는 신뢰도 기반 랜덤 이벤트 — 20일 주기 월말
+  // C. 독촉 전화 (상태 연동형, 미팅5 §3): 확률 = 20 − 신뢰도×0.15 (%)
+  //    "사채업자의 전화"(loan_shark_call)는 신뢰도 기반 랜덤 이벤트로 매 평일 턴 판정한다.
   //    상환("사채업자 방문", repaymentService)과는 별개다. 전화를 받는다고 상환 의무가
   //    생기지 않으며, 끊어도(hang_up) 페널티만 있을 뿐 강제 상환은 없다.
   //    유형별 스트레스 즉시 반영 + 팝업에서 지불액 입력 가능 (기능명세서)
@@ -87,11 +90,14 @@ const EVENT_DEFS = {
 
   // ------------------------------------------------------------------
   // C. 급등주 (상태 연동형, 미팅5 §4): 스트레스 높을수록 확률 상승, 입원 중 불가
-  //    당일 장에 임시 작전주 등장 -> 매수는 POST /surge/buy, 정산은 다음 턴
+  //    개장일에 임시 작전주 등장 -> 매수는 POST /surge/buy, 정산은 다음 개장 턴
   // ------------------------------------------------------------------
   surge_stock: {
     kind: 'immediate',
-    trigger: ({ session }) =>
+    trigger: ({ session, marketOpen, hasFutureMarketOpen }) =>
+      marketOpen === true &&
+      hasFutureMarketOpen === true &&
+      session.current_turn < C.TOTAL_TURNS &&
       session.current_turn > session.action_locked_until_turn &&
       Math.random() < surgeStockService.spawnProb(session.stress),
     applyAsync: async (client, ctx) => {
@@ -158,8 +164,8 @@ const EVENT_DEFS = {
   // ------------------------------------------------------------------
   holiday: {
     kind: 'immediate',
-    // 설날/추석 당일(HOLIDAY.DATES)이 직전 거래일~이번 거래일 사이에 있으면 발동.
-    // 명절은 휴장일이므로 연휴 직후 첫 거래일에 정확히 1회 발생한다.
+    // 설날/추석 당일(HOLIDAY.DATES)이 직전 게임 평일~이번 게임 평일 사이에 있으면 발동.
+    // 평일 명절은 당일, 주말 명절은 다음 평일에 정확히 1회 발생한다.
     trigger: ({ tradeDate, prevTradeDate }) => {
       if (!prevTradeDate) return false;
       const cur = toIsoDate(tradeDate);
@@ -213,7 +219,7 @@ function buildOmenHint() {
 /**
  * 턴 진행 시 이벤트 발생 판단 + 적용 (turnService 트랜잭션 안에서 호출)
  * 우선순위: 기절(E) > 명절(D) > 독촉전화(C) > 급등주(C) > 경조사(D) > 스터디(B) > 여행
- * 명절은 달력 확정 이벤트라 랜덤 이벤트보다 앞에 둔다 — 발동 윈도우(직전~이번 거래일)가
+ * 명절은 달력 확정 이벤트라 랜덤 이벤트보다 앞에 둔다 — 발동 윈도우(직전~이번 게임 날짜)가
  * 한 턴뿐이라, EVENT_MAX_PER_TURN에 밀리면 그 명절이 영영 소실되기 때문.
  */
 async function rollTurnEvents(client, session, ctx) {
@@ -324,6 +330,10 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     const debtDelta = eff.debtDelta || 0;
     const newStress = clamp100(row.stress + (eff.stressDelta || 0));
     const newTrust = clamp100(row.trust + (eff.trustDelta || 0));
+    session.cash = Number(row.cash) + cashDelta;
+    session.debt = Number(row.debt) + debtDelta;
+    session.stress = newStress;
+    session.trust = newTrust;
 
     await client.query(
       `UPDATE game_sessions
@@ -339,11 +349,39 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
       [eventLogId, cashDelta, eff.stressDelta || 0, eff.trustDelta || 0,
        JSON.stringify({ chosen: choiceKey, ...(eff.detail || {}) })]
     );
+
+    // 선택 효과(예: 독촉 전화에서 마지막 부채 상환)까지 적용한 상태로 즉시 종료를 판정한다.
+    // 종료 시 급등주 원금을 먼저 중립 환급한 뒤 세션/스냅샷을 같은 트랜잭션에서 확정한다.
+    const status = await gameService.evaluateEndCondition(client, session);
+    let surgeResults = [];
+    let totalAsset = null;
+    if (status !== 'active') {
+      surgeResults = await surgeStockService.closePendingAtGameEnd(client, session);
+      session.cash = Math.round(Number(session.cash));
+      session.debt = Math.round(Number(session.debt));
+      await client.query(
+        `UPDATE game_sessions
+         SET cash = $2, debt = $3, stress = $4, trust = $5, status = $6, updated_at = NOW()
+         WHERE id = $1`,
+        [sessionId, session.cash, session.debt, session.stress, session.trust, status]
+      );
+      totalAsset = await valuationService.computeTotalAsset(sessionId, client, { cash: session.cash });
+      await reportService.syncTerminalSnapshots(client, sessionId, session.current_turn, {
+        totalAsset,
+        session,
+      });
+    }
+
     return {
       eventLogId, chosen: choiceKey, ...eff,
-      cash: Number(row.cash) + cashDelta,
-      debt: Number(row.debt) + debtDelta,
-      stress: newStress, trust: newTrust,
+      cash: session.cash,
+      debt: session.debt,
+      stress: session.stress,
+      trust: session.trust,
+      status,
+      finished: status !== 'active',
+      surgeResults,
+      ...(totalAsset === null ? {} : { totalAsset }),
     };
   });
 }

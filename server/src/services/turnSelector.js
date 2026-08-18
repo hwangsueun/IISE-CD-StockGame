@@ -1,17 +1,15 @@
-// 시작일 선택 + 240거래일 생성 (ARCHITECTURE.md §9-1)
-// 거래일 기준 = asset_prices에 실제 가격이 존재하는 날짜 (KOSPI∪KOSDAQ 달력과 동일하게 적재됨)
+// 시작일 선택 + 240평일 턴 생성 (ARCHITECTURE.md §9-1)
+// 주말은 게임에서 건너뛰지만, 평일 휴장일은 부업·뉴스·메모 같은 비거래 행동을 위해 턴으로 유지한다.
 const { query } = require('../db');
 const C = require('../config/constants');
 
 /**
- * DB에 존재하는 전체 거래일 목록 (오름차순).
- * asset_type='stock'로 한정해야 한다 - 채권/코인 시세는 주말에도 존재해서(코인은 24/7,
- * 채권은 매일 보간 적재) asset_prices 전체로 DISTINCT를 뽑으면 토/일이 거래일로 섞여
- * 들어간다(버그, 2026-08-16). 주식 시세는 실제로 월~금에만 존재하므로 이걸 기준으로
- * 삼아야 "금요일 다음 턴 = 월요일"이 보장된다.
+ * DB에 실제 주식 시세가 존재하는 개장일 목록 (오름차순).
+ * 채권/코인은 주말 시세가 존재할 수 있으므로 반드시 주식만 기준으로 삼는다.
  */
-async function getTradingCalendar() {
-  const { rows } = await query(
+async function getMarketOpenDates(client) {
+  const q = client || { query };
+  const { rows } = await q.query(
     `SELECT DISTINCT p.trade_date
      FROM asset_prices p
      JOIN assets a ON a.asset_id = p.asset_id
@@ -21,41 +19,104 @@ async function getTradingCalendar() {
   return rows.map((r) => r.trade_date);
 }
 
+/** YYYY-MM-DD 양 끝을 포함하는 월~금 달력. UTC 연산으로 로컬 타임존 날짜 밀림을 막는다. */
+function buildWeekdayCalendar(from, to) {
+  if (!from || !to || from > to) return [];
+  const dates = [];
+  const cursor = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime())) return [];
+
+  while (cursor <= end) {
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 /**
- * GAME_START_RANGE 안에서 시작 거래일을 랜덤 선택하고 240거래일을 반환한다.
- * 시작일 + 240거래일이 데이터 범위를 넘지 않도록 상한을 보정한다.
- * @returns {Promise<{startDate: string, dates: Date[]}>}
+ * 게임 턴 달력: 첫~마지막 주식 개장일 사이의 모든 평일.
+ * 주식 시세가 없는 평일도 의도적으로 포함한다(휴장일 비거래 행동용).
  */
-async function selectTurnDates() {
+async function getTradingCalendar(client) {
+  const marketOpenDates = await getMarketOpenDates(client);
+  if (marketOpenDates.length === 0) return [];
+  return buildWeekdayCalendar(marketOpenDates[0], marketOpenDates[marketOpenDates.length - 1]);
+}
+
+/** 해당 날짜에 국내 주식 시세가 하나라도 있으면 게임 전체 거래가 가능한 개장일이다. */
+async function isMarketOpen(date, client) {
+  const q = client || { query };
+  const { rows } = await q.query(
+    `SELECT EXISTS (
+       SELECT 1
+       FROM asset_prices p
+       JOIN assets a ON a.asset_id = p.asset_id
+       WHERE p.trade_date = $1 AND a.asset_type = 'stock'
+     ) AS market_open`,
+    [date]
+  );
+  return rows[0]?.market_open === true;
+}
+
+/** 현재 턴 뒤에 정산 가능한 주식 개장 턴이 남아 있는지 확인한다. */
+async function hasFutureMarketOpen(sessionId, turnNumber, client) {
+  const q = client || { query };
+  const { rows } = await q.query(
+    `SELECT EXISTS (
+       SELECT 1
+       FROM game_turns gt
+       WHERE gt.session_id = $1 AND gt.turn_number > $2
+         AND EXISTS (
+           SELECT 1
+           FROM asset_prices p
+           JOIN assets a ON a.asset_id = p.asset_id
+           WHERE p.trade_date = gt.trade_date AND a.asset_type = 'stock'
+         )
+     ) AS has_future_market_open`,
+    [sessionId, turnNumber]
+  );
+  return rows[0]?.has_future_market_open === true;
+}
+
+/**
+ * GAME_START_RANGE 안에서 시작 개장일을 랜덤 선택하고 240평일을 반환한다.
+ * 시작일 + 240평일이 데이터 범위를 넘지 않도록 상한을 보정한다.
+ * @returns {Promise<{startDate: string, dates: string[]}>}
+ */
+async function selectTurnDates(random = Math.random) {
   const range = (process.env.GAME_START_RANGE || `${C.START_RANGE.from}..${C.START_RANGE.to}`).split('..');
-  const calendar = await getTradingCalendar();
+  const marketOpenDates = await getMarketOpenDates();
+  if (marketOpenDates.length === 0) {
+    throw new Error('주식 개장일 데이터가 없습니다 (시드 적재 필요)');
+  }
+  const marketOpenSet = new Set(marketOpenDates);
+  const calendar = buildWeekdayCalendar(marketOpenDates[0], marketOpenDates[marketOpenDates.length - 1]);
   if (calendar.length < C.TOTAL_TURNS) {
-    throw new Error(`거래일 데이터 부족: ${calendar.length}일 < ${C.TOTAL_TURNS}턴 (시드 적재 필요)`);
+    throw new Error(`평일 데이터 부족: ${calendar.length}일 < ${C.TOTAL_TURNS}턴 (시드 적재 필요)`);
   }
 
-  // 2026-07-20 버그 수정: 이전 구현은 `d >= new Date(range[0])`로 비교했다.
-  // getTradingCalendar가 돌려주는 trade_date는 Date가 아니라 'YYYY-MM-DD' 문자열이다
-  // (src/db.js가 DATE 타입 파서를 문자열 그대로 반환하도록 설정 — 타임존 왜곡 방지).
-  // 문자열과 Date의 관계 비교는 양쪽을 숫자로 변환하는데 문자열이 NaN이 되어 **항상 false**였다.
-  // 그래서 findIndex가 -1을 반환하고 lo가 0으로 떨어져 GAME_START_RANGE가 무시됐다
-  // (실측: 범위를 2014부터로 줘도 2013-01-15 시작 세션이 생성됨).
-  // 달력이 전부 'YYYY-MM-DD' 문자열이므로 사전식 비교가 곧 날짜 순서 비교다.
-  const fromIdx = calendar.findIndex((d) => d >= range[0]);
-
-  // 상한도 적용한다. 이전 구현은 range[1]을 파싱만 하고 쓰지 않아 240턴 제약으로만 잘렸다.
-  // 시작일 상한과 "240턴이 데이터 범위 안에 들어가는 마지막 인덱스" 중 더 이른 쪽을 쓴다.
+  // 첫날은 실제 개장일로 한정하되, 이후에는 평일 휴장일도 정상 턴으로 포함한다.
+  // 문자열은 모두 YYYY-MM-DD라 사전식 비교가 날짜 순서와 같다.
   const lastValidStartIdx = calendar.length - C.TOTAL_TURNS;
-  let toIdx = range[1] ? calendar.findIndex((d) => d > range[1]) : -1;
-  if (toIdx === -1) toIdx = calendar.length; // 상한이 달력 끝을 넘으면 끝까지
-  const lo = Math.max(0, fromIdx === -1 ? 0 : fromIdx);
-  const hi = Math.min(lastValidStartIdx, toIdx - 1);
-  if (hi < lo) {
+  const candidates = [];
+  for (let i = 0; i <= lastValidStartIdx; i += 1) {
+    const date = calendar[i];
+    if (date < range[0]) continue;
+    if (range[1] && date > range[1]) continue;
+    // 첫날과 마지막 날을 모두 개장일로 고정하면 마지막 급등주/강제청산이 휴장일에
+    // 걸린 채 게임이 끝나는 상태를 원천적으로 피할 수 있다.
+    const finalDate = calendar[i + C.TOTAL_TURNS - 1];
+    if (marketOpenSet.has(date) && marketOpenSet.has(finalDate)) candidates.push(i);
+  }
+  if (candidates.length === 0) {
     throw new Error(
       `GAME_START_RANGE(${range[0]}..${range[1]}) 안에 240턴이 들어가는 시작일이 없습니다 ` +
-        `(거래일 ${calendar.length}일, 마지막 가능 시작 인덱스 ${lastValidStartIdx})`
+        `(평일 ${calendar.length}일, 마지막 가능 시작 인덱스 ${lastValidStartIdx})`
     );
   }
-  const startIdx = lo + Math.floor(Math.random() * (hi - lo + 1));
+  const startIdx = candidates[Math.floor(random() * candidates.length)];
   const dates = calendar.slice(startIdx, startIdx + C.TOTAL_TURNS);
   return { startDate: dates[0], dates };
 }
@@ -74,4 +135,12 @@ async function createGameTurns(client, sessionId, dates) {
   );
 }
 
-module.exports = { getTradingCalendar, selectTurnDates, createGameTurns };
+module.exports = {
+  getMarketOpenDates,
+  buildWeekdayCalendar,
+  getTradingCalendar,
+  isMarketOpen,
+  hasFutureMarketOpen,
+  selectTurnDates,
+  createGameTurns,
+};

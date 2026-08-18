@@ -22,7 +22,7 @@ function shouldFaint(stress) {
   return stress >= C.STRESS_FAINT_THRESHOLD;
 }
 
-/** 기절 시 스킵 일수 (3~5 거래일, 미팅5) */
+/** 기절 시 스킵 일수 (3~5 평일 턴, 미팅5) */
 function rollFaintSkipDays() {
   const { min, max } = C.FAINT_SKIP_DAYS;
   return min + Math.floor(Math.random() * (max - min + 1));

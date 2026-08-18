@@ -54,6 +54,9 @@ export default function TradeModal({ assetId, tradeType: initialType = 'buy' }) 
 
   return (
     <Modal title={`${detail?.name || ''} 거래`}>
+      {turn.marketOpen === false && (
+        <p className="market-closed-note">오늘은 휴장일이라 거래할 수 없습니다. 부업과 다른 활동은 가능합니다.</p>
+      )}
       <div className="filter-bar">
         <button className={tradeType === 'buy' ? 'active' : ''} onClick={() => setTradeType('buy')}>매수</button>
         <button className={tradeType === 'sell' ? 'active' : ''} onClick={() => setTradeType('sell')}>매도</button>
@@ -77,7 +80,7 @@ export default function TradeModal({ assetId, tradeType: initialType = 'buy' }) 
       </label>
       <p className="est-amount">예상 {tradeType === 'buy' ? '매수' : '매도'}금액: <b>{won(estAmount)}</b></p>
 
-      <button className="btn-primary" disabled={submitting || qty <= 0} onClick={submit}>
+      <button className="btn-primary" disabled={turn.marketOpen === false || submitting || qty <= 0} onClick={submit}>
         {submitting ? '처리 중...' : `${tradeType === 'buy' ? '매수' : '매도'} 확정`}
       </button>
       {error && <p className="error-text">{error}</p>}

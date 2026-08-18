@@ -21,7 +21,7 @@ ALTER TABLE surge_stocks
   ADD CONSTRAINT chk_surge_quantity_nonnegative CHECK (quantity >= 0),
   ADD CONSTRAINT chk_surge_invested_nonnegative CHECK (invested_amount >= 0);
 
--- 한 세션에 미정산 이벤트성 종목이 둘 이상 생기면 다음 턴 정산 의미가 모호해진다.
+-- 한 세션에 미정산 이벤트성 종목이 둘 이상 생기면 다음 개장 턴 정산 의미가 모호해진다.
 CREATE UNIQUE INDEX uq_surge_one_unresolved_per_session
   ON surge_stocks(session_id)
   WHERE resolved = FALSE;

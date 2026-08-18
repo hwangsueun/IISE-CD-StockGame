@@ -22,11 +22,11 @@ test('spawn probability follows every stress band in the feature specification',
     throw new Error('pure probability lookup must not query the database');
   });
 
-  assert.equal(service.spawnProb(0), 0.05);
-  assert.equal(service.spawnProb(30), 0.10);
-  assert.equal(service.spawnProb(50), 0.20);
-  assert.equal(service.spawnProb(70), 0.35);
-  assert.equal(service.spawnProb(90), 0.55);
+  assert.equal(service.spawnProb(0), 0.02);
+  assert.equal(service.spawnProb(30), 0.04);
+  assert.equal(service.spawnProb(50), 0.07);
+  assert.equal(service.spawnProb(70), 0.10);
+  assert.equal(service.spawnProb(90), 0.15);
   assert.equal(service.spawnProb(100), 0);
 });
 
@@ -44,6 +44,8 @@ test('getActive exposes event price and the server-calculated maximum integer qu
       cash: '10000',
       status: 'active',
       action_locked_until_turn: 0,
+      market_open: true,
+      has_future_market_open: true,
     }] };
   });
 
@@ -55,6 +57,8 @@ test('getActive exposes event price and the server-calculated maximum integer qu
     quantity: 0,
     investedAmount: 0,
     maxBuyQuantity: 3,
+    marketOpen: true,
+    hasFutureMarketOpen: true,
     canBuy: true,
   });
 });
@@ -79,6 +83,8 @@ test('buy locks stock and session rows, calculates total on the server, and debi
           cash: '10000',
           status: 'active',
           action_locked_until_turn: 0,
+          market_open: true,
+          has_future_market_open: true,
         }] };
       }
       if (sql.includes('UPDATE surge_stocks')) return { rows: [{ id: 7 }] };
@@ -98,6 +104,41 @@ test('buy locks stock and session rows, calculates total on the server, and debi
   assert.match(calls[0].sql, /FOR UPDATE OF s, g/);
   assert.deepEqual(calls[1].params, [7, 3, 9000]);
   assert.deepEqual(calls[2].params, ['session-1', 9000]);
+});
+
+test('buy replays the same completed quantity without debiting cash twice', async () => {
+  const service = loadService(async () => {
+    throw new Error('global query must not be used inside a supplied transaction');
+  });
+  const calls = [];
+  const client = { query: async (sql) => {
+    calls.push(sql);
+    if (!sql.includes('SELECT s.*')) throw new Error('replay must not issue an update');
+    return { rows: [{
+      id: 7,
+      resolved: false,
+      spawn_turn: 4,
+      current_turn: 4,
+      buy_price: '3000',
+      quantity: '3',
+      invested_amount: '9000',
+      cash: '1000',
+      status: 'active',
+      action_locked_until_turn: 0,
+      market_open: true,
+      has_future_market_open: true,
+    }] };
+  } };
+
+  assert.deepEqual(await service.buy('session-1', 7, 3, client), {
+    surgeStockId: 7,
+    quantity: 3,
+    buyPrice: 3000,
+    totalAmount: 9000,
+    cashAfter: 1000,
+    replayed: true,
+  });
+  assert.equal(calls.length, 1);
 });
 
 test('buy rejects decimal quantities and quantities above available cash', async () => {
@@ -123,6 +164,8 @@ test('buy rejects decimal quantities and quantities above available cash', async
       cash: '10000',
       status: 'active',
       action_locked_until_turn: 0,
+      market_open: true,
+      has_future_market_open: true,
     }] };
   } };
   await assert.rejects(
@@ -144,11 +187,69 @@ test('buy rejects decimal quantities and quantities above available cash', async
       status: 'active',
       action_locked_until_turn: 0,
       side_job_turn: 4,
+      market_open: true,
+      has_future_market_open: true,
     }] };
   } };
   await assert.rejects(
     service.buy('session-1', 7, 1, sideJobClient),
     (err) => err.statusCode === 409 && /부업/.test(err.message)
+  );
+});
+
+test('buy rejects a surge stock on a weekday market holiday', async () => {
+  const service = loadService(async () => {
+    throw new Error('global query must not be used inside a supplied transaction');
+  });
+  const client = { query: async (sql) => {
+    if (!sql.includes('SELECT s.*')) throw new Error('must reject before updating');
+    return { rows: [{
+      id: 7,
+      resolved: false,
+      spawn_turn: 4,
+      current_turn: 4,
+      buy_price: '3000',
+      quantity: '0',
+      invested_amount: '0',
+      cash: '10000',
+      status: 'active',
+      action_locked_until_turn: 0,
+      market_open: false,
+      has_future_market_open: true,
+    }] };
+  } };
+
+  await assert.rejects(
+    service.buy('session-1', 7, 1, client),
+    (err) => err.statusCode === 409 && /휴장일/.test(err.message)
+  );
+});
+
+test('buy rejects a surge stock when no later market-open turn can settle it', async () => {
+  const service = loadService(async () => {
+    throw new Error('global query must not be used inside a supplied transaction');
+  });
+  const client = { query: async (sql) => {
+    if (!sql.includes('SELECT s.*')) throw new Error('must reject before updating');
+    return { rows: [{
+      id: 7,
+      resolved: false,
+      spawn_turn: 240,
+      current_turn: 240,
+      buy_price: '3000',
+      quantity: '0',
+      invested_amount: '0',
+      cash: '10000',
+      status: 'active',
+      action_locked_until_turn: 0,
+      market_open: true,
+      has_future_market_open: false,
+    }] };
+  } };
+
+  await assert.rejects(
+    service.buy('session-1', 7, 1, client),
+    (err) => err.statusCode === 409 && /정산 가능한 개장일/.test(err.message)
   );
 });
 
@@ -174,7 +275,7 @@ test('resolvePending auto-sells purchased stock next turn and applies PnL and st
   const random = () => randomValues.shift();
   const session = { id: 'session-1', current_turn: 5, cash: 500, stress: 90 };
 
-  const results = await service.resolvePending(client, session, random);
+  const results = await service.resolvePending(client, session, random, true);
   assert.match(calls[0].sql, /ORDER BY id FOR UPDATE/);
   assert.equal(session.cash, 1800);
   assert.equal(session.stress, 70);
@@ -218,7 +319,7 @@ test('resolvePending removes an observed stock without rolling an outcome or cha
 
   const results = await service.resolvePending(client, session, () => {
     throw new Error('관망에는 결과 추첨이 없어야 한다');
-  });
+  }, true);
   assert.equal(calls.length, 2);
   assert.equal(session.cash, 8000);
   assert.equal(session.stress, 40);
@@ -235,4 +336,72 @@ test('resolvePending removes an observed stock without rolling an outcome or cha
     pnl: 0,
     stressDelta: 0,
   }]);
+});
+
+test('resolvePending keeps a purchased surge stock pending until the next market-open turn', async () => {
+  const service = loadService(async () => {
+    throw new Error('global query must not be used');
+  });
+  const client = { query: async () => { throw new Error('market holiday must not query pending stocks'); } };
+  const session = { id: 'session-1', current_turn: 5, cash: 500, stress: 90 };
+
+  assert.deepEqual(await service.resolvePending(client, session, Math.random, false), []);
+  assert.equal(session.cash, 500);
+  assert.equal(session.stress, 90);
+});
+
+test('closePendingAtGameEnd refunds purchased principal and resolves all pending stocks neutrally', async () => {
+  const service = loadService(async () => {
+    throw new Error('global query must not be used');
+  });
+  const calls = [];
+  const client = { query: async (sql, params) => {
+    calls.push({ sql, params });
+    if (sql.includes('SELECT * FROM surge_stocks')) {
+      return { rows: [
+        {
+          id: 11,
+          display_name: '마지막로켓',
+          buy_price: '1000',
+          quantity: '3',
+          invested_amount: '3000',
+        },
+        {
+          id: 12,
+          display_name: '관망테크',
+          buy_price: '5000',
+          quantity: '0',
+          invested_amount: '0',
+        },
+      ] };
+    }
+    return { rows: [{ id: params?.[0] }] };
+  } };
+  const session = { id: 'session-1', current_turn: 240, cash: 7000, stress: 55 };
+
+  const results = await service.closePendingAtGameEnd(client, session);
+
+  assert.equal(session.cash, 10000);
+  assert.equal(session.stress, 55);
+  assert.equal(results.length, 2);
+  assert.deepEqual(results[0], {
+    surgeStockId: 11,
+    displayName: '마지막로켓',
+    purchased: true,
+    quantity: 3,
+    buyPrice: 1000,
+    investedAmount: 3000,
+    outcome: 'cancelled',
+    returnRate: 0,
+    proceeds: 3000,
+    pnl: 0,
+    stressDelta: 0,
+  });
+  assert.equal(results[1].outcome, 'skipped');
+  assert.equal(results[1].purchased, false);
+  assert.match(calls[0].sql, /ORDER BY id FOR UPDATE/);
+  assert.equal(calls.filter((call) => /UPDATE surge_stocks/.test(call.sql)).length, 2);
+  const logCall = calls.find((call) => /surge_stock_result/.test(call.sql));
+  assert.ok(logCall);
+  assert.match(logCall.params[2], /"reason":"game_end"/);
 });

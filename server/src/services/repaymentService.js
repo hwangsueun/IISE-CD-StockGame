@@ -5,6 +5,9 @@ const { badRequest, conflict } = require('../utils/errors');
 const C = require('../config/constants');
 const trustPolicy = require('./trustPolicy');
 const gameService = require('./gameService');
+const surgeStockService = require('./surgeStockService');
+const valuationService = require('./valuationService');
+const reportService = require('./reportService');
 const { clamp100 } = require('../utils/clamp');
 
 /** 현재 턴이 상환 턴인지 */
@@ -74,12 +77,33 @@ async function repay(sessionId, amount) {
       [sessionId, session.current_turn, JSON.stringify({ monthIndex, due, paid, ratio }), -paid, stressDelta, trustDelta]
     );
 
-    // 전액 상환 -> 즉시 성공 종료
-    const status = await gameService.evaluateEndCondition(client, {
+    // 전액 상환 또는 신뢰도 0으로 즉시 종료되면 다음 개장 턴이 없으므로, 진행 중인
+    // 급등주는 무작위 손익 없이 원금만 환급한 뒤 최종 현금을 확정한다.
+    const evaluatedSession = {
       ...session,
+      cash: cash - paid,
       debt: newDebt,
       trust: newTrust,
-    });
+      stress: newStress,
+    };
+    const status = await gameService.evaluateEndCondition(client, evaluatedSession);
+    let surgeResults = [];
+    let totalAsset = null;
+    if (status !== 'active') {
+      surgeResults = await surgeStockService.closePendingAtGameEnd(client, evaluatedSession);
+      evaluatedSession.cash = Math.round(Number(evaluatedSession.cash));
+      await client.query(
+        `UPDATE game_sessions SET cash = $2, updated_at = NOW() WHERE id = $1`,
+        [sessionId, evaluatedSession.cash]
+      );
+      totalAsset = await valuationService.computeTotalAsset(sessionId, client, {
+        cash: evaluatedSession.cash,
+      });
+      await reportService.syncTerminalSnapshots(client, sessionId, evaluatedSession.current_turn, {
+        totalAsset,
+        session: evaluatedSession,
+      });
+    }
 
     return {
       monthIndex,
@@ -89,8 +113,10 @@ async function repay(sessionId, amount) {
       trustDelta,
       stressDelta,
       debtRemaining: newDebt,
-      cash: cash - paid,
+      cash: Number(evaluatedSession.cash),
       status,
+      surgeResults,
+      ...(totalAsset === null ? {} : { totalAsset }),
     };
   });
 }

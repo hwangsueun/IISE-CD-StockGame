@@ -665,9 +665,10 @@ button { cursor: pointer; font: inherit; }
 }
 .filter-bar .spacer { flex: 1; }
 .filter-bar .btn-buy { background: #7f1d1d; color: var(--px-ink); box-shadow: inset 0 0 0 1px #ef4444; }
-.filter-bar .btn-buy:hover { background: #b91c1c; }
+.filter-bar .btn-buy:hover:not(:disabled) { background: #b91c1c; }
 .filter-bar .btn-sell { background: #1e3a8a; color: var(--px-ink); box-shadow: inset 0 0 0 1px #3b82f6; }
-.filter-bar .btn-sell:hover { background: #1d4ed8; }
+.filter-bar .btn-sell:hover:not(:disabled) { background: #1d4ed8; }
+.filter-bar .btn-buy:disabled, .filter-bar .btn-sell:disabled { opacity: 0.4; cursor: not-allowed; }
 .filter-bar.sub button { padding: 4px 10px; font-size: 0.8rem; }
 
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: 'Galmuri11', monospace; }
@@ -678,6 +679,12 @@ button { cursor: pointer; font: inherit; }
 .data-table tbody tr:hover { background: #2a1a10; }
 
 /* ---- 마켓 모달: 좌측 자산군 사이드바 + 랭킹 리스트 (디자인 원본 Main Screen.html #mkOverlay) ---- */
+.market-closed-note {
+  margin: 4px 0 10px; padding: 9px 12px;
+  border: 2px solid #7f1d1d; background: #2a1010; color: #ff8a7d;
+  box-shadow: inset 0 0 0 1px #3d2418;
+  font-family: 'Galmuri11', monospace; font-size: 13px; line-height: 1.5;
+}
 .mk-strip { display: flex; gap: 10px; padding: 4px 0 12px; flex-wrap: wrap; border-bottom: 2px dashed #3d2418; margin-bottom: 10px; }
 .mk-idx { display: flex; gap: 8px; align-items: baseline; background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #5a3624; padding: 6px 10px; }
 .mk-idx .lbl { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--px-ink-dim); letter-spacing: 1px; }

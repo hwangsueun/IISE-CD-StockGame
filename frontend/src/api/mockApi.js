@@ -183,6 +183,7 @@ export const mockApi = {
       date: dateForTurn(turn),
       monthIndex,
       isRepaymentTurn: turn % TURNS_PER_MONTH === 0,
+      marketOpen: true,
       state: stateOf(s),
       assets: assetSnapshot(turn, s.seed),
       news: newsForTurn(turn),

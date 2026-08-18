@@ -15,6 +15,7 @@ const eventEngine = require('./eventEngine');
 const surgeStockService = require('./surgeStockService');
 const newsService = require('./newsService');
 const reportService = require('./reportService');
+const turnSelector = require('./turnSelector');
 const { clamp100 } = require('../utils/clamp');
 
 /** 세션+턴 -> 날짜 */
@@ -37,7 +38,7 @@ async function getTurnData(sessionId, turnNumber) {
   const date = await getTurnDate(sessionId, turnNumber);
   const iso = toIso(date);
 
-  const [prices, assets, newsResult, totalAsset] = await Promise.all([
+  const [prices, assets, newsResult, totalAsset, marketOpen] = await Promise.all([
     pricingService.getPricesAt(iso),
     // 코인은 세션 유니버스 10종으로 제한한다 (migration 005). 주식/채권은 asset_type <> 'coin'로
     // 그대로 통과한다(전역, is_active만 적용) — pricingService.listAssets와 동일한 필터 형태.
@@ -53,6 +54,7 @@ async function getTurnData(sessionId, turnNumber) {
     ),
     newsService.getNewsByDate(iso, { sessionId }),
     valuationService.computeTotalAsset(sessionId),
+    turnSelector.isMarketOpen(iso),
   ]);
 
   const assetRows = assets.rows
@@ -72,6 +74,7 @@ async function getTurnData(sessionId, turnNumber) {
     monthIndex: repaymentService.monthIndexOf(turnNumber),
     isRepaymentTurn: repaymentService.isRepaymentTurn(turnNumber),
     isMonthStart: turnNumber % C.TURNS_PER_MONTH === 1,
+    marketOpen,
     state: {
       cash: Number(session.cash),
       totalAsset,
@@ -104,21 +107,52 @@ async function advanceTurn(sessionId) {
     // --- 상환 턴을 상환 없이 지나치면 자동 미납 처리 (미팅5: 기절로 월말 경과 포함) ---
     const missedRepayment = await repaymentService.recordMissedIfUnpaid(client, session);
 
+    // 미납으로 신뢰도가 0이 됐거나 직전 선택에서 부채가 모두 상환된 세션은 새 턴·이벤트를
+    // 만들지 않는다. 진행 중 급등주도 중립 정리해 종료 상태에 미정산 행이 남지 않게 한다.
+    const preAdvanceStatus = await gameService.evaluateEndCondition(client, session);
+    if (preAdvanceStatus !== 'active') {
+      const surgeResults = await surgeStockService.closePendingAtGameEnd(client, session);
+      session.cash = Math.round(Number(session.cash));
+      session.debt = Math.round(Number(session.debt));
+      await client.query(
+        `UPDATE game_sessions
+         SET cash = $2, debt = $3, stress = $4, trust = $5, updated_at = NOW()
+         WHERE id = $1`,
+        [sessionId, session.cash, session.debt, session.stress, session.trust]
+      );
+      const totalAsset = await valuationService.computeTotalAsset(sessionId, client, { cash: session.cash });
+      await reportService.syncTerminalSnapshots(client, sessionId, session.current_turn, {
+        totalAsset,
+        session,
+      });
+      return { finished: true, status: preAdvanceStatus, missedRepayment, surgeResults, totalAsset };
+    }
+
     if (session.current_turn >= C.TOTAL_TURNS) {
-      // 240턴 종료: 승패 판정만 (미납 반영분 저장 포함)
-      if (missedRepayment) {
-        await client.query(
-          `UPDATE game_sessions SET stress = $2, trust = $3, updated_at = NOW() WHERE id = $1`,
-          [sessionId, session.stress, session.trust]
-        );
-      }
+      // 레거시 세션처럼 마지막 턴이 휴장일인 경우에도 매수 원금이 미정산으로 남지 않게
+      // 무작위 손익 없이 원금만 환급한 뒤 최종 승패를 판정한다.
+      const surgeResults = await surgeStockService.closePendingAtGameEnd(client, session);
+      session.cash = Math.round(Number(session.cash));
+      session.debt = Math.round(Number(session.debt));
+      await client.query(
+        `UPDATE game_sessions
+         SET cash = $2, debt = $3, stress = $4, trust = $5, updated_at = NOW()
+         WHERE id = $1`,
+        [sessionId, session.cash, session.debt, session.stress, session.trust]
+      );
       const status = await gameService.evaluateEndCondition(client, session, { turnLimitReached: true });
-      return { finished: true, status, missedRepayment };
+      const totalAsset = await valuationService.computeTotalAsset(sessionId, client, { cash: session.cash });
+      await reportService.syncTerminalSnapshots(client, sessionId, session.current_turn, {
+        totalAsset,
+        session,
+      });
+      return { finished: true, status, missedRepayment, surgeResults, totalAsset };
     }
 
     const nextTurn = session.current_turn + 1;
     const prevDate = await getTurnDate(sessionId, session.current_turn, client);
     const nextDate = await getTurnDate(sessionId, nextTurn, client);
+    const marketOpen = await turnSelector.isMarketOpen(nextDate, client);
     session.current_turn = nextTurn;
 
     // --- 상장폐지 강제청산 (migration 003 §4, ARCHITECTURE.md §9-2) ---
@@ -144,8 +178,15 @@ async function advanceTurn(sessionId) {
       );
     }
 
-    // --- 전 턴 급등주 정산 (미팅5 §4: 다음 턴 결과 공개 -> 자동 매도/제거) ---
-    const surgeResults = await surgeStockService.resolvePending(client, session);
+    // --- 이전 개장 턴 급등주 정산 (미팅5 §4: 다음 개장 턴 결과 공개 -> 자동 매도/제거) ---
+    // 급등주는 주식 거래 이벤트이므로 평일 휴장일에는 유지하고 다음 개장 턴에 정산한다.
+    const surgeResults = await surgeStockService.resolvePending(client, session, Math.random, marketOpen);
+    const hasFutureMarketOpen = await turnSelector.hasFutureMarketOpen(sessionId, nextTurn, client);
+    // 레거시 달력의 마지막 턴이 휴장일이면 정상 정산할 개장 턴이 없다. 이 경우에만
+    // 남은 매수 원금을 중립 환급해 신뢰도 0 등으로 즉시 종료되어도 미정산이 남지 않게 한다.
+    if (!hasFutureMarketOpen) {
+      surgeResults.push(...await surgeStockService.closePendingAtGameEnd(client, session));
+    }
 
     // --- 보유자산 평가 + 일일 손익률 기반 스트레스 (미팅4 §2) ---
     // DB의 current_turn/cash는 아직 이전 턴 값이다. 다음 거래일과 메모리상의 현금을 명시해
@@ -170,7 +211,16 @@ async function advanceTurn(sessionId) {
       tradeDate: nextDate,
       prevTradeDate: prevDate,
       totalAsset: totalAssetBefore,
+      marketOpen,
+      hasFutureMarketOpen,
     });
+
+    // 현재 또는 향후 이벤트가 종료 조건을 만들더라도 신규/기존 급등주를 남기지 않는다.
+    // 정산·원금 환급을 먼저 끝내야 아래 총자산과 스냅샷이 최종 현금과 일치한다.
+    const status = await gameService.evaluateEndCondition(client, session);
+    if (status !== 'active') {
+      surgeResults.push(...await surgeStockService.closePendingAtGameEnd(client, session));
+    }
 
     // 이벤트가 현금을 바꿀 수 있으므로 화면/스냅샷에는 이벤트 처리 뒤 자산을 기록한다.
     const totalAssetAfter = await valuationService.computeTotalAsset(sessionId, client, {
@@ -199,15 +249,13 @@ async function advanceTurn(sessionId) {
       });
     }
 
-    // --- 승패 판정 (신뢰도 0 등) ---
-    const status = await gameService.evaluateEndCondition(client, session);
-
     return {
       finished: status !== 'active',
       status,
       turnNumber: nextTurn,
       date: toIso(nextDate),
       isRepaymentTurn: repaymentService.isRepaymentTurn(nextTurn),
+      marketOpen,
       monthly,
       missedRepayment, // 직전 상환 턴을 지나쳐 자동 미납 처리된 경우 (팝업 연출용)
       forcedLiquidations: forcedLiquidations.length > 0 ? forcedLiquidations : null, // 상장폐지 강제청산 결과 (팝업 연출용)

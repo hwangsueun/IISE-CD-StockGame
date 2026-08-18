@@ -33,7 +33,7 @@ async function startGame(difficulty, userId = null) {
     await turnSelector.createGameTurns(client, session.id, dates);
     // 코인 층화추출 (migration 005) — 240턴 날짜가 확정된 직후, 같은 트랜잭션 안에서 실행해야
     // 세션 생성과 원자적으로 묶인다(둘 중 하나만 커밋되는 상태 방지). dates[0]/dates[dates.length-1]
-    // = 세션의 첫/마지막 거래일 (coinUniverseService의 전 기간 생존 조건 판단 기준).
+    // = 세션의 첫/마지막 평일 턴 (coinUniverseService의 전 기간 생존 조건 판단 기준).
     await coinUniverseService.selectForSession(client, session.id, dates[0], dates[dates.length - 1]);
 
     // 수익률 대시보드의 기준점. 이후 턴은 turnService가 같은 daily 스냅샷을 이어 쓴다.
@@ -88,7 +88,7 @@ async function getSessionState(sessionId) {
  * - 성공: 부채 전액 상환 (debt <= 0)
  * - 실패: 240턴 종료 후 미상환, 또는 신뢰도 0
  * turnLimitReached: 240턴을 "마친 뒤"의 최종 판정에서만 true.
- * 240턴에 도착한 시점은 마지막 거래일이 아직 남아 있으므로(12개월차 상환 가능)
+ * 240턴에 도착한 시점은 마지막 평일 턴이 아직 남아 있으므로(12개월차 상환 가능)
  * 턴 초과 실패를 적용하지 않는다.
  * @returns {'active'|'success'|'failed'}
  */
