@@ -28,6 +28,27 @@ const MA_MAX_COUNT = 8;
 // 동일하게 "현재 턴까지 존재하는 전체 이력"을 반환한다.
 const FULL_HISTORY_FALLBACK_FROM = '1900-01-01';
 
+const INDICATOR_HELP = (
+  <>
+    <p><b>차트 지표</b>는 가격 흐름을 읽는 참고 도구다. 하나의 신호만으로 방향을 단정할 수는 없다.</p>
+    <ul>
+      <li>
+        <b>이동평균선(MA)</b> — 일정 기간의 가격 평균을 이어 흐름을 부드럽게 보여준다.
+        짧은 기간선은 최근 변화에 민감하고, 긴 기간선은 큰 흐름을 살피는 데 유용하다.
+      </li>
+      <li>
+        <b>볼린저 밴드</b> — 이동평균선을 중심으로 최근 변동 폭을 위아래 밴드로 표시한다.
+        폭이 넓을수록 변동이 크고, 좁을수록 비교적 잔잔한 흐름이다.
+      </li>
+      <li>
+        <b>상대강도지수(RSI)</b> — 최근 상승과 하락의 힘을 0~100으로 나타낸다.
+        보통 70 이상은 과열, 30 이하는 위축을 살피는 구간이지만 반전을 보장하지 않는다.
+      </li>
+    </ul>
+    <p>일·주·월봉을 바꾸면 각 지표도 선택한 봉 단위로 다시 표시된다.</p>
+  </>
+);
+
 function normalizePriceSeries(rows) {
   if (!Array.isArray(rows)) return [];
   return rows.flatMap((row) => {
@@ -239,7 +260,11 @@ export default function AssetDetailModal({ assetId }) {
   if (!detail) return <Modal title="로딩 중..." wide />;
 
   return (
-    <Modal title={`${detail.name} ${detail.price ? '· ' + won(detail.price) : ''}`} wide>
+    <Modal
+      title={`${detail.name} ${detail.price ? '· ' + won(detail.price) : ''}`}
+      wide
+      help={tab === 'chart' && detail.assetType !== 'bond' ? INDICATOR_HELP : null}
+    >
       <div className="filter-bar">
         {['chart', 'news', 'community', 'info'].map((t) => (
           <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
@@ -278,9 +303,9 @@ export default function AssetDetailModal({ assetId }) {
             {detail.assetType !== 'bond' && (
               <>
                 <span className="spacer" />
-                <button type="button" className={showMa ? 'active' : ''} aria-pressed={showMa} disabled={maPeriods.length === 0} onClick={() => setShowMa(!showMa)}>MA</button>
-                <button type="button" className={showBb ? 'active' : ''} aria-pressed={showBb} onClick={() => setShowBb(!showBb)}>볼린저</button>
-                <button type="button" className={showRsi ? 'active' : ''} aria-pressed={showRsi} onClick={() => setShowRsi(!showRsi)}>RSI</button>
+                <button type="button" title="이동평균선(MA)" className={showMa ? 'active' : ''} aria-pressed={showMa} disabled={maPeriods.length === 0} onClick={() => setShowMa(!showMa)}>MA</button>
+                <button type="button" title="볼린저 밴드" className={showBb ? 'active' : ''} aria-pressed={showBb} onClick={() => setShowBb(!showBb)}>볼린저</button>
+                <button type="button" title="상대강도지수(RSI)" className={showRsi ? 'active' : ''} aria-pressed={showRsi} onClick={() => setShowRsi(!showRsi)}>RSI</button>
                 <button
                   type="button"
                   className={showIndicatorSettings ? 'active' : ''}
