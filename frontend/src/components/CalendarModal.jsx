@@ -78,7 +78,9 @@ export default function CalendarModal() {
         <div className="cal-grid-wrap">
           <div className="cal-month-nav">
             <button className="cal-nav" disabled={viewYm <= minYm} onClick={() => moveMonth(-1)}>◀</button>
-            <div className="cal-month-name">{relativeYearLabel(view.y, turn.date)} {MONTH_EN[view.m - 1]}</div>
+            <div className="cal-month-name">
+              {view.y === ty ? MONTH_EN[view.m - 1] : `${relativeYearLabel(view.y, turn.date)} ${MONTH_EN[view.m - 1]}`}
+            </div>
             <button className="cal-nav" disabled={viewYm >= maxYm} onClick={() => moveMonth(1)}>▶</button>
           </div>
           <div className="cal-dow">{DOW.map((d) => <span key={d}>{d}</span>)}</div>

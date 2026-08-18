@@ -126,7 +126,6 @@ export default function MainPage() {
             <img src="/game/assets/btn_market.png" alt="마켓" />
             <span className="lbl">마켓</span>
           </button>
-          <div className="monitor-ring" />
           <button className="pbtn b-game" title="부업" onClick={() => openModal('sidejob')}>
             <img src="/game/assets/btn_game.png" alt="부업" />
             <span className="lbl">부업</span>

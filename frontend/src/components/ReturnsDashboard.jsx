@@ -6,10 +6,10 @@ import { api } from '../api/client';
 import { won, pct, signed, changeClass } from '../utils/format';
 
 const UNIT_TABS = [
-  { key: 'day', label: '일', turns: '1턴' },
-  { key: 'week', label: '주', turns: '5턴' },
-  { key: 'month', label: '월', turns: '20턴' },
-  { key: 'all', label: '전체', turns: '1턴부터' },
+  { key: 'day', label: '일', performanceLabel: '일별 성과' },
+  { key: 'week', label: '주', performanceLabel: '주별 성과' },
+  { key: 'month', label: '월', performanceLabel: '월별 성과' },
+  { key: 'all', label: '전체', performanceLabel: '누적 성과' },
 ];
 const TYPE_LABEL = { all: '전체', stock: '주식', bond: '채권', coin: '코인' };
 const BASE_COLORS = {
@@ -84,19 +84,18 @@ function DonutChart({ allocation, assetType, currentValue }) {
 
 function PeriodTable({ periods, unit }) {
   if (!periods.length) {
-    return <p className="dash-empty">아직 완성된 성과 구간이 없다. 다음 턴부터 일 단위 기록이 생긴다.</p>;
+    return <p className="dash-empty">아직 성과 기록이 없다.</p>;
   }
   return (
     <div className="dash-period-scroll">
       <table className="data-table dash-period-table">
         <thead>
-          <tr><th>구간</th><th>턴 범위</th><th>마감 평가액</th><th>순수 손익</th><th>수익률</th></tr>
+          <tr><th>기간</th><th>마감 평가액</th><th>손익</th><th>수익률</th></tr>
         </thead>
         <tbody>
           {periods.map((period) => (
             <tr key={`${unit}-${period.index}-${period.fromTurn}`}>
               <td>{period.label}</td>
-              <td>{period.fromTurn} → {period.toTurn}턴</td>
               <td>{won(period.endValue)}</td>
               <td className={changeClass(period.netAmount)}>{signedWon(period.netAmount)}</td>
               <td className={changeClass(period.returnRate)}>{signed(period.returnRate)}</td>
@@ -147,10 +146,9 @@ export default function ReturnsDashboard({ sessionId, assetType }) {
       <section className="dash-performance">
         <div className="dash-unit-head">
           <div>
-            <h4 className="dash-h">성과 집계</h4>
-            <p>최근 기간 필터가 아니라 n턴 전체를 선택한 단위로 나눈 결과다.</p>
+            <h4 className="dash-h">운용 성과</h4>
           </div>
-          <div className="dash-unit-tabs" role="tablist" aria-label="성과 집계 단위">
+          <div className="dash-unit-tabs" role="tablist" aria-label="성과 조회 기간">
             {UNIT_TABS.map((item) => (
               <button
                 key={item.key}
@@ -160,7 +158,7 @@ export default function ReturnsDashboard({ sessionId, assetType }) {
                 className={unit === item.key ? 'active' : ''}
                 onClick={() => setUnit(item.key)}
               >
-                {item.label}<small>{item.turns}</small>
+                {item.label}
               </button>
             ))}
           </div>
@@ -171,24 +169,21 @@ export default function ReturnsDashboard({ sessionId, assetType }) {
             <div className="dash-kpi">
               <span className="k">현재 평가액</span>
               <b className="v">{won(dashboard.currentValue)}</b>
-              <span className="sub">현재 {dashboard.currentTurn}턴</span>
             </div>
             <div className="dash-kpi hero">
-              <span className="k">전체 순수 손익</span>
+              <span className="k">누적 손익</span>
               <b className={`v ${changeClass(summary.netAmount)}`}>{signedWon(summary.netAmount)}</b>
-              <span className="sub">매수·매도 자금 이동 제외</span>
+              <span className="sub">입출금 제외</span>
             </div>
             <div className="dash-kpi">
-              <span className="k">전체 수익률</span>
+              <span className="k">누적 수익률</span>
               <b className={`v ${changeClass(summary.returnRate)}`}>{signed(summary.returnRate)}</b>
-              <span className="sub">1턴 → {dashboard.currentTurn}턴</span>
             </div>
           </div>
         )}
 
         <div className="dash-period-head">
-          <h4>{unitMeta?.label} 단위 구간</h4>
-          <span>{unit === 'all' ? '게임 시작부터 현재 턴까지' : `${unitMeta?.turns} 단위 · 마지막은 현재 턴까지`}</span>
+          <h4>{unitMeta?.performanceLabel}</h4>
         </div>
         {loading && <p className="dash-empty">성과를 계산하는 중…</p>}
         {!loading && !error && dashboard && <PeriodTable periods={dashboard.periods} unit={unit} />}

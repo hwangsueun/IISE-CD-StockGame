@@ -418,16 +418,6 @@ button { cursor: pointer; font: inherit; }
 .b-market { left: 1050px; top: 300px; width: 130px; height: 130px; }
 .b-game { left: 1050px; top: 150px; width: 130px; height: 100px; }
 
-.monitor-ring {
-  position: absolute;
-  left: 1026px; top: 132px; width: 178px; height: 136px;
-  border: 3px dashed rgba(74, 222, 128, 0.6);
-  pointer-events: none;
-  animation: px-blink 1.6s steps(2, end) infinite;
-  z-index: 4;
-}
-@keyframes px-blink { 0%, 49% { opacity: 0.7; } 50%, 100% { opacity: 0.15; } }
-
 /* --- HUD 날짜판/배지 (우상단) --- */
 .hud-clock {
   position: absolute; top: 16px; right: 16px;
@@ -1445,25 +1435,21 @@ textarea { min-height: 80px; resize: vertical; }
 
 .dash-unit-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; }
 .dash-unit-head > div:first-child { flex: 1; }
-.dash-unit-head .dash-h { margin-bottom: 5px; }
-.dash-unit-head p { margin: 0; color: var(--px-ink-dim); font-size: 11px; }
+.dash-unit-head .dash-h { margin-bottom: 0; }
 .dash-unit-tabs { display: flex; gap: 4px; flex-shrink: 0; }
 .dash-unit-tabs button {
   min-width: 62px; background: #0c0704; border: 2px solid #000;
   box-shadow: inset 0 0 0 1px #3d2418; color: var(--px-ink-dim);
   padding: 6px 9px; cursor: pointer; font-family: 'Galmuri11', monospace; font-size: 13px;
 }
-.dash-unit-tabs button small { display: block; margin-top: 2px; color: #7c6248; font-size: 9px; }
 .dash-unit-tabs button:hover { color: var(--px-ink); }
 .dash-unit-tabs button.active {
   color: var(--px-gold); border-color: var(--px-gold); background: #2a1a10;
   box-shadow: inset 0 -2px 0 #5a3624, 2px 2px 0 #000;
 }
-.dash-unit-tabs button.active small { color: var(--px-ink-dim); }
 .dash-performance .dash-kpis { grid-template-columns: repeat(3, 1fr); }
 .dash-period-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; }
 .dash-period-head h4 { margin: 0; color: var(--px-ink); font-size: 13px; }
-.dash-period-head span { color: var(--px-ink-dim); font-size: 11px; }
 .dash-period-scroll {
   max-height: 270px; overflow: auto; border: 2px solid #000;
   scrollbar-width: thin; scrollbar-color: #5a3624 transparent;

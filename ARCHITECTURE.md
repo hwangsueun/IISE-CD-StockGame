@@ -549,7 +549,7 @@ erDiagram
 }
 ```
 
-뉴스 DTO는 NEWS_DATA_CONTRACT의 필드를 그대로 반영한다: `headline = news_lines[0]`, `lines = news_lines` 전문, 종목 뉴스는 `assetId`/`assetName`(마스킹명)으로 종목 화면에 라우팅한다. 화면에 노출되는 뉴스 문구의 명시적 절대연도는 조회 시점의 게임 날짜를 현재로 삼아 상대 표현(`n년 전`·`올해`·`향후 연도`)으로 치환한다. 구조 식별에 필요한 ISO 날짜와 뉴스 ID, DB 원문은 바꾸지 않고 프론트에서 현재 턴 날짜를 기준으로 ISO 날짜를 `n년 전 MM/DD`로 표시한다.
+뉴스 DTO는 NEWS_DATA_CONTRACT의 필드를 그대로 반영한다: `headline = news_lines[0]`, `lines = news_lines` 전문, 종목 뉴스는 `assetId`/`assetName`(마스킹명)으로 종목 화면에 라우팅한다. 화면에 노출되는 뉴스 문구의 명시적 절대연도는 조회 시점의 게임 날짜를 현재로 삼아 상대 표현(`n년 전`·`올해`·`향후 연도`)으로 치환한다. 구조 식별에 필요한 ISO 날짜와 뉴스 ID, DB 원문은 바꾸지 않고 프론트에서 현재 턴 날짜를 기준으로 과거 연도는 `n년 전 MM/DD`, 같은 게임 연도는 `MM/DD`로 표시한다.
 
 ## 9. 게임 로직
 
