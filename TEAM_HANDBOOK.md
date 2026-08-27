@@ -290,6 +290,30 @@ git push origin main
 
 > ⚠️ **푸시가 거절되면(rejected)** 팀원이 먼저 올린 것 → `git pull --rebase origin main` 를 실행하고 다시 push. 충돌이 나면 §6-3.
 
+### 2-3-1. ⚠️ `git pull` 후 DB 마이그레이션이 추가됐을 때
+
+`server/migrations/` 에 **새 번호 파일이 생겼다면 `git pull` 만으로는 반영되지 않는다.**
+마이그레이션은 DB를 처음 만들 때(`docker-entrypoint-initdb.d`)만 자동 실행되기 때문에,
+이미 만들어져 있는 DB에는 직접 적용해야 한다.
+
+```bash
+docker exec -i antsurvival_db psql -U admin -d antsurvival < server/migrations/007_sort_characters_minigame.sql
+```
+
+> 적용하지 않으면 해당 기능에서 에러가 난다.
+> 예) 007을 안 넣으면 **부업 → 상자에 캐릭터 분류하기** 결과 제출 시
+> `gameKey는 avoid_professor|catch_waxon|sort_characters 중 하나입니다` 또는
+> `violates check constraint` 에러가 뜬다.
+
+데이터를 지켜야 할 이유가 없다면 **2-4의 리셋**이 더 간단하다 (새 DB엔 전부 자동 적용된다).
+
+프론트/서버 코드는 `npm run dev` 로 돌리므로 `git pull` 만으로 바로 반영된다.
+단, 서버를 **도커 컨테이너로** 돌리는 경우엔 이미지에 소스가 구워져 있어 재빌드가 필요하다:
+
+```bash
+docker compose up -d --build api
+```
+
 ### 2-4. 완전히 새로 시작하고 싶을 때 (게임 데이터 리셋)
 
 게임 데이터가 꼬였거나 처음부터 다시 하고 싶으면:
