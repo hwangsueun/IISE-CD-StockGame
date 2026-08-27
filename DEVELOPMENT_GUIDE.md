@@ -237,7 +237,7 @@ A1이 끝나기 전에는 실데이터 DB를 시연에 쓰지 않는다 (§1-4 �
 | `Bad End - Bankruptcy.html` | `pages/ResultPage.jsx` (failed) | |
 | `Minigame_Catch_Waxon.html` | `minigames/CatchWaxon.jsx` | bird.png, boong_bg.png, dragon_* 에셋 |
 | `Minigame_Professor_Proposal_v2.html` | `minigames/AvoidProfessor.jsx` | professor_*, run/walk 스프라이트 |
-| (디자인 없음) | `minigames/PassengerTetris.jsx` | **테트리스 디자인 페이지 제작 필요** |
+| `Minigame_Sort_Characters.html` (신규 제작) | `minigames/SortCharacters.jsx` | 이식 완료 — iframe 임베드 |
 | `Main Screen.html`의 모달들 (cal/news/pf/mk-overlay) | 공용 `Modal` + 모달 9종 CSS | **✅ 픽셀 스킨 이식 완료 (2026-07-08)** — 공용 클래스(modal/filter-bar/data-table 등) CSS 교체로 전 모달 일괄 적용. 모달별 세부 연출(캘린더 월그리드, 포트폴리오 사이드탭 등)은 개별 폴리싱 대상 |
 | (디자인 없음) | `SurgeStockPopup`, `AuthPanel`, `OpeningPage` | 디자인 시안 추가 제작 대상 |
 

@@ -1559,16 +1559,13 @@ textarea { min-height: 80px; resize: vertical; }
 .minigame-hud { display: flex; justify-content: space-between; font-weight: 700; }
 .minigame-help { color: var(--px-ink-dim); font-size: 0.85rem; }
 .minigame-over { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.6); font-size: 1.6rem; font-weight: 800; }
-.tetris-grid { position: relative; display: flex; flex-direction: column; gap: 1px; background: #10141c; padding: 6px; border-radius: 10px; width: fit-content; margin: 0 auto; }
-.tetris-row { display: flex; gap: 1px; }
-.tetris-cell { width: 26px; height: 26px; background: #1c2029; display: grid; place-items: center; font-size: 18px; border-radius: 3px; }
-.tetris-cell.filled { background: #2c3140; }
-
-/* 부업 미니게임 iframe (왝슨/교수님 — 디자인 원본 HTML을 그대로 임베드) */
+/* 부업 미니게임 iframe (왝슨/교수님/캐릭터분류 — 디자인 원본 HTML을 그대로 임베드) */
 .minigame-iframe {
   display: block; width: 100%; height: 460px; border: 0;
   background: #000; image-rendering: pixelated;
 }
+/* 캐릭터 분류: 위 더미 + 아래 상자까지 들어가야 해서 더 높은 화면이 필요하다 */
+.minigame-iframe.tall { height: 620px; }
 
 /* --- 급등주 --- */
 .surge-popup .field input { margin-top: 4px; }

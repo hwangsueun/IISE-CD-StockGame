@@ -6,7 +6,7 @@ const { badRequest, conflict, notFound } = require('../utils/errors');
 const C = require('../config/constants');
 const { clamp100 } = require('../utils/clamp');
 
-const GAME_KEYS = Object.keys(C.SIDE_JOB.SCORE_CUTS); // avoid_professor | catch_waxon | passenger_tetris
+const GAME_KEYS = Object.keys(C.SIDE_JOB.SCORE_CUTS); // avoid_professor | catch_waxon | sort_characters
 
 /** 원점수 -> 등급 (게임별 컷) */
 function gradeOf(gameKey, rawScore) {

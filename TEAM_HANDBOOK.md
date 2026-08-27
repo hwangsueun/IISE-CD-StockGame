@@ -324,7 +324,7 @@ cd server && npm run seed:stub   # 연습 데이터 다시 넣기
 | 상환(빚 갚기) 창 | `components/RepaymentModal.jsx` | |
 | 이벤트 팝업(독촉전화/경조사 등) | `components/EventPopup.jsx` | 이벤트 **문구 자체**는 서버 쪽 §4-6 참고 |
 | 부업 선택 창 | `components/SideJobModal.jsx` | |
-| 미니게임 3종 | `components/minigames/CatchWaxon.jsx`, `AvoidProfessor.jsx`, `PassengerTetris.jsx` | |
+| 미니게임 3종 | `components/minigames/CatchWaxon.jsx`, `AvoidProfessor.jsx`, `SortCharacters.jsx` | |
 | 급등주 팝업 | `components/SurgeStockPopup.jsx` | |
 | 엔딩 화면 | `pages/ResultPage.jsx` | |
 | **모든 색/글꼴/여백** | `styles/global.css` | §4-2 방법으로 클래스 이름 찾기 |

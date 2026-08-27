@@ -98,7 +98,7 @@ Phase D 이식과 별개로, 실제 플레이하면서 발견된 UI/로직 이�
 | `Final Result.html` | `ResultPage.jsx`(success) | ⬜ 미이식 — 현재 기능만 있는 plain 화면 |
 | `Bad End - Bankruptcy.html` | `ResultPage.jsx`(failed) | ⬜ 미이식 — 위와 동일 |
 | (디자인 없음) | `SurgeStockPopup`, `AuthPanel`, `OpeningPage` | ⬜ 디자인 시안 자체가 없음 — 신규 제작 필요 |
-| (디자인 없음) | `minigames/PassengerTetris.jsx` | ⬜ 테트리스 디자인 페이지 자체가 없음 — 신규 제작 필요 |
+| `Minigame_Sort_Characters.html` (신규 제작) | `minigames/SortCharacters.jsx` | ✅ 테트리스를 캐릭터 분류 게임으로 교체 완료 |
 
 추가 연출 작업:
 - [ ] 오프닝 컷신/일러스트 — `OpeningPage`
