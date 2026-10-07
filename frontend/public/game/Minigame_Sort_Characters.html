@@ -210,6 +210,34 @@
     box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
   }
   #backBtn:hover { color: var(--gold); }
+
+  /* ===== 게임방법(체험형 튜토리얼) ===== */
+  .btn-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .btn-row .btn { padding: 12px 20px; font-size: 16px; }
+  .btn.sub { color: var(--ink); }
+  .btn[hidden] { display: none; }
+  .tut-ui[hidden] { display: none !important; }
+  /* 말풍선은 쌓인 캐릭터(z 100~195)·상자(200) 위, 끌고 있는 캐릭터(350) 아래 */
+  #tutBubble {
+    position: absolute; left: 50%; top: 11%; transform: translateX(-50%);
+    z-index: 300; width: max-content; max-width: 86%;
+    background: var(--bg-deep); border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 6px 6px 0 #000;
+    padding: 12px 22px; text-align: center; pointer-events: none;
+    font-family: 'Galmuri11', monospace; color: var(--ink); font-size: 15px; line-height: 1.7;
+  }
+  #tutBubble .step { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 2px; display: block; margin-bottom: 4px; }
+  #tutBubble .sub { font-size: 13px; color: var(--ink-dim); }
+  #tutBubble .warn { font-size: 13px; color: #fca5a5; }
+  #tutBubble b { color: var(--gold); }
+  #tutBubble.ok { box-shadow: inset 0 0 0 2px #4ade80, inset 0 0 0 6px var(--frame), 6px 6px 0 #000; }
+  #tutSkip {
+    position: absolute; right: 14px; top: calc(8% + 10px); z-index: 900; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--ink-dim);
+    background: rgba(26,15,10,0.85); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
+  }
+  #tutSkip:hover { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -253,7 +281,29 @@
         <b style="color:var(--c-red)">빨강</b></p>
       <p class="dim">제한시간 60초 · 목숨 3</p>
       <p class="dim">오분류하면 목숨 &minus;1 · 시간 내 전부 치우면 보너스</p>
-      <button class="btn" id="startBtn">&#9654; 근무 시작</button>
+      <div class="btn-row">
+        <button class="btn sub" id="howtoBtn">? 게임방법</button>
+        <button class="btn" id="startBtn">&#9654; 근무 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 게임방법: 체험 중 안내 UI -->
+  <div id="tutBubble" class="tut-ui" hidden></div>
+  <button id="tutSkip" class="tut-ui" hidden>건너뛰기 &#187;</button>
+
+  <!-- 게임방법: 마무리 오버레이 -->
+  <div class="overlay" id="tutEndOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag">HOW TO PLAY</div>
+      <h1>이제 실전이다!</h1>
+      <p>실전은 <b style="color:var(--gold)">60초</b> 동안 캐릭터 <b style="color:var(--gold)">50명</b>이 쏟아진다.<br>목숨은 3개, 전부 치우면 보너스!</p>
+      <p class="dim">일당은 점수로 정해진다 · 연속으로 맞히면 콤보 보너스</p>
+      <div class="btn-row">
+        <button class="btn sub" id="tutAgainBtn">&#8635; 다시 보기</button>
+        <button class="btn sub" id="tutHomeBtn">&#9664; 처음 화면</button>
+        <button class="btn" id="tutStartBtn">&#9654; 근무 시작</button>
+      </div>
     </div>
   </div>
 

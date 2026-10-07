@@ -3,7 +3,7 @@
 // 게임 종료 시 원본이 postMessage로 보낸 원점수(포획 수)를 받아 onFinish로 서버에 제출한다.
 import { useEffect, useRef } from 'react';
 
-export default function CatchWaxon({ onFinish }) {
+export default function CatchWaxon({ onFinish, howtoOnly = false }) {
   const submitted = useRef(false);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function CatchWaxon({ onFinish }) {
 
   return (
     <div className="minigame-board">
-      <iframe className="minigame-iframe" title="왝슨을 잡아라" src="/game/Minigame_Catch_Waxon.html" />
+      <iframe className="minigame-iframe" title="왝슨을 잡아라" src={`/game/Minigame_Catch_Waxon.html${howtoOnly ? '?howto=only' : ''}`} />
     </div>
   );
 }

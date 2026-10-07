@@ -3,7 +3,7 @@
 // 게임 종료 시 원본이 postMessage로 보낸 원점수(점수)를 받아 onFinish로 서버에 제출한다.
 import { useEffect, useRef } from 'react';
 
-export default function SortCharacters({ onFinish }) {
+export default function SortCharacters({ onFinish, howtoOnly = false }) {
   const submitted = useRef(false);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function SortCharacters({ onFinish }) {
 
   return (
     <div className="minigame-board">
-      <iframe className="minigame-iframe tall" title="상자에 캐릭터 분류하기" src="/game/Minigame_Sort_Characters.html" />
+      <iframe className="minigame-iframe tall" title="상자에 캐릭터 분류하기" src={`/game/Minigame_Sort_Characters.html${howtoOnly ? '?howto=only' : ''}`} />
     </div>
   );
 }

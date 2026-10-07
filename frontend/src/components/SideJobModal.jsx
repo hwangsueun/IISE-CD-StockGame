@@ -1,5 +1,7 @@
 // 부업 모달 (기능명세서 §부업): 게임 선택 -> 미니게임 플레이 -> 결과 제출/보상
 // 하루 1회 / 입원 중 불가 / 부업한 날은 투자 불가
+// howtoOnly: 튜토리얼용. 미니게임 시작화면의 '게임방법'만 체험 가능, 실제 플레이는 잠금
+//   (openModal('sidejob', { howtoOnly: true }))
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
@@ -10,9 +12,9 @@ import SortCharacters from './minigames/SortCharacters';
 import { won } from '../utils/format';
 
 const GAMES = {
-  catch_waxon: { label: '왝슨을 잡아라', desc: '날아다니는 왝슨을 클릭으로 포획', icon: '🦢', Component: CatchWaxon },
-  avoid_professor: { label: '교수님을 피해라', desc: '낙하하는 과제를 방향키로 회피', icon: '🏃', Component: AvoidProfessor },
-  sort_characters: { label: '상자에 캐릭터 분류하기', desc: '쏟아진 캐릭터를 같은 색 상자에 분류', icon: '📦', Component: SortCharacters },
+  catch_waxon: { label: '왝슨을 잡아라', desc: '날아다니는 왝슨을 클릭으로 포획', icon: '🦢', Component: CatchWaxon, howto: true },
+  avoid_professor: { label: '교수님을 피해라', desc: '낙하하는 과제를 방향키로 회피', icon: '🏃', Component: AvoidProfessor, howto: true },
+  sort_characters: { label: '상자에 캐릭터 분류하기', desc: '쏟아진 캐릭터를 같은 색 상자에 분류', icon: '📦', Component: SortCharacters, howto: true },
 };
 const GRADE_LABEL = {
   great_success: '대성공', success: '성공', normal: '보통', fail: '실패', great_fail: '대실패',
@@ -31,7 +33,7 @@ const SIDEJOB_HELP = (
   </>
 );
 
-export default function SideJobModal() {
+export default function SideJobModal({ howtoOnly = false }) {
   const { sessionId, loadTurn, turn } = useGameStore();
   const [status, setStatus] = useState(null);
   const [playing, setPlaying] = useState(null);   // gameKey
@@ -73,7 +75,7 @@ export default function SideJobModal() {
     const { label, Component } = GAMES[playing];
     return (
       <Modal title={`부업 — ${label}`} wide>
-        <Component onFinish={onFinish} />
+        <Component onFinish={onFinish} howtoOnly={howtoOnly} />
       </Modal>
     );
   }
@@ -93,7 +95,7 @@ export default function SideJobModal() {
           <button
             key={key}
             className="sidejob-card"
-            disabled={!status?.available}
+            disabled={howtoOnly ? !g.howto : !status?.available}
             onClick={() => setPlaying(key)}
           >
             <span className="sidejob-icon">{g.icon}</span>

@@ -14,6 +14,13 @@
     try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'sort_characters', rawScore: rawScore }, '*'); } catch (_) {}
   }
 
+  // ?howto=only : 튜토리얼에서 연 경우. 게임방법만 볼 수 있고 실제 플레이(점수 제출)는 막는다.
+  var HOWTO_ONLY = /[?&]howto=only\b/.test(location.search);
+  if (HOWTO_ONLY) {
+    document.getElementById('startBtn').hidden = true;
+    document.getElementById('tutStartBtn').hidden = true;
+  }
+
   // ===== 규칙 설정 =====
   var GAME_SECONDS = 60;
   var START_LIVES = 3;
@@ -139,8 +146,9 @@
     p.el.style.zIndex = 100 + Math.round(clamp(p.y / Math.max(1, r.height), 0, 1) * 95);
   }
 
-  function spawnFalling(r) {
-    var group = GROUPS[Math.floor(Math.random() * GROUPS.length)];
+  // group 을 주면 그 색 캐릭터로 생성 (게임방법용). 없으면 무작위.
+  function spawnFalling(r, group) {
+    group = group || GROUPS[Math.floor(Math.random() * GROUPS.length)];
     var list = CHARS[group];
     var file = list[Math.floor(Math.random() * list.length)];
 
@@ -173,7 +181,7 @@
     });
 
     el.addEventListener('pointerdown', function (e) {
-      if (!playing || !p.alive) return;
+      if ((!playing && !tut.active) || !p.alive) return;
       e.preventDefault();
       startDrag(p, e);
     });
@@ -312,7 +320,11 @@
     clearBoxHot();
 
     var idx = boxIndexUnder(clientX, clientY);
-    if (idx >= 0) { resolve(p, boxEls[idx]); return; }
+    if (idx >= 0) {
+      var ok = resolve(p, boxEls[idx]);
+      if (tut.active) tutAfterResolve(ok);
+      return;
+    }
     // 상자 밖에 놓으면 그 자리에서 다시 떨어져 더미로 굴러든다
     var r = yardRect();
     p.x = clamp(p.x, r.width * LEFT_WALL, r.width * RIGHT_WALL - p.w);
@@ -369,14 +381,20 @@
       p.x = clamp(b.left - r.left + b.width / 2 - p.w / 2, r.width * LEFT_WALL, r.width * RIGHT_WALL - p.w);
       p.y = Math.min(p.y, groundLine(r) - p.h - r.height * 0.10);
       toss(p, rand(-180, 180), -rand(420, 640), r);
-      loseLife();
+      if (tut.active) flashVignette();   // 게임방법에선 목숨이 줄지 않는다
+      else loseLife();
     }
     updateHud();
+    return correct;
+  }
+
+  function flashVignette() {
+    vignette.classList.remove('flash'); void vignette.offsetWidth; vignette.classList.add('flash');
   }
 
   function loseLife() {
     lives = Math.max(0, lives - 1);
-    vignette.classList.remove('flash'); void vignette.offsetWidth; vignette.classList.add('flash');
+    flashVignette();
     updateHud();
     if (lives <= 0) end('LIVES OUT', '해고당했다…');
   }
@@ -421,6 +439,8 @@
 
   // ===== 시작 / 종료 =====
   function start() {
+    if (HOWTO_ONLY) return;
+    tutStop();
     chars.slice().forEach(function (p) { if (p.el.parentNode) p.el.parentNode.removeChild(p.el); });
     chars = [];
     pileVol = 0; pileTarget = 0;
@@ -474,6 +494,155 @@
 
     postScore(score); // 원점수 = 점수
   }
+
+  // =====================================================================
+  // 게임방법 (체험형 튜토리얼) — 실제 화면에서 직접 끌어다 넣어 보며 익힌다.
+  // 타이머 정지, 목숨이 줄지 않는다. 점수는 서버로 보내지 않는다(postScore 미호출).
+  // ① 1명 분류 → ② 3명 연속 분류(콤보) → ③ 일부러 틀린 상자에 넣기 → 마무리
+  // =====================================================================
+  var tut = { active: false, step: 0, loopId: null, lastTs: 0, timers: [], note: '' };
+  var tutBubble = document.getElementById('tutBubble');
+  var tutSkip = document.getElementById('tutSkip');
+  var tutEndOverlay = document.getElementById('tutEndOverlay');
+  var WRONG_NOTE = '<span class="warn">앗, 다른 상자예요! 실전에선 목숨(❤)이 하나 줄어요. 상자 그림을 잘 보고 다시!</span>';
+
+  function say(html, ok) {
+    tutBubble.innerHTML = html;
+    tutBubble.classList.toggle('ok', !!ok);
+    tutBubble.hidden = false;
+  }
+  function later(fn, ms) { tut.timers.push(setTimeout(fn, ms)); }
+  function aliveCount() { return chars.filter(function (p) { return p.alive; }).length; }
+
+  function renderStep() {
+    if (tut.step === 1) {
+      say('<span class="step">STEP 1 / 3</span>캐릭터를 <b>끌어서</b> 같은 그림이 있는 <b>상자</b>에 넣어 보세요!'
+        + (tut.note ? '<br>' + tut.note : ''));
+    } else if (tut.step === 2) {
+      say('<span class="step">STEP 2 / 3</span><b>연속으로 맞히면 콤보 보너스!</b> 3명을 모두 분류해 보세요.<br>'
+        + (tut.note || '<span class="sub">작은 보라 캐릭터가 점수가 가장 높아요</span>'));
+    } else if (tut.step === 3) {
+      say('<span class="step">STEP 3 / 3</span>이번엔 일부러 <b>다른 상자</b>에 넣어 보세요.'
+        + (tut.note ? '<br>' + tut.note : ''));
+    }
+  }
+
+  function tutTick() {
+    var ts = performance.now();
+    var dt = Math.min(0.05, (ts - tut.lastTs) / 1000);
+    tut.lastTs = ts;
+    physics(dt, yardRect());
+  }
+
+  function tutClear() {
+    chars.slice().forEach(function (p) { if (p.el.parentNode) p.el.parentNode.removeChild(p.el); });
+    chars = [];
+    pileVol = 0; pileTarget = 0;
+    drag = null;
+    clearBoxHot();
+  }
+
+  function tutSpawn(groups) {
+    var r = yardRect();
+    groups.forEach(function (g, i) {
+      var p = spawnFalling(r, g);
+      p.y = -r.height * (0.15 + i * 0.25);   // 차례로 떨어지게
+    });
+    updatePile();
+  }
+
+  function tutStart() {
+    if (playing) return;
+    tutStop();
+    tutClear();
+    score = 0; combo = 0; bestCombo = 0; sorted = 0; wrong = 0;
+    lives = START_LIVES; timeLeft = GAME_SECONDS;
+    updateHud();
+    document.getElementById('startOverlay').hidden = true;
+    document.getElementById('endOverlay').hidden = true;
+    tut.active = true;
+    tutSkip.hidden = false;
+    tut.lastTs = performance.now();
+    tut.loopId = setInterval(tutTick, 1000 / 60);
+    tutStep1();
+  }
+
+  function tutStep1() {
+    tut.step = 1; tut.note = '';
+    tutSpawn(['red']);
+    renderStep();
+  }
+  function tutStep2() {
+    tut.step = 2; tut.note = '';
+    combo = 0; updateHud();   // 콤보는 이 단계에서 새로 센다
+    tutSpawn(['blue', 'purple', 'green']);
+    renderStep();
+  }
+  function tutStep3() {
+    tut.step = 3; tut.note = '';
+    tutSpawn(['green']);
+    renderStep();
+  }
+
+  // 상자에 넣은 직후 호출 (ok = 정답 여부)
+  function tutAfterResolve(ok) {
+    if (tut.step === 1) {
+      if (ok) {
+        tut.step = 1.5;
+        say('잘했어요! 맞는 상자에 넣으면 <b>점수</b>를 받아요.', true);
+        later(tutStep2, 1600);
+      } else { tut.note = WRONG_NOTE; renderStep(); }
+    } else if (tut.step === 2) {
+      if (!ok) { tut.note = WRONG_NOTE; renderStep(); return; }
+      tut.note = '';
+      if (aliveCount() === 0) {
+        tut.step = 2.5;
+        say('완벽해요! 콤보가 이어질수록 <b>점수가 쭉쭉</b> 올라요.', true);
+        later(tutStep3, 1700);
+      } else renderStep();
+    } else if (tut.step === 3) {
+      if (ok) {
+        // 맞혀버렸으면 한 명 더 내려보낸다
+        tut.note = '<span class="sub">맞는 상자였네요! 이번엔 <b>다른</b> 상자에 넣어 보세요.</span>';
+        tutSpawn(['blue']);
+        renderStep();
+      } else {
+        tut.step = 3.5;
+        say('틀리면 캐릭터가 <b>튕겨 나오고</b> 목숨(❤)이 하나 줄어요.<br><span class="sub">콤보도 끊겨요. 실전에선 3번 틀리면 끝!</span>', true);
+        later(tutFinish, 2400);
+      }
+    }
+  }
+
+  function tutFinish() {
+    tutStop();
+    tutEndOverlay.hidden = false;
+  }
+
+  // 게임방법 상태를 모두 정리하고 점수판을 초기화한다
+  function tutStop() {
+    tut.active = false;
+    tut.step = 0;
+    clearInterval(tut.loopId);
+    tut.timers.forEach(clearTimeout); tut.timers = [];
+    tutClear();
+    score = 0; combo = 0; lives = START_LIVES; timeLeft = GAME_SECONDS;
+    updateHud();
+    updatePile();
+    tutBubble.hidden = true;
+    tutSkip.hidden = true;
+    tutEndOverlay.hidden = true;
+  }
+
+  document.getElementById('howtoBtn').addEventListener('click', tutStart);
+  document.getElementById('tutAgainBtn').addEventListener('click', tutStart);
+  document.getElementById('tutHomeBtn').addEventListener('click', function () {
+    tutStop();
+    document.getElementById('startOverlay').hidden = false;
+  });
+  document.getElementById('tutStartBtn').addEventListener('click', start);
+  tutSkip.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+  tutSkip.addEventListener('click', tutFinish);
 
   document.getElementById('startBtn').addEventListener('click', start);
   document.getElementById('retryBtn').addEventListener('click', start);
