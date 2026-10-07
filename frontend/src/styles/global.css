@@ -1795,3 +1795,82 @@ textarea { min-height: 80px; resize: vertical; }
 .faint-narration .nar-body .red { color: #ff5a4a; }
 .faint-narration .nar-body .cursor { background: var(--med); }
 .faint-narration .nar-next { color: var(--med); }
+
+/* =====================================================================
+   첫날 튜토리얼 (TutorialOverlay) — 화면을 어둡게 하고 짚을 요소만 흰 빛으로 비춘다.
+   설명은 비춘 요소 옆에 바로 붙인다 (가운데 상자 없음).
+   ===================================================================== */
+.tut-root { position: fixed; inset: 0; z-index: 40; pointer-events: none; animation: px-fade 180ms steps(3, end); }
+.tut-mask { position: absolute; inset: 0; display: block; }
+/* 클릭 막기: 직접 눌러 볼 요소(구멍)만 비워 둔다 */
+.tut-block { position: absolute; pointer-events: auto; }
+/* 비춘 요소: 흰 빛이 은은하게 숨쉰다 */
+.tut-spot {
+  position: absolute; pointer-events: none; border-radius: 6px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 22px 6px rgba(255, 255, 255, 0.45);
+  animation: tutGlow 1.6s ease-in-out infinite;
+}
+@keyframes tutGlow {
+  50% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 1), 0 0 36px 12px rgba(255, 255, 255, 0.65); }
+}
+/* 비춘 요소 옆 설명 (상자 없이 글자만) */
+.tut-note {
+  position: absolute; pointer-events: none; width: max-content; max-width: 340px;
+  font-family: 'Galmuri11', monospace; color: #fff; font-size: 15px; line-height: 1.6;
+  text-shadow: 0 2px 0 #000, 0 0 8px rgba(0, 0, 0, 0.9);
+  animation: tutNoteIn 260ms steps(3, end) backwards 120ms;
+}
+.tut-note.below { transform: translateX(-50%); text-align: center; }
+.tut-note.left  { transform: translate(-100%, -50%); text-align: right; }
+.tut-note.below-right { transform: translateX(-100%); text-align: right; }
+.tut-note.right { transform: translateY(-50%); text-align: left; }
+.tut-note.above-right { transform: translate(-100%, -100%); text-align: right; }
+.tut-note .big { display: block; font-size: 24px; font-weight: bold; color: var(--px-gold); letter-spacing: 1px; }
+.tut-note b { color: var(--px-gold); }
+.tut-note .dim { color: #d6d3d1; font-size: 13px; }
+.tut-note .warn { color: #fca5a5; font-size: 14px; }
+@keyframes tutNoteIn { from { opacity: 0; } }
+/* 가운데 제목 (상자 없이 큰 글자) */
+.tut-headline {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  text-align: center; pointer-events: none; width: max-content; max-width: calc(100vw - 32px);
+}
+.tut-headline .tag { font-family: 'Press Start 2P', monospace; font-size: 10px; letter-spacing: 3px; color: #d6d3d1; text-shadow: 0 2px 0 #000; }
+.tut-headline h3 {
+  margin: 12px 0 0; font-family: 'Galmuri11', monospace; font-size: 32px; color: #fff; letter-spacing: 2px;
+  text-shadow: 0 3px 0 #000, 0 0 18px rgba(255, 255, 255, 0.35);
+}
+/* 하단 조작 줄: 건너뛰기 / 다음 */
+.tut-controls {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  pointer-events: auto; width: max-content; max-width: calc(100vw - 32px);
+}
+.tut-controls-row { display: flex; align-items: center; gap: 28px; }
+.tut-hint {
+  margin: 0; text-align: center; font-family: 'Galmuri11', monospace; font-size: 15px; color: #fff;
+  text-shadow: 0 2px 0 #000, 0 0 8px rgba(0, 0, 0, 0.9);
+}
+.tut-hint b { color: var(--px-gold); }
+.tut-skip {
+  background: none; border: none; padding: 4px 0; cursor: pointer;
+  font-family: 'Galmuri11', monospace; font-size: 14px; color: #d6d3d1;
+  text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 2px 0 #000;
+}
+.tut-skip:hover { color: #fff; }
+.tut-next {
+  background: var(--px-panel); border: 3px solid #000; cursor: pointer;
+  box-shadow: inset 0 0 0 2px #5a3624, 4px 4px 0 #000;
+  color: var(--px-gold); padding: 10px 26px;
+  font-family: 'Galmuri11', monospace; font-size: 16px; letter-spacing: 2px;
+}
+.tut-next:hover { background: #5a3624; }
+.tut-prev {
+  background: rgba(26, 15, 10, 0.85); border: 3px solid #000; cursor: pointer;
+  box-shadow: inset 0 0 0 2px #3d2418, 4px 4px 0 #000;
+  color: #d6d3d1; padding: 10px 20px;
+  font-family: 'Galmuri11', monospace; font-size: 15px; letter-spacing: 1px;
+}
+.tut-prev:hover { color: #fff; background: #3d2418; }
+.tut-prev:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #3d2418, 1px 1px 0 #000; }
+.tut-next:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #5a3624, 1px 1px 0 #000; }

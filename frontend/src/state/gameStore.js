@@ -89,6 +89,20 @@ export const useGameStore = create((set, get) => ({
   openModal: (name, props = {}) => set({ activeModal: name, modalProps: props }),
   closeModal: () => set({ activeModal: null, modalProps: {} }),
 
+  // --- 첫날 튜토리얼 (TutorialOverlay) ---
+  // 실제 게임 1일차 위에서 진행하고, 끝나면 그대로 이어서 플레이한다.
+  // 한 번 끝내거나 건너뛰면 localStorage에 기록해 다시 자동으로 뜨지 않는다.
+  tutorialStep: null,      // 1~9 | null(비활성)
+  lastTrade: null,         // 직전 체결 { assetId, tradeType, quantity, at }
+  startTutorial: (step = 1) => set({ tutorialStep: step, activeModal: null, modalProps: {} }),
+  nextTutorialStep: () => set((s) => ({ tutorialStep: s.tutorialStep + 1 })),
+  // 이전 단계로: 열려 있던 창은 닫고 그 단계를 처음부터 다시 보여준다
+  prevTutorialStep: () => set((s) => ({ tutorialStep: Math.max(1, s.tutorialStep - 1), activeModal: null, modalProps: {} })),
+  endTutorial() {
+    localStorage.setItem('antsurvival_tutorial_done', '1');
+    set({ tutorialStep: null });
+  },
+
   /** 게임 시작 (인트로 화면) */
   async startGame(difficulty) {
     const generation = ++sessionRequestGeneration;
@@ -111,6 +125,11 @@ export const useGameStore = create((set, get) => ({
       localStorage.setItem('antsurvival_session', s.sessionId);
       set({ sessionId: s.sessionId, status: s.status, state: s });
       await get().loadTurn(s.currentTurn ?? 1, generation);
+      // 처음 하는 게임이면 1일차에 튜토리얼을 띄운다
+      if (sessionRequestGeneration === generation && get().turn &&
+          localStorage.getItem('antsurvival_tutorial_done') !== '1') {
+        get().startTutorial();
+      }
     } catch (e) {
       if (sessionRequestGeneration !== generation) return;
       if (get().pendingTurnNumber) set({ turnLoadError: e.message });
@@ -218,6 +237,8 @@ export const useGameStore = create((set, get) => ({
     const generation = sessionRequestGeneration;
     const r = await api.trade(sid, { assetId, tradeType, quantity });
     if (!isCurrentSessionRequest(get, sid, generation)) return r;
+    // 튜토리얼이 '사 보기/팔아 보기' 완료를 알아채는 데 쓴다
+    set({ lastTrade: { assetId, tradeType, quantity: r.quantity, at: Date.now() } });
     await get().loadTurn(get().turn.turnNumber, generation);
     return r;
   },
