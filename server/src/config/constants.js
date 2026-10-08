@@ -122,9 +122,14 @@ module.exports = {
         { min: 20, grade: 'great_success' }, { min: 15, grade: 'success' },
         { min: 10, grade: 'normal' }, { min: 5, grade: 'fail' }, { min: 0, grade: 'great_fail' },
       ],
-      passenger_tetris: [ // 점수
-        { min: 3000, grade: 'great_success' }, { min: 2000, grade: 'success' },
-        { min: 1000, grade: 'normal' }, { min: 400, grade: 'fail' }, { min: 0, grade: 'great_fail' },
+      // 상자에 캐릭터 분류하기: 캐릭터 50개, 60초, 목숨 3.
+      // 정답 1개 = 기본점(보라220/초록170/파랑130/빨강100) + 콤보보너스(최대 +200).
+      // 콤보가 붙으면 개당 300점 안팎이라 컷이 테트리스 시절보다 훨씬 높다.
+      // 대략 great_success≈30개, success≈20개, normal≈12개, fail≈6개 처리 기준.
+      // TODO(gamelogic): 플레이테스트로 컷 재조정
+      sort_characters: [ // 점수
+        { min: 9000, grade: 'great_success' }, { min: 6000, grade: 'success' },
+        { min: 3000, grade: 'normal' }, { min: 1200, grade: 'fail' }, { min: 0, grade: 'great_fail' },
       ],
     },
   },

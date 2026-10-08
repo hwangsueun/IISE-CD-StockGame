@@ -137,7 +137,7 @@ IISE-CD-StockGame/
         │                         # EventPopup(payload 입력), SideJobModal,
         │                         # SurgeStockPopup, AuthPanel, CommunityBoard,
         │                         # PriceChart(SVG), Modal
-        │   └── minigames/        # CatchWaxon, AvoidProfessor, PassengerTetris
+        │   └── minigames/        # CatchWaxon, AvoidProfessor, SortCharacters
         └── styles/global.css     # 디자인 시안 적용 전 기능 확인용
 ```
 
@@ -666,7 +666,7 @@ erDiagram
 |---|---|---|---|
 | `catch_waxon` 왝슨을 잡아라 | 마우스로 날아다니는 왝슨 클릭 포획 (30초) | 포획 수 | `minigames/CatchWaxon.jsx` — 플레이 가능 |
 | `avoid_professor` 교수님을 피해라 | 낙하 단어(대학원/과제...)를 ←→로 회피, 속도 점증 | 생존 시간(초) | `minigames/AvoidProfessor.jsx` — 플레이 가능 |
-| `passenger_tetris` 노원03 테트리스 | 버스 승객 블록 쌓기, 줄 완성 시 하차 | 점수(줄 100 + 배치 4) | `minigames/PassengerTetris.jsx` — 플레이 가능 |
+| `sort_characters` 상자에 캐릭터 분류하기 | 위에서 쏟아진 캐릭터 50개를 드래그해 같은 색 상자에 분류 (60초·목숨 3) | 점수(색별 기본점 + 콤보) | `minigames/SortCharacters.jsx` — 플레이 가능 |
 
 밸런싱(점수 컷/기본급)은 `constants.js`의 `SIDE_JOB`에서만 조정한다.
 
@@ -784,7 +784,7 @@ UI와 데이터 정합:
 | P2 | 게임 코어 | 세션, 240턴, 현재가, 매수/매도, 평가, 자동저장 | **완료·검증됨** |
 | P3 | 상태/상환 | 스트레스, 신뢰도, 월말상환, 승패, 월급/생활비 | 구현 완료 (밸런싱 곡선 TODO) |
 | P4 | 이벤트 | 이벤트 엔진(A~E), `event_log`, 행동제한, 급등주, 독촉전화 4단계 | **구현·검증** (명절 달력·스터디 힌트 실데이터 TODO) |
-| P4.5 | 부업 미니게임 | 왝슨/교수님/테트리스 3종 + 서버 판정 + 투자 잠금 | **구현·검증** (점수 컷 밸런싱 TODO) |
+| P4.5 | 부업 미니게임 | 왝슨/교수님/캐릭터분류 3종 + 서버 판정 + 투자 잠금 | **구현·검증** (점수 컷 밸런싱 TODO) |
 | P4.6 | 회원관리 | 회원가입/로그인/프로필/이어하기 (게스트 허용) | **구현·검증** |
 | P5 | 프론트 | 오프닝/인트로/메인/마켓/상세(기술지표)/포트폴리오(수익분석)/뉴스/캘린더/거래/이벤트/부업/급등주/리포트 | 전 화면 구현·API 연동 (디자인 시안 미적용) |
 | P6 | 리포트/밸런싱 | 주간/월간/최종 리포트, LLM 분석, 난이도 조정 | 리포트 계산 구현 (LLM 연동·밸런싱 TODO) |

@@ -17,6 +17,7 @@ import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup
 import FaintOverlay from '../components/FaintOverlay';
 import GuideModal from '../components/GuideModal';
 import QuantModal from '../components/QuantModal';
+import TutorialOverlay from '../components/TutorialOverlay';
 
 const MODALS = {
   market: MarketModal,
@@ -44,9 +45,15 @@ function dateParts(dateStr) {
 export default function MainPage() {
   const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
-    retryPendingTurn, resumeGame, dismissFaint } = useGameStore();
+    retryPendingTurn, resumeGame, dismissFaint, tutorialStep, startTutorial } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
+
+  // 개발용: 주소에 ?tutorial 을 붙이면 현재 게임 위에서 튜토리얼을 다시 띄운다 (?tutorial=7 → 7단계부터)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (import.meta.env.DEV && q.has('tutorial')) startTutorial(Number(q.get('tutorial')) || 1);
+  }, [startTutorial]);
 
   // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
   // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
@@ -145,7 +152,7 @@ export default function MainPage() {
             <button
               className="nextturn-btn"
               disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
-                surgePromptPending || pendingTurnNumber !== null}
+                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null}
               onClick={advanceTurn}
               title="다음 턴"
             >
@@ -174,6 +181,10 @@ export default function MainPage() {
       )}
 
       {ActiveModal && <ActiveModal {...modalProps} />}
+
+      {/* 첫날 튜토리얼: 이벤트·급등주 팝업이 먼저 정리된 뒤에 띄운다 */}
+      {tutorialStep !== null && pendingTurnNumber === null && pendingEvents.length === 0 &&
+        surgeResults.length === 0 && !surgePromptPending && !faintEvent && <TutorialOverlay />}
 
       {/* 기절(입원): 강제 페널티형 즉시 이벤트 — 확인 전까지 최상단에 표시 */}
       {faintEvent && <FaintOverlay event={faintEvent} onDismiss={dismissFaint} />}

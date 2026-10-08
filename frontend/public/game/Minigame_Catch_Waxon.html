@@ -168,6 +168,45 @@
     padding: 7px 12px;
   }
   #backBtn:hover { color: var(--gold); }
+
+  /* ===== 게임방법(체험형 튜토리얼) ===== */
+  .btn-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .btn-row .btn { padding: 12px 20px; font-size: 16px; }
+  .btn.sub { color: var(--ink); }
+  .btn[hidden] { display: none; }
+  .tut-ui[hidden] { display: none !important; }
+  #tutBubble {
+    position: absolute; left: 50%; top: 9%; transform: translateX(-50%);
+    z-index: 800; width: max-content; max-width: 86%;
+    background: var(--bg-deep); border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 6px 6px 0 #000;
+    padding: 12px 22px; text-align: center; pointer-events: none;
+    font-family: 'Galmuri11', monospace; color: var(--ink); font-size: 15px; line-height: 1.7;
+  }
+  #tutBubble .step { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 2px; display: block; margin-bottom: 4px; }
+  #tutBubble .sub { font-size: 13px; color: var(--ink-dim); }
+  #tutBubble b { color: var(--gold); }
+  #tutBubble.ok { box-shadow: inset 0 0 0 2px #4ade80, inset 0 0 0 6px var(--frame), 6px 6px 0 #000; }
+  #tutHand {
+    position: absolute; left: 0; top: 0; z-index: 790; pointer-events: none;
+    font-size: 34px; line-height: 1; filter: drop-shadow(2px 2px 0 #000);
+  }
+  #tutHand span { display: block; animation: handTap 700ms steps(2, end) infinite; }
+  @keyframes handTap { 50% { transform: translate(-5px, -7px); } }
+  #tutTarget {
+    position: absolute; left: 50%; top: 60%; width: 70px; height: 70px; z-index: 780;
+    transform: translate(-50%, -50%); pointer-events: none;
+    border: 3px dashed rgba(244,228,204,0.8); border-radius: 50%;
+    animation: targetPulse 900ms steps(3, end) infinite;
+  }
+  @keyframes targetPulse { 50% { transform: translate(-50%, -50%) scale(1.25); opacity: 0.5; } }
+  #tutSkip {
+    position: absolute; right: 14px; bottom: 12px; z-index: 900; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--ink-dim);
+    background: rgba(26,15,10,0.85); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
+  }
+  #tutSkip:hover { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -189,7 +228,31 @@
       <h1>왝슨을 잡아라!</h1>
       <p>연못 위를 날아다니는 <b style="color:var(--gold)">왝슨</b>을 클릭해서 포획하세요.</p>
       <p class="dim">작고 빠른 왝슨일수록 점수가 높습니다 · 제한시간 5초</p>
-      <button class="btn" id="startBtn">▶ 게임 시작</button>
+      <div class="btn-row">
+        <button class="btn sub" id="howtoBtn">? 게임방법</button>
+        <button class="btn" id="startBtn">▶ 게임 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 게임방법: 체험 중 안내 UI -->
+  <div id="tutBubble" class="tut-ui" hidden></div>
+  <div id="tutHand" class="tut-ui" hidden><span>👆</span></div>
+  <div id="tutTarget" class="tut-ui" hidden></div>
+  <button id="tutSkip" class="tut-ui" hidden>건너뛰기 ≫</button>
+
+  <!-- 게임방법: 마무리 오버레이 -->
+  <div class="overlay" id="tutEndOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag">HOW TO PLAY</div>
+      <h1>이제 실전이다!</h1>
+      <p>실전은 <b style="color:var(--gold)">5초</b> 동안 9마리가 빠르게 날아다닌다.<br>최대한 많이 잡아라!</p>
+      <p class="dim">일당은 잡은 마리 수로 정해진다 · 허공을 눌러도 감점은 없다</p>
+      <div class="btn-row">
+        <button class="btn sub" id="tutAgainBtn">↺ 다시 보기</button>
+        <button class="btn sub" id="tutHomeBtn">◀ 처음 화면</button>
+        <button class="btn" id="tutStartBtn">▶ 게임 시작</button>
+      </div>
     </div>
   </div>
 
@@ -221,7 +284,14 @@
     try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'catch_waxon', rawScore: rawScore }, '*'); } catch (_) {}
   }
 
-  var GAME_SECONDS = 5;       // 제한시간 5초
+  // ?howto=only : 튜토리얼에서 연 경우. 게임방법만 볼 수 있고 실제 플레이(점수 제출)는 막는다.
+  var HOWTO_ONLY = /[?&]howto=only\b/.test(location.search);
+  if (HOWTO_ONLY) {
+    document.getElementById('startBtn').hidden = true;
+    document.getElementById('tutStartBtn').hidden = true;
+  }
+
+  var GAME_SECONDS = 5;      // 제한시간 5초
   var MAX_BIRDS = 9;          // 동시에 떠다니는 왝슨 수
   var MIN_SIZE = 42, MAX_SIZE = 110;
 
@@ -289,7 +359,11 @@
 
     var dir = normalize(targetX - startX, targetY - startY);
     var speed = rand(430, 860) * (0.85 + (size / MAX_SIZE) * 0.35);
+    return createBird(size, startX, startY, dir, speed, edge < 2);
+  }
 
+  // 왝슨 1마리 생성 (본게임/게임방법 공용). dir = 단위 방향벡터
+  function createBird(size, startX, startY, dir, speed, horizontal) {
     var el = document.createElement('img');
     el.src = 'assets/bird.png';
     el.className = 'bird';
@@ -309,7 +383,7 @@
       amp: rand(8, 26),
       freq: rand(4.0, 7.5),
       phase: rand(0, Math.PI * 2),
-      curveAmp: edge < 2 ? rand(18, 48) : rand(16, 40),
+      curveAmp: horizontal ? rand(18, 48) : rand(16, 40),
       curveFreq: rand(0.75, 1.55),
       phase2: rand(0, Math.PI * 2),
       tiltAmp: rand(4, 10),
@@ -321,13 +395,15 @@
 
     el.addEventListener('pointerdown', function (e) {
       e.stopPropagation();
-      if (!playing || !b.alive) return;
-      catchBird(b, e.clientX, e.clientY);
+      if (!b.alive) return;
+      if (playing) catchBird(b, e.clientX, e.clientY);
+      else if (tut.active) tutCatch(b, e.clientX, e.clientY);
     });
 
     stage.appendChild(el);
     birds.push(b);
     draw(b);
+    return b;
   }
 
   function draw(b) {
@@ -378,15 +454,25 @@
 
   // ---- 빗나감 ----
   stage.addEventListener('pointerdown', function (e) {
+    if (tut.active) {
+      if (e.target.closest('.overlay, #tutSkip')) return;
+      showMiss(e.clientX, e.clientY);
+      tutMiss();
+      return;
+    }
     if (!playing) return;
     misses += 1;
+    showMiss(e.clientX, e.clientY);
+  });
+
+  function showMiss(cx, cy) {
     var m = document.createElement('div');
     m.className = 'missfx';
-    m.style.left = e.clientX + 'px';
-    m.style.top = e.clientY + 'px';
+    m.style.left = cx + 'px';
+    m.style.top = cy + 'px';
     stage.appendChild(m);
     setTimeout(function () { m.remove(); }, 280);
-  });
+  }
 
   // ---- 루프 ----
   function tick() {
@@ -435,6 +521,8 @@
 
   // ---- 시작 / 종료 ----
   function start() {
+    if (HOWTO_ONLY) return;
+    tutStop();
     // 초기화
     birds.slice().forEach(removeBird);
     score = 0; caught = 0; misses = 0; timeLeft = GAME_SECONDS;
@@ -479,6 +567,138 @@
     document.getElementById('endOverlay').hidden = false;
     postScore(caught);   // 원점수 = 포획 수 (서버 SCORE_CUTS.catch_waxon 기준)
   }
+
+  // =====================================================================
+  // 게임방법 (체험형 튜토리얼) — 실제 화면에서 직접 클릭해 보며 익힌다.
+  // 타이머 정지, 느린 왝슨, 점수는 서버로 보내지 않는다(postScore 미호출).
+  // ① 1마리 잡기 → ② 크기별 3마리 잡기(작을수록 고득점) → ③ 허공 클릭(감점 없음) → 마무리
+  // =====================================================================
+  var tut = { active: false, step: 0, loopId: null, lastTs: 0, timers: [] };
+  var tutBubble = document.getElementById('tutBubble');
+  var tutHand = document.getElementById('tutHand');
+  var tutTarget = document.getElementById('tutTarget');
+  var tutSkip = document.getElementById('tutSkip');
+
+  function say(html, ok) {
+    tutBubble.innerHTML = html;
+    tutBubble.classList.toggle('ok', !!ok);
+    tutBubble.hidden = false;
+  }
+  function later(fn, ms) { tut.timers.push(setTimeout(fn, ms)); }
+
+  // 화면 안을 천천히 날며 벽에 튕기는 왝슨 (말풍선 아래 영역에서만)
+  function tutBird(size, speed) {
+    var W = stage.clientWidth, H = stage.clientHeight;
+    var x = rand(W * 0.15, W * 0.85 - size);
+    var y = rand(H * 0.4, H * 0.85 - size);
+    var a = rand(0, Math.PI * 2);
+    var b = createBird(size, x, y, normalize(Math.cos(a), Math.sin(a) * 0.5), speed, true);
+    b.amp = rand(4, 10); b.curveAmp = rand(6, 14);   // 느린 만큼 흔들림도 작게
+    b.minY = H * 0.32;
+    return b;
+  }
+
+  function tutTick() {
+    var ts = performance.now();
+    var dt = Math.min(50, ts - tut.lastTs) / 1000;
+    tut.lastTs = ts;
+    var W = stage.clientWidth, H = stage.clientHeight;
+    var live = birds.filter(function (b) { return b.alive; });
+    live.forEach(function (b) {
+      b.t += dt;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); }
+      if (b.x > W - b.size) { b.x = W - b.size; b.vx = -Math.abs(b.vx); }
+      if (b.y < b.minY) { b.y = b.minY; b.vy = Math.abs(b.vy); }
+      if (b.y > H - b.size - 10) { b.y = H - b.size - 10; b.vy = -Math.abs(b.vy); }
+      draw(b);
+    });
+  }
+
+  function tutStart() {
+    if (playing) return;
+    tutStop();
+    document.getElementById('startOverlay').hidden = true;
+    document.getElementById('endOverlay').hidden = true;
+    tut.active = true;
+    tutSkip.hidden = false;
+    tut.lastTs = performance.now();
+    tut.loopId = setInterval(tutTick, 1000 / 60);
+    tutStep1();
+  }
+
+  function tutStep1() {
+    tut.step = 1;
+    say('<span class="step">STEP 1 / 3</span>날아다니는 <b>왝슨</b>을 <b>클릭</b>해서 잡아 보세요!');
+    tutBird(100, 110);
+  }
+  function tutStep2() {
+    tut.step = 2;
+    say('<span class="step">STEP 2 / 3</span><b>작은 왝슨일수록 점수가 높아요.</b> 3마리를 모두 잡아 보세요!<br>'
+      + '<span class="sub">작은 왝슨 +200 · 중간 +150 · 큰 왝슨 +100</span>');
+    tutBird(50, 150); tutBird(78, 130); tutBird(104, 110);
+  }
+  function tutStep3() {
+    tut.step = 3;
+    say('<span class="step">STEP 3 / 3</span>이번엔 <b>빈 곳</b>(점선 원)을 클릭해 보세요.');
+    tutTarget.hidden = false;
+    var r = tutTarget.getBoundingClientRect();
+    tutHand.style.transform = 'translate(' + (r.left + r.width * 0.5) + 'px,' + (r.top + r.height * 0.5) + 'px)';
+    tutHand.hidden = false;
+  }
+
+  function tutCatch(b, cx, cy) {
+    if (tut.step !== 1 && tut.step !== 2) return;
+    catchBird(b, cx, cy);
+    if (tut.step === 1) {
+      tut.step = 1.5;
+      say('잘했어요! 이렇게 <b>클릭하면 포획</b>돼요.', true);
+      later(tutStep2, 1500);
+    } else if (!birds.some(function (x) { return x.alive; })) {
+      tut.step = 2.5;
+      say('완벽해요! 작은 왝슨을 노리면 <b>점수</b>가 쭉쭉 올라요.', true);
+      later(tutStep3, 1700);
+    }
+  }
+
+  function tutMiss() {
+    if (tut.step === 3) {
+      tut.step = 3.5;
+      tutTarget.hidden = true; tutHand.hidden = true;
+      say('빗나갔어요! 그래도 <b>감점은 없어요.</b> 단, 명중률은 떨어져요.', true);
+      later(tutFinish, 1900);
+    } else if (tut.step === 1 || tut.step === 2) {
+      say('<span class="step">STEP ' + tut.step + ' / 3</span>아쉽게 빗나갔어요. <b>왝슨 몸통</b>을 정확히 클릭해 보세요!');
+    }
+  }
+
+  function tutFinish() {
+    tutStop();
+    document.getElementById('tutEndOverlay').hidden = false;
+  }
+
+  // 게임방법 상태를 모두 정리하고 점수판을 초기화한다
+  function tutStop() {
+    tut.active = false;
+    tut.step = 0;
+    clearInterval(tut.loopId);
+    tut.timers.forEach(clearTimeout); tut.timers = [];
+    birds.slice().forEach(removeBird);
+    score = 0; caught = 0; misses = 0; timeLeft = GAME_SECONDS;
+    updateHud(GAME_SECONDS);
+    [tutBubble, tutHand, tutTarget, tutSkip].forEach(function (el) { el.hidden = true; });
+    document.getElementById('tutEndOverlay').hidden = true;
+  }
+
+  document.getElementById('howtoBtn').addEventListener('click', tutStart);
+  document.getElementById('tutAgainBtn').addEventListener('click', tutStart);
+  document.getElementById('tutHomeBtn').addEventListener('click', function () {
+    tutStop();
+    document.getElementById('startOverlay').hidden = false;
+  });
+  document.getElementById('tutStartBtn').addEventListener('click', start);
+  tutSkip.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+  tutSkip.addEventListener('click', tutFinish);
 
   document.getElementById('startBtn').addEventListener('click', start);
   document.getElementById('retryBtn').addEventListener('click', start);

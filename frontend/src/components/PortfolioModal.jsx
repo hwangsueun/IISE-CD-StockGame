@@ -90,7 +90,7 @@ export default function PortfolioModal() {
       <div className="filter-bar">
         <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}>수익률 대시보드</button>
         <button className={tab === 'holdings' ? 'active' : ''} onClick={() => setTab('holdings')}>보유자산</button>
-        <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>주문 내역</button>
+        <button data-tutorial="orders-tab" className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>주문 내역</button>
         <button className={tab === 'pnl' ? 'active' : ''} onClick={() => setTab('pnl')}>수익분석</button>
       </div>
 

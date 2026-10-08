@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>미니게임 3 — 상자에 캐릭터 분류하기 (초안)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<style>
+  :root {
+    --bg-deep: #1a0f0a;
+    --frame: #2a1a10;
+    --panel: #3d2418;
+    --panel-light: #5a3624;
+    --ink: #f4e4cc;
+    --ink-dim: #c9a888;
+    --gold: #f5c542;
+
+    --c-blue:   #3b82f6;
+    --c-green:  #22c55e;
+    --c-purple: #a855f7;
+    --c-red:    #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+  /* 배경은 다른 미니게임(왝슨/교수님)과 동일한 방식:
+     #stage 전체에 100% 100% 로 깔아 화면 크기와 무관하게 항상 전체가 보이고 잘리지 않는다. */
+  #stage {
+    position: relative; width: 100%; height: 100%;
+    background: url('assets/mini3/work_bgr.png') no-repeat, #0c0a12;
+    background-size: 100% 100%;
+    image-rendering: pixelated;
+    user-select: none;
+    touch-action: none;
+    overflow: hidden;
+  }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 8%;
+    background: #000;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 2%;
+    padding: 0 2.2%;
+    z-index: 500;
+    pointer-events: none;
+  }
+  #hud .txt {
+    font-family: 'Press Start 2P', monospace;
+    color: #fff;
+    font-size: clamp(10px, 1.9vh, 20px);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 #333;
+    white-space: nowrap;
+  }
+  #hud .lives { font-size: clamp(13px, 2.2vh, 24px); letter-spacing: 3px; }
+  #hud .combo { color: var(--gold); }
+  #timerBar {
+    flex: 1; max-width: 28%;
+    height: 42%;
+    border: 3px solid #fff;
+    box-shadow: 2px 2px 0 #333;
+    background: #1a0f0a;
+    padding: 3px;
+  }
+  #timerFill { height: 100%; width: 100%; background: var(--gold); }
+  #timerFill.danger { background: #ef4444; }
+
+  /* ===== 작업장 : HUD 아래 전체를 차지하는 밴드 =====
+     배경은 #stage 가 그리므로 여기는 투명한 좌표계 역할만 한다. */
+  #yard {
+    position: absolute; left: 0; right: 0;
+    top: 8%; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    /* 캐릭터가 잘리지 않도록 클리핑하지 않는다.
+       쉬고 있는 캐릭터는 항상 floor 안쪽으로 clamp되므로 밖으로 새지 않는다. */
+    overflow: visible;
+  }
+  /* 캐릭터 더미와 상자가 놓이는 좌표 기준면 (배경 위에 겹쳐지는 투명 레이어) */
+  #floor {
+    position: relative;
+    width: 100%; height: 100%;
+    overflow: visible;
+  }
+  #pileCount {
+    position: absolute; left: 10px; top: 8px;
+    font-family: 'Press Start 2P', monospace; font-size: 11px;
+    color: #fff; background: rgba(0,0,0,0.6); border: 2px solid #000;
+    padding: 5px 8px; z-index: 20; pointer-events: none;
+  }
+
+  /* ===== 캐릭터 ===== */
+  .char {
+    position: absolute; left: 0; top: 0;
+    height: 25%;
+    cursor: grab;
+    will-change: transform;
+    filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.5));
+    -webkit-user-drag: none;
+  }
+  /* 보라 그룹은 작아서 집기 어렵다 -> 대신 점수가 가장 높다 (JS GROUP_POINTS 와 세트) */
+  .char.g-purple { height: 15%; }
+  .char img { height: 100%; width: auto; display: block; image-rendering: pixelated; pointer-events: none; }
+  /* 소속 색을 테두리로 알려주면 정답이 그대로 보이므로 표시하지 않는다.
+     (캐릭터 그림 자체로 판단해야 함) */
+  /* 끌고 있는 캐릭터는 상자(z 200)보다 위, HUD(z 500)보다 아래에 그린다 */
+  .char.dragging { cursor: grabbing; filter: drop-shadow(7px 12px 0 rgba(0,0,0,0.45)); z-index: 350 !important; }
+  .char.flyoff { transition: transform 200ms steps(5, end), opacity 200ms steps(5, end); opacity: 0; pointer-events: none; }
+  .char.reject { animation: reject 300ms steps(3, end); }
+  @keyframes reject { 0%,100% { } 33% { filter: brightness(0.4) sepia(1) saturate(8) hue-rotate(-25deg) drop-shadow(2px 4px 0 rgba(0,0,0,0.5)); } }
+
+  /* ===== 분류 상자 : 배경(work_bgr) 바닥 위에 직접 놓인다 =====
+     #floor 안에 들어 있어 자체 배경/테두리 없이 바닥 그림 위에 그대로 얹힌다. */
+  #boxes {
+    position: absolute; left: 8%; right: 8%; bottom: 3%;
+    height: 21%;
+    display: flex; align-items: flex-end; justify-content: space-around;
+    gap: 2%;
+    z-index: 200;
+  }
+  .box {
+    position: relative;
+    flex: 1 1 0; height: 100%; min-width: 0; max-width: 21%;
+    display: flex; align-items: flex-end; justify-content: center;
+    transition: transform 90ms steps(2, end);
+    /* 바닥에 놓인 느낌을 주는 접지 그림자 */
+    filter: drop-shadow(0 6px 0 rgba(0,0,0,0.45)) drop-shadow(0 14px 16px rgba(0,0,0,0.55));
+  }
+  .box img { height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block; image-rendering: pixelated; }
+  .box.hot { transform: translateY(-12px) scale(1.04); }
+  .box.good { animation: boxGood 340ms steps(4, end); }
+  .box.bad  { animation: boxBad 340ms steps(4, end); }
+  @keyframes boxGood { 0% { filter: brightness(2.2) drop-shadow(0 0 12px #fff); } 100% { filter: none; } }
+  @keyframes boxBad {
+    0%,100% { transform: translateX(0); filter: none; }
+    25% { transform: translateX(-9px); filter: brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(6); }
+    75% { transform: translateX(9px);  filter: brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(6); }
+  }
+
+  /* 점수 플로터 */
+  .floater {
+    position: absolute;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px; text-shadow: 2px 2px 0 #000;
+    pointer-events: none; z-index: 600;
+    animation: floatUp 700ms steps(7, end) forwards;
+  }
+  .floater.plus { color: var(--gold); }
+  .floater.minus { color: #ef4444; }
+  @keyframes floatUp { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
+
+  #vignette {
+    position: absolute; inset: 0; pointer-events: none; z-index: 700;
+    box-shadow: inset 0 0 120px 40px rgba(239,68,68,0.55);
+    opacity: 0;
+  }
+  #vignette.flash { animation: vig 360ms steps(4, end); }
+  @keyframes vig { from { opacity: 1; } to { opacity: 0; } }
+
+  /* ===== 오버레이 ===== */
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.66);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .overlay[hidden] { display: none; }
+  .window {
+    width: 600px; max-width: 92%;
+    background: var(--bg-deep);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 8px 8px 0 #000;
+    padding: 24px 30px 28px;
+    text-align: center;
+    image-rendering: pixelated;
+  }
+  .window .mini-tag { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 2px; }
+  .window h1 {
+    font-family: 'Galmuri11', monospace; font-size: 28px; color: var(--gold);
+    letter-spacing: 2px; margin: 12px 0 12px; text-shadow: 2px 2px 0 #000;
+  }
+  .window p { font-family: 'Galmuri11', monospace; font-size: 15px; color: var(--ink); line-height: 1.75; }
+  .window .dim { color: var(--ink-dim); font-size: 13px; }
+  .btn {
+    display: inline-block; margin-top: 20px;
+    background: var(--panel); border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), 4px 4px 0 #000;
+    color: var(--gold); padding: 13px 34px; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 18px; letter-spacing: 2px;
+  }
+  .btn:hover { background: var(--panel-light); }
+  .btn:active { transform: translate(3px,3px); box-shadow: inset 0 0 0 2px var(--panel-light), 1px 1px 0 #000; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 16px 0 4px; }
+  .result-cell {
+    background: var(--frame); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light); padding: 12px 6px;
+  }
+  .result-cell .l { font-family: 'Galmuri11', monospace; font-size: 12px; color: var(--ink-dim); }
+  .result-cell .v { font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold); margin-top: 8px; }
+
+  #backBtn {
+    position: absolute; right: 14px; top: calc(8% + 10px); z-index: 900;
+    font-family: 'Galmuri11', monospace; font-size: 13px;
+    color: var(--ink-dim); text-decoration: none;
+    background: rgba(26,15,10,0.75); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
+  }
+  #backBtn:hover { color: var(--gold); }
+
+  /* ===== 게임방법(체험형 튜토리얼) ===== */
+  .btn-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .btn-row .btn { padding: 12px 20px; font-size: 16px; }
+  .btn.sub { color: var(--ink); }
+  .btn[hidden] { display: none; }
+  .tut-ui[hidden] { display: none !important; }
+  /* 말풍선은 쌓인 캐릭터(z 100~195)·상자(200) 위, 끌고 있는 캐릭터(350) 아래 */
+  #tutBubble {
+    position: absolute; left: 50%; top: 11%; transform: translateX(-50%);
+    z-index: 300; width: max-content; max-width: 86%;
+    background: var(--bg-deep); border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 6px 6px 0 #000;
+    padding: 12px 22px; text-align: center; pointer-events: none;
+    font-family: 'Galmuri11', monospace; color: var(--ink); font-size: 15px; line-height: 1.7;
+  }
+  #tutBubble .step { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 2px; display: block; margin-bottom: 4px; }
+  #tutBubble .sub { font-size: 13px; color: var(--ink-dim); }
+  #tutBubble .warn { font-size: 13px; color: #fca5a5; }
+  #tutBubble b { color: var(--gold); }
+  #tutBubble.ok { box-shadow: inset 0 0 0 2px #4ade80, inset 0 0 0 6px var(--frame), 6px 6px 0 #000; }
+  #tutSkip {
+    position: absolute; right: 14px; top: calc(8% + 10px); z-index: 900; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--ink-dim);
+    background: rgba(26,15,10,0.85); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
+  }
+  #tutSkip:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hud">
+    <span class="txt">SCORE: <span id="hudScore">0000</span></span>
+    <span class="txt combo" id="hudCombo">COMBO x1</span>
+    <div id="timerBar" aria-label="남은 시간"><div id="timerFill"></div></div>
+    <span class="txt lives" id="hudLives">&#10084;&#10084;&#10084;</span>
+  </div>
+
+  <a id="backBtn" href="Main Screen.html">&#9664; 메인으로</a>
+
+  <div id="yard">
+    <div id="floor">
+      <div id="pileCount">남은 캐릭터 00</div>
+
+      <!-- 상자는 배경 바닥 위에 직접 놓인다 -->
+      <div id="boxes">
+        <div class="box b-blue"   data-group="blue"><img src="assets/mini3/box_blue.png"   alt="파랑 상자" /></div>
+        <div class="box b-green"  data-group="green"><img src="assets/mini3/box_green.png"  alt="초록 상자" /></div>
+        <div class="box b-purple" data-group="purple"><img src="assets/mini3/box_purple.png" alt="보라 상자" /></div>
+        <div class="box b-red"    data-group="red"><img src="assets/mini3/box_red.png"    alt="빨강 상자" /></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="vignette"></div>
+
+  <!-- 시작 오버레이 -->
+  <div class="overlay" id="startOverlay">
+    <div class="window">
+      <div class="mini-tag">MINIGAME 03</div>
+      <h1>상자에 캐릭터 분류하기</h1>
+      <p>바닥에 <b style="color:var(--gold)">캐릭터</b>가 잔뜩 쌓여 있습니다. 마우스로 끌어 <b>알맞은 상자</b>에 넣으세요.</p>
+      <p class="dim">상자 앞면에 그 상자 소속 캐릭터가 그려져 있습니다.</p>
+      <p class="dim">점수 순서 —
+        <b style="color:var(--c-purple)">보라</b> &gt;
+        <b style="color:var(--c-green)">초록</b> &gt;
+        <b style="color:var(--c-blue)">파랑</b> &gt;
+        <b style="color:var(--c-red)">빨강</b></p>
+      <p class="dim">제한시간 60초 · 목숨 3</p>
+      <p class="dim">오분류하면 목숨 &minus;1 · 시간 내 전부 치우면 보너스</p>
+      <div class="btn-row">
+        <button class="btn sub" id="howtoBtn">? 게임방법</button>
+        <button class="btn" id="startBtn">&#9654; 근무 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 게임방법: 체험 중 안내 UI -->
+  <div id="tutBubble" class="tut-ui" hidden></div>
+  <button id="tutSkip" class="tut-ui" hidden>건너뛰기 &#187;</button>
+
+  <!-- 게임방법: 마무리 오버레이 -->
+  <div class="overlay" id="tutEndOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag">HOW TO PLAY</div>
+      <h1>이제 실전이다!</h1>
+      <p>실전은 <b style="color:var(--gold)">60초</b> 동안 캐릭터 <b style="color:var(--gold)">50명</b>이 쏟아진다.<br>목숨은 3개, 전부 치우면 보너스!</p>
+      <p class="dim">일당은 점수로 정해진다 · 연속으로 맞히면 콤보 보너스</p>
+      <div class="btn-row">
+        <button class="btn sub" id="tutAgainBtn">&#8635; 다시 보기</button>
+        <button class="btn sub" id="tutHomeBtn">&#9664; 처음 화면</button>
+        <button class="btn" id="tutStartBtn">&#9654; 근무 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 종료 오버레이 -->
+  <div class="overlay" id="endOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag" id="endTag">SHIFT OVER</div>
+      <h1 id="endTitle">근무 종료!</h1>
+      <div class="result-grid">
+        <div class="result-cell"><div class="l">분류</div><div class="v" id="rSorted">0</div></div>
+        <div class="result-cell"><div class="l">점수</div><div class="v" id="rScore">0</div></div>
+        <div class="result-cell"><div class="l">정확도</div><div class="v" id="rAcc">0%</div></div>
+      </div>
+      <p class="dim" id="rankMsg"></p>
+      <button class="btn" id="retryBtn">&#8635; 다시 근무</button>
+    </div>
+  </div>
+</div>
+
+<script src="Minigame_Sort_Characters.js"></script>
+</body>
+</html>

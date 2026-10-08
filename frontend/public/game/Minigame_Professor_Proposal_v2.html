@@ -209,17 +209,18 @@
   }
   #stage.playing #introTitle { display: none; }
 
-  /* 인트로 시작 버튼 (타이틀 아래) */
-  #introStart {
+  /* 인트로 시작/게임방법 버튼 (타이틀 아래) */
+  #introBtns {
     position: absolute; left: 50%; top: 58%;
     transform: translateX(-50%);
     z-index: 970;
+    display: flex; gap: 14px; white-space: nowrap;
     opacity: 0;
     transition: opacity 300ms steps(3, end);
     pointer-events: none;
   }
-  #introStart.show { opacity: 1; pointer-events: auto; }
-  #stage.playing #introStart { display: none; }
+  #introBtns.show { opacity: 1; pointer-events: auto; }
+  #stage.playing #introBtns { display: none; }
 
   /* ===== 오버레이 (종료) ===== */
   .overlay {
@@ -284,6 +285,43 @@
     padding: 7px 12px;
   }
   #backBtn:hover { color: var(--gold); }
+
+  /* ===== 게임방법(체험형 튜토리얼) ===== */
+  .btn-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .btn-row .btn, #introBtns .btn { padding: 12px 20px; font-size: 16px; }
+  .btn.sub { color: var(--ink); }
+  .btn[hidden] { display: none; }
+  .tut-ui[hidden] { display: none !important; }
+  #stage.tutorial #player { display: block; }
+  #stage.tutorial.tut-prof #prof { display: block; }
+  #stage.tutorial #introHead, #stage.tutorial #introTitle, #stage.tutorial #introBtns { display: none; }
+  #tutBubble {
+    position: absolute; left: 50%; top: 30%; transform: translateX(-50%);
+    z-index: 800; width: max-content; max-width: 86%;
+    background: var(--bg-deep); border: 4px solid #000;
+    box-shadow: inset 0 0 0 2px var(--panel-light), inset 0 0 0 6px var(--frame), 6px 6px 0 #000;
+    padding: 12px 22px; text-align: center; pointer-events: none;
+    font-family: 'Galmuri11', monospace; color: var(--ink); font-size: 15px; line-height: 1.7;
+  }
+  #tutBubble .step { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-dim); letter-spacing: 2px; display: block; margin-bottom: 4px; }
+  #tutBubble .sub { font-size: 13px; color: var(--ink-dim); }
+  #tutBubble .warn { font-size: 13px; color: #fca5a5; }
+  #tutBubble b { color: var(--gold); }
+  #tutBubble.ok { box-shadow: inset 0 0 0 2px #4ade80, inset 0 0 0 6px var(--frame), 6px 6px 0 #000; }
+  /* 피하기 단계: 떨어지는 제안 글자가 말풍선 위로 보이게 */
+  #tutBubble.behind { z-index: 125; }
+  #tutBubble .key {
+    display: inline-block; min-width: 26px; padding: 0 6px; margin: 0 2px;
+    background: var(--panel); border: 2px solid #000; box-shadow: inset 0 -3px 0 #000;
+    color: var(--ink); font-size: 13px; line-height: 22px;
+  }
+  #tutSkip {
+    position: absolute; right: 14px; bottom: 12px; z-index: 900; cursor: pointer;
+    font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--ink-dim);
+    background: rgba(26,15,10,0.85); border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
+  }
+  #tutSkip:hover { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -304,7 +342,29 @@
     <p>교수님이 <b style="color:var(--gold)">수상한 제안</b>을 던지기 시작했다…!<br>
     <span style="color:var(--ink-dim)">← → 이동 · 길게 누르면 달리기 · 제안에 맞으면 안 됩니다 (목숨 3개)</span></p>
   </div>
-  <button class="btn" id="introStart">▶ 게임 시작</button>
+  <div id="introBtns">
+    <button class="btn sub" id="howtoBtn">? 게임방법</button>
+    <button class="btn" id="introStart">▶ 게임 시작</button>
+  </div>
+
+  <!-- 게임방법: 체험 중 안내 UI -->
+  <div id="tutBubble" class="tut-ui" hidden></div>
+  <button id="tutSkip" class="tut-ui" hidden>건너뛰기 ≫</button>
+
+  <!-- 게임방법: 마무리 오버레이 -->
+  <div class="overlay" id="tutEndOverlay" hidden>
+    <div class="window">
+      <div class="mini-tag">HOW TO PLAY</div>
+      <h1>이제 실전이다!</h1>
+      <p>목숨은 <b style="color:var(--gold)">3개</b>. 시간이 갈수록 제안이 빨라지고,<br>10초가 지나면 교수님이 <b style="color:var(--gold)">둘</b>이 된다!</p>
+      <p class="dim">일당은 버틴 시간으로 정해진다 · 오래 버틸수록 좋다</p>
+      <div class="btn-row">
+        <button class="btn sub" id="tutAgainBtn">↺ 다시 보기</button>
+        <button class="btn sub" id="tutHomeBtn">◀ 처음 화면</button>
+        <button class="btn" id="tutStartBtn">▶ 게임 시작</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 게임 요소 -->
   <img id="prof" src="assets/dragon_close.png" alt="교수님" draggable="false" />
@@ -337,6 +397,13 @@
   function postScore(rawScore) {
     if (!EMBEDDED) return;
     try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'avoid_professor', rawScore: rawScore }, '*'); } catch (_) {}
+  }
+
+  // ?howto=only : 튜토리얼에서 연 경우. 게임방법만 볼 수 있고 실제 플레이(점수 제출)는 막는다.
+  var HOWTO_ONLY = /[?&]howto=only\b/.test(location.search);
+  if (HOWTO_ONLY) {
+    document.getElementById('introStart').hidden = true;
+    document.getElementById('tutStartBtn').hidden = true;
   }
 
   // ===== 튜닝 값 =====
@@ -399,7 +466,7 @@
   // ===== 인트로 연출 =====
   var introHead = document.getElementById('introHead');
   var introTitle = document.getElementById('introTitle');
-  var introStart = document.getElementById('introStart');
+  var introStart = document.getElementById('introBtns');
   function playIntro() {
     stage.classList.remove('intro-blur');
     introHead.classList.add('rise');       // 뒤통수가 아래에서 떠오름
@@ -691,6 +758,8 @@
 
   // ===== 시작 / 종료 =====
   function start() {
+    if (HOWTO_ONLY) return;
+    tutStop();
     msgs.slice().forEach(removeMsg);
     lives = LIVES; score = 0; dodged = 0; elapsed = 0;
     keyL = false; keyR = false; facing = 1;
@@ -740,6 +809,185 @@
     layoutProf();
     px = clamp(px, 0, stage.clientWidth - pw);
   });
+
+  // =====================================================================
+  // 게임방법 (체험형 튜토리얼) — 실제 화면에서 직접 키를 눌러 보며 익힌다.
+  // 목숨이 줄지 않고 제안도 느리게 떨어진다. 점수는 서버로 보내지 않는다(postScore 미호출).
+  // ① 좌우 이동 → ② 꾹 눌러 달리기 → ③ 제안 3개 피하기 → 마무리
+  // =====================================================================
+  var TUT_DODGE_GOAL = 3;
+  var TUT_RUN_GOAL = 0.6;     // 달리기 유지 시간(초)
+  var tut = { active: false, step: 0, loopId: null, lastTs: 0, timers: [],
+              movedL: 0, movedR: 0, runT: 0, dodged: 0, dropTimer: 0, note: '' };
+  var tutBubble = document.getElementById('tutBubble');
+  var tutSkip = document.getElementById('tutSkip');
+  var tutEndOverlay = document.getElementById('tutEndOverlay');
+
+  function say(html, ok) {
+    if (tutBubble.innerHTML !== html) tutBubble.innerHTML = html;
+    tutBubble.classList.toggle('ok', !!ok);
+    tutBubble.hidden = false;
+  }
+  function later(fn, ms) { tut.timers.push(setTimeout(fn, ms)); }
+
+  function renderStep() {
+    if (tut.step === 1) {
+      say('<span class="step">STEP 1 / 3</span><span class="key">←</span><span class="key">→</span> 방향키로 <b>좌우로 움직여</b> 보세요!');
+    } else if (tut.step === 2) {
+      say('<span class="step">STEP 2 / 3</span>방향키를 <b>꾹 누르고 있으면 달려요!</b> 길게 눌러 보세요.');
+    } else if (tut.step === 3) {
+      say('<span class="step">STEP 3 / 3</span>교수님의 <b>수상한 제안</b>을 피하세요! '
+        + '<b>' + tut.dodged + ' / ' + TUT_DODGE_GOAL + '</b><br>'
+        + (tut.note || '<span class="sub">제안이 바닥까지 떨어지면 피한 거예요</span>'));
+    }
+  }
+
+  function tutTick() {
+    var now = performance.now();
+    var dt = Math.min(50, now - tut.lastTs) / 1000;
+    tut.lastTs = now;
+
+    var px0 = px;
+    movePlayer(dt, now);
+    if (px < px0) tut.movedL += px0 - px;
+    if (px > px0) tut.movedR += px - px0;
+
+    if (tut.step === 1) {
+      renderStep();
+      if (tut.movedL >= stage.clientWidth * 0.08 && tut.movedR >= stage.clientWidth * 0.08) {
+        tut.step = 1.5;
+        say('잘했어요! 이렇게 <b>좌우로 움직여</b> 제안을 피해요.', true);
+        later(tutStep2, 1500);
+      }
+    } else if (tut.step === 2) {
+      if (keyL !== keyR && now - holdStart >= RUN_HOLD_MS) tut.runT += dt;
+      renderStep();
+      if (tut.runT >= TUT_RUN_GOAL) {
+        tut.step = 2.5;
+        say('좋아요! 급할 땐 <b>달려서</b> 빠르게 피하세요.', true);
+        later(tutStep3, 1500);
+      }
+    } else if (tut.step === 3 || tut.step === 3.5) {
+      tutDodgeTick(dt, now);
+    }
+  }
+
+  function tutDodgeTick(dt, now) {
+    var d = dragons[0];
+    moveDragon(d, dt, 0);
+    if (tut.step === 3) {
+      tut.dropTimer -= dt * 1000;
+      if (tut.dropTimer <= 0) {
+        spawnMsg(d);
+        msgs[msgs.length - 1].vy *= 0.6;   // 연습이라 천천히
+        tut.dropTimer = 1400;
+      }
+    }
+    var H = stage.clientHeight;
+    var pr = playerRect();
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      var m = msgs[i];
+      m.y += m.vy * dt;
+      m.el.style.transform = 'translate(' + m.x + 'px,' + m.y + 'px)';
+      if (now >= invincibleUntil &&
+          m.x < pr.r && m.x + m.w > pr.l && m.y < pr.b && m.y + m.h > pr.t) {
+        removeMsg(m);
+        tutHit(now);
+        continue;
+      }
+      if (m.y > H) {
+        removeMsg(m);
+        if (tut.step === 3) {
+          tut.dodged += 1;
+          if (tut.dodged >= TUT_DODGE_GOAL) {
+            tut.step = 3.5;
+            say('완벽해요! 이렇게 <b>끝까지 버티면</b> 돼요.', true);
+            later(tutFinish, 1800);
+            continue;
+          }
+        }
+      }
+    }
+    if (tut.step === 3) renderStep();
+  }
+
+  // 연습 중 피격: 목숨은 줄지 않고 연출과 안내만 보여준다
+  function tutHit(now) {
+    invincibleUntil = now + HURT_INVINCIBLE_MS;
+    playerEl.classList.add('hurt');
+    stage.classList.add('shake');
+    setTimeout(function () { stage.classList.remove('shake'); }, 280);
+    setTimeout(function () { playerEl.classList.remove('hurt'); }, HURT_INVINCIBLE_MS);
+    var f = document.createElement('div');
+    f.className = 'floater bad';
+    f.textContent = '앗, 들어버렸다!';
+    f.style.left = px + 'px';
+    f.style.top = (stage.clientHeight - ph - stage.clientHeight * 0.08) + 'px';
+    stage.appendChild(f);
+    setTimeout(function () { f.remove(); }, 720);
+    if (tut.step === 3) {
+      tut.note = '<span class="warn">맞으면 목숨(♥)이 하나 줄어요! 실전에선 3번 맞으면 끝. 다시 피해 보세요.</span>';
+      later(function () { tut.note = ''; }, 2200);
+    }
+  }
+
+  function tutStart() {
+    if (playing) return;
+    tutStop();
+    keyL = false; keyR = false; facing = 1; walkT = 0; walkFrame = 0; invincibleUntil = 0;
+    elapsed = 0;
+    resetDragons();
+    stage.classList.add('intro-blur', 'tutorial');
+    layoutPlayer();
+    layoutProf();
+    px = (stage.clientWidth - pw) / 2;
+    dragons[0].x = dragons[0].targetX = (stage.clientWidth - dragons[0].w) / 2;
+    playerEl.src = WALK_FRAMES[0];
+    movePlayer(0, performance.now());
+    tut.active = true;
+    tut.movedL = 0; tut.movedR = 0; tut.runT = 0; tut.dodged = 0; tut.note = '';
+    tutSkip.hidden = false;
+    tut.lastTs = performance.now();
+    tut.loopId = setInterval(tutTick, 1000 / 60);
+    tut.step = 1;
+    renderStep();
+  }
+  function tutStep2() { tut.step = 2; renderStep(); }
+  function tutStep3() {
+    tut.step = 3;
+    tut.dropTimer = 600;
+    tutBubble.classList.add('behind');
+    stage.classList.add('tut-prof');
+    renderStep();
+  }
+
+  function tutFinish() {
+    tutStop();
+    stage.classList.add('tutorial');   // 인트로 타이틀은 가린 채로 마무리 창 표시
+    tutEndOverlay.hidden = false;
+  }
+
+  // 게임방법 상태를 모두 정리한다
+  function tutStop() {
+    tut.active = false;
+    tut.step = 0;
+    clearInterval(tut.loopId);
+    tut.timers.forEach(clearTimeout); tut.timers = [];
+    msgs.slice().forEach(removeMsg);
+    keyL = false; keyR = false;
+    playerEl.classList.remove('hurt');
+    stage.classList.remove('tutorial', 'tut-prof');
+    tutBubble.classList.remove('behind');
+    tutBubble.hidden = true;
+    tutSkip.hidden = true;
+    tutEndOverlay.hidden = true;
+  }
+
+  document.getElementById('howtoBtn').addEventListener('click', tutStart);
+  document.getElementById('tutAgainBtn').addEventListener('click', tutStart);
+  document.getElementById('tutHomeBtn').addEventListener('click', tutStop);
+  document.getElementById('tutStartBtn').addEventListener('click', start);
+  tutSkip.addEventListener('click', tutFinish);
 
   document.getElementById('introStart').addEventListener('click', start);
   document.getElementById('retryBtn').addEventListener('click', start);

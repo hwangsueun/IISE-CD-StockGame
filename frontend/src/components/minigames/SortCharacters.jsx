@@ -1,0 +1,26 @@
+// 부업 미니게임 3: 상자에 캐릭터 분류하기 (미팅5 §6 / 기능명세서 §부업)
+// 디자인 원본(public/game/Minigame_Sort_Characters.html)을 iframe으로 그대로 실행해 100% 동일하게 유지한다.
+// 게임 종료 시 원본이 postMessage로 보낸 원점수(점수)를 받아 onFinish로 서버에 제출한다.
+import { useEffect, useRef } from 'react';
+
+export default function SortCharacters({ onFinish, howtoOnly = false }) {
+  const submitted = useRef(false);
+
+  useEffect(() => {
+    const onMsg = (e) => {
+      const d = e.data;
+      if (!d || d.source !== 'antsurvival-minigame' || d.game !== 'sort_characters') return;
+      if (submitted.current) return;
+      submitted.current = true;
+      onFinish(d.rawScore); // 원점수 = 점수
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [onFinish]);
+
+  return (
+    <div className="minigame-board">
+      <iframe className="minigame-iframe tall" title="상자에 캐릭터 분류하기" src={`/game/Minigame_Sort_Characters.html${howtoOnly ? '?howto=only' : ''}`} />
+    </div>
+  );
+}

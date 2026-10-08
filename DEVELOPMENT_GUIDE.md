@@ -9,6 +9,10 @@
 - 이전 DB·모델·퀀트 주문 및 적용 검증: `data/quant/deployments/20261006-adjusted/`
 - DB migration: `010_adjusted_stock_prices.sql`까지 적용됨.
 
+GitHub에는 게임 코드·마이그레이션·데이터 가공/학습 코드가 들어간다. 기존 `data/` 제외 규칙에 따라 원본 엑셀, done 데이터, `signals.json`, 모델 가중치, DB 백업은 별도로 전달해야 한다. 새 체크아웃만으로는 로컬의 수정가격 DB와 퀀트 실행 데이터가 설치되지 않는다.
+
+2026-10-08 원격 변경 병합: 첫날 튜토리얼은 매수 예약 → 주문 내역 확인 → 체결 이후 매도 안내 순서다. 미니게임 변경용 `007_sort_characters_minigame.sql`은 퀀트용 `007_quant_opponent.sql`과 별개이므로 기존 DB에서도 파일명별로 적용 여부를 확인한다. 현재 로컬 DB에는 둘 다 적용했다.
+
 현재 수정가격 DB에 기존 raw 주식 seed나 `import_quant.js`를 다시 적용하지 않는다. 현재 최종 버전은 이미 생성됐으므로 덮어쓰지 않으며, 새 데이터/실험은 새 revision/model-version으로 만든다. 원본 엑셀은 수정하지 않는다. 환경 준비:
 
 ```bash
@@ -293,7 +297,7 @@ A1이 끝나기 전에는 실데이터 DB를 시연에 쓰지 않는다 (§1-4 �
 | `Bad End - Bankruptcy.html` | `pages/ResultPage.jsx` (failed) | |
 | `Minigame_Catch_Waxon.html` | `minigames/CatchWaxon.jsx` | bird.png, boong_bg.png, dragon_* 에셋 |
 | `Minigame_Professor_Proposal_v2.html` | `minigames/AvoidProfessor.jsx` | professor_*, run/walk 스프라이트 |
-| (디자인 없음) | `minigames/PassengerTetris.jsx` | **테트리스 디자인 페이지 제작 필요** |
+| `Minigame_Sort_Characters.html` (신규 제작) | `minigames/SortCharacters.jsx` | 이식 완료 — iframe 임베드 |
 | `Main Screen.html`의 모달들 (cal/news/pf/mk-overlay) | 공용 `Modal` + 모달 9종 CSS | **✅ 픽셀 스킨 이식 완료 (2026-07-08)** — 공용 클래스(modal/filter-bar/data-table 등) CSS 교체로 전 모달 일괄 적용. 모달별 세부 연출(캘린더 월그리드, 포트폴리오 사이드탭 등)은 개별 폴리싱 대상 |
 | (디자인 없음) | `SurgeStockPopup`, `AuthPanel`, `OpeningPage` | 디자인 시안 추가 제작 대상 |
 
