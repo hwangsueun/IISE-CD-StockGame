@@ -314,7 +314,28 @@ export const mockApi = {
     const seed = s?.seed ?? 0;
     let list = assetSnapshot(turn, seed);
     if (type) list = list.filter((a) => a.assetType === type);
-    if (sort === 'gainers') list.sort((a, b) => b.changeRate - a.changeRate);
+    const numberOrNull = (value) => {
+      if (value === null || value === undefined || value === '') return null;
+      return Number.isFinite(Number(value)) ? Number(value) : null;
+    };
+    const compareNullable = (left, right, direction) => {
+      const a = numberOrNull(left);
+      const b = numberOrNull(right);
+      if (a === null) return b === null ? 0 : 1;
+      if (b === null) return -1;
+      return direction * (a - b);
+    };
+    if (sort === 'change') list.sort((a, b) => compareNullable(a.changeRate, b.changeRate, -1));
+    if (sort === 'decline') list.sort((a, b) => compareNullable(a.changeRate, b.changeRate, 1));
+    if (sort === 'volume') list.sort((a, b) => compareNullable(a.volume, b.volume, -1));
+    if (sort === 'amount') {
+      const amount = (asset) => {
+        const volume = numberOrNull(asset.volume);
+        const price = numberOrNull(asset.price);
+        return volume === null || price === null ? null : volume * price;
+      };
+      list.sort((a, b) => compareNullable(amount(a), amount(b), -1));
+    }
     return delay(list);
   },
 

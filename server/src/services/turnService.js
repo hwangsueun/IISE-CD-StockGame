@@ -8,6 +8,7 @@ const C = require('../config/constants');
 const gameService = require('./gameService');
 const pricingService = require('./pricingService');
 const tradeService = require('./tradeService');
+const orderService = require('./orderService');
 const valuationService = require('./valuationService');
 const stressPolicy = require('./stressPolicy');
 const repaymentService = require('./repaymentService');
@@ -35,6 +36,7 @@ async function getTurnDate(sessionId, turnNumber, client) {
  */
 async function getTurnData(sessionId, turnNumber) {
   const session = await gameService.getSession(sessionId);
+  if(turnNumber>session.current_turn)throw conflict('아직 진행하지 않은 턴의 정보는 볼 수 없습니다');
   const date = await getTurnDate(sessionId, turnNumber);
   const iso = toIso(date);
 
@@ -75,6 +77,7 @@ async function getTurnData(sessionId, turnNumber) {
     isRepaymentTurn: repaymentService.isRepaymentTurn(turnNumber),
     isMonthStart: turnNumber % C.TURNS_PER_MONTH === 1,
     marketOpen,
+    executionRule: 'next_market_open',
     state: {
       cash: Number(session.cash),
       totalAsset,
@@ -150,6 +153,8 @@ async function advanceTurn(sessionId) {
     }
 
     const nextTurn = session.current_turn + 1;
+    // Persist the close-t quant decision before the next open is processed.
+    await require('./quantService').syncQuantOrders(client,session);
     const prevDate = await getTurnDate(sessionId, session.current_turn, client);
     const nextDate = await getTurnDate(sessionId, nextTurn, client);
     const marketOpen = await turnSelector.isMarketOpen(nextDate, client);
@@ -161,6 +166,8 @@ async function advanceTurn(sessionId) {
     // (b) daily 스냅샷이 청산 이전 상태로 기록되어 다음 턴 dailyReturn 계산이 틀어진다.
     // assets.listed_from/listed_to 단일 기준만 본다 (coin_info 조인 없음).
     const forcedLiquidations = await tradeService.liquidateDelisted(client, session, nextDate);
+    // Fills use only the open. Salary, events, and close valuation happen afterwards.
+    const orderResults = await orderService.settlePendingOrders(client, session, nextDate, marketOpen);
 
     // --- 월초 처리: 월급 지급 + 생활비 차감 (기획서 §7 Monthly turn) ---
     let monthly = null;
@@ -236,6 +243,7 @@ async function advanceTurn(sessionId) {
       [sessionId, nextTurn, Math.round(Number(session.cash)), Math.round(Number(session.debt)),
        session.stress, session.trust]
     );
+    await require('./quantService').syncQuantOrders(client,{...session,status});
 
     // --- 주간/일간 스냅샷 (리포트·차트용) ---
     await reportService.writeSnapshot(client, sessionId, nextTurn, 'daily', {
@@ -259,6 +267,7 @@ async function advanceTurn(sessionId) {
       monthly,
       missedRepayment, // 직전 상환 턴을 지나쳐 자동 미납 처리된 경우 (팝업 연출용)
       forcedLiquidations: forcedLiquidations.length > 0 ? forcedLiquidations : null, // 상장폐지 강제청산 결과 (팝업 연출용)
+      orderResults,
       events,
       surgeResults, // 전 턴 급등주 정산 결과 (팝업 연출용)
       dailyReturn,

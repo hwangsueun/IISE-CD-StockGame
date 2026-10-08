@@ -62,12 +62,20 @@ export default function MarketModal() {
 
   useEffect(() => {
     if (cat === 'ref') return;
-    // 서버는 등락률 DESC 정렬만 지원 — 상승률은 그대로, 하락률은 같은 결과를 뒤집어 재사용
-    const serverSort = sort === 'up' || sort === 'down' ? 'change' : sort;
+    let cancelled = false;
+    const serverSort = sort === 'up' ? 'change' : sort === 'down' ? 'decline' : sort;
     // sessionId를 넘겨야 코인 탭이 이 세션의 층화추출 20종을 받는다 (migration 005)
     api.listAssets({ type: cat, sort: serverSort, date: turn.date, sessionId })
-      .then((rows) => setAssets(sort === 'down' ? [...rows].reverse() : rows))
-      .catch(console.error);
+      .then((rows) => {
+        if (!cancelled) setAssets(rows);
+      })
+      .catch((error) => {
+        if (!cancelled) console.error(error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [cat, sort, turn.date, sessionId]);
 
   const strip = STRIP_CODES.map((code) => macro.find((m) => m.code === code)).filter(Boolean);

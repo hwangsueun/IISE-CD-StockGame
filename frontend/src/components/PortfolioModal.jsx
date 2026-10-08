@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import Modal from './Modal';
 import ReturnsDashboard from './ReturnsDashboard';
+import PendingOrders from './PendingOrders';
 import { won, pct, changeClass } from '../utils/format';
 
 const TYPE_LABEL = { cash: '현금', stock: '주식', bond: '채권', coin: '코인' };
@@ -89,12 +90,14 @@ export default function PortfolioModal() {
       <div className="filter-bar">
         <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}>수익률 대시보드</button>
         <button className={tab === 'holdings' ? 'active' : ''} onClick={() => setTab('holdings')}>보유자산</button>
+        <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>주문 내역</button>
         <button className={tab === 'pnl' ? 'active' : ''} onClick={() => setTab('pnl')}>수익분석</button>
       </div>
 
       {/* 보유자산·수익분석은 고정 높이 패널 안에서만 스크롤한다 (5종목까지 스크롤 없이 보임).
           대시보드는 내용이 길어 고정하지 않고 자연 높이로 둔다. */}
       <div className={`pf-panel${tab === 'dashboard' ? ' auto' : ''}`}>
+      {tab === 'orders' && <PendingOrders sessionId={sessionId}/>}
       {tab === 'dashboard' && (
         <div className="pf-dashboard-layout">
           <aside className="pf-scope-side" aria-label="자산 구분">

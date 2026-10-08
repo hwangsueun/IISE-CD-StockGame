@@ -274,17 +274,24 @@ export default function AssetDetailModal({ assetId }) {
         <span className="spacer" />
         <button
           className="btn-buy"
-          disabled={turn.marketOpen === false}
+          disabled={turn.marketOpen === false || detail.assetType !== 'stock' || turn.turnNumber>=240}
           title={turn.marketOpen === false ? '휴장일에는 거래할 수 없습니다' : '매수'}
           onClick={() => openModal('trade', { assetId, tradeType: 'buy' })}
-        >매수</button>
+        >매수 예약</button>
         <button
           className="btn-sell"
-          disabled={turn.marketOpen === false}
+          disabled={turn.marketOpen === false || detail.assetType !== 'stock' || turn.turnNumber>=240}
           title={turn.marketOpen === false ? '휴장일에는 거래할 수 없습니다' : '매도'}
           onClick={() => openModal('trade', { assetId, tradeType: 'sell' })}
-        >매도</button>
+        >매도 예약</button>
       </div>
+      {detail.assetType !== 'stock' && <p>시가 자료를 확보할 때까지 채권·코인 주문은 지원하지 않습니다.</p>}
+      {detail.assetType === 'stock' && detail.info?.priceDetail?.adjustment_factor != null &&
+        <p className="quant-footnote">수정주가 기준 · 거래량은 당시 실제 거래량입니다.</p>}
+      {detail.assetType === 'stock' && detail.info?.priceDetail && <dl className="info-list horizontal">
+        {[['open_price','시가'],['high_price','고가'],['low_price','저가'],['close_price','종가'],['vwap','VWAP']].map(([key,label])=><div key={key}><dt>{label}</dt><dd>{detail.info.priceDetail[key]==null?'—':won(Number(detail.info.priceDetail[key]))}</dd></div>)}
+        <div><dt>거래량</dt><dd>{Number(detail.info.priceDetail.volume||0).toLocaleString('ko-KR')}</dd></div>
+      </dl>}
 
       {tab === 'chart' && (
         <>

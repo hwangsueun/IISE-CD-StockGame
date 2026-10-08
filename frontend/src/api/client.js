@@ -50,13 +50,16 @@ const httpApi = {
   startGame: (difficulty) => post('/api/game/start', { difficulty }),
   getState: (sid) => get(`/api/game/${sid}`),
   getTurn: (sid, turn) => get(`/api/game/${sid}/turn/${turn}`),
-  trade: (sid, { assetId, tradeType, quantity }) =>
-    post(`/api/game/${sid}/trade`, { assetId, tradeType, quantity }),
+  trade: (sid, { assetId, tradeType, quantity, orderKey }) =>
+    post(`/api/game/${sid}/trade`, { assetId, tradeType, quantity, orderKey }),
+  getOrders: (sid) => get(`/api/game/${sid}/orders`),
+  cancelOrder: (sid, id) => del(`/api/game/${sid}/orders/${id}`),
   nextTurn: (sid) => post(`/api/game/${sid}/next-turn`),
   getResult: (sid) => get(`/api/game/${sid}/result`),
 
   // 포트폴리오 / 리포트
   getPortfolio: (sid) => get(`/api/game/${sid}/portfolio`),
+  getQuantPortfolio: (sid) => get(`/api/game/${sid}/quant`),
   getPortfolioHistory: (sid) => get(`/api/game/${sid}/portfolio/history`),
   getPortfolioDashboard: (sid, unit = 'day', assetType = 'all') => {
     const q = new URLSearchParams({ unit, assetType });
@@ -146,7 +149,9 @@ const mockAdapter = {
   ...mockApi,
   // 이름/시그니처 매핑 (mockApi -> 본편 api 계약)
   getState: (sid) => mockApi.getGame(sid),
-  trade: (sid, payload) => mockApi.trade(sid, payload),
+  trade: notMocked('다음 시가 예약 주문'),
+  getOrders: notMocked('예약 주문 내역'),
+  cancelOrder: notMocked('예약 주문 취소'),
   repay: (sid, amount) => mockApi.repay(sid, { amount }),
   resolveEvent: (sid, eventLogId, choice) => mockApi.resolveEvent(sid, { eventLogId, choice }),
   listAssets: ({ type, sort } = {}) => mockApi.getAssets({ type, sort }),
@@ -178,6 +183,7 @@ const mockAdapter = {
   getRealizedPnl: notMocked('실현손익'),
   getPortfolioHistory: notMocked('수익률 추이'),
   getPortfolioDashboard: notMocked('포트폴리오 대시보드'),
+  getQuantPortfolio: () => Promise.resolve({ status: 'unavailable', message: '퀀트 모델은 실제 데이터 서버에서 확인할 수 있습니다.' }),
   getGameLog: notMocked('게임 로그'),
 };
 

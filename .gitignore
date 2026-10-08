@@ -4,6 +4,9 @@ dist/
 *.log
 .DS_Store
 pgdata/
+quant/.venv/
+quant/__pycache__/
+quant/.pytest_cache/
 data/
 # 위 data/ 규칙은 DATA_DIR(외부 data-pipeline 체크아웃)을 실수로 server/ 밑에 복사했을 때를
 # 막기 위한 것이다(패턴이 앞에 슬래시가 없어 server/seeds/data/도 함께 걸러진다).

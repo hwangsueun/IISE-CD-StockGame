@@ -213,10 +213,10 @@ export const useGameStore = create((set, get) => ({
   },
 
   /** 매수/매도 후 상태 갱신 */
-  async trade(assetId, tradeType, quantity) {
+  async trade(assetId, tradeType, quantity, orderKey) {
     const sid = get().sessionId;
     const generation = sessionRequestGeneration;
-    const r = await api.trade(sid, { assetId, tradeType, quantity });
+    const r = await api.trade(sid, { assetId, tradeType, quantity, orderKey });
     if (!isCurrentSessionRequest(get, sid, generation)) return r;
     await get().loadTurn(get().turn.turnNumber, generation);
     return r;

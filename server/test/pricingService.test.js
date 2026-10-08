@@ -56,3 +56,28 @@ test('weekly bars follow calendar buckets and chain each open from the prior clo
     },
   ]);
 });
+
+test('decline ranking sorts ascending with missing prices last and excludes out-of-period listings', async () => {
+  const calls = [];
+  const service = loadService([
+    {
+      asset_id: 'STOCK_DOWN', asset_type: 'stock', name: '하락 종목', sector: '테스트',
+      currency: 'KRW', price: '90', change_rate: '-0.1', volume: '1000',
+    },
+    {
+      asset_id: 'STOCK_MISSING', asset_type: 'stock', name: '시세 없음', sector: '테스트',
+      currency: 'KRW', price: null, change_rate: null, volume: null,
+    },
+  ], calls);
+
+  const rows = await service.listAssets({ type: 'stock', sort: 'decline', date: '2014-01-17' });
+
+  assert.match(calls[0].sql, /a\.listed_from IS NULL OR a\.listed_from <= \$2/);
+  assert.match(calls[0].sql, /a\.listed_to IS NULL OR a\.listed_to >= \$2/);
+  assert.match(calls[0].sql, /ORDER BY p\.change_rate ASC NULLS LAST/);
+  assert.deepEqual(calls[0].params, ['stock', '2014-01-17']);
+  assert.deepEqual(rows.map(({ assetId, changeRate }) => ({ assetId, changeRate })), [
+    { assetId: 'STOCK_DOWN', changeRate: -0.1 },
+    { assetId: 'STOCK_MISSING', changeRate: null },
+  ]);
+});

@@ -44,6 +44,7 @@ async function startGame(difficulty, userId = null) {
        VALUES ($1, 1, 'daily', $2, $2, $3, $4, $5)`,
       [session.id, Number(session.initial_cash), Number(session.debt), session.stress, session.trust]
     );
+    await require('./quantService').syncQuantOrders(client,session);
     return toStateDto(session, Number(session.cash)); // 시작 시 총자산 = 현금
   });
 }
@@ -99,6 +100,7 @@ async function evaluateEndCondition(client, session, { turnLimitReached = false 
   else if (turnLimitReached) status = 'failed';
 
   if (status !== 'active') {
+    await require('./orderService').cancelAtEnd(client, session.id);
     await client.query(
       `UPDATE game_sessions SET status = $2, updated_at = NOW() WHERE id = $1`,
       [session.id, status]

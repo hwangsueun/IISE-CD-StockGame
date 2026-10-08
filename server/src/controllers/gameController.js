@@ -38,7 +38,7 @@ exports.getTurn = async (req, res) => {
 
 /** POST /api/game/:sessionId/trade */
 exports.trade = async (req, res) => {
-  const { assetId, tradeType, quantity } = req.body || {};
+  const { assetId, tradeType, quantity, orderKey } = req.body || {};
   const qty = Number(quantity);
   // 여기서는 형태만 본다 (유한한 양수). 자산 타입별 세부 규칙(정수/코인 최소단위·소수자리)은
   // 이 시점에 assetType을 모르므로 tradeService가 서버 권위로 재검증한다 (중복 아님, 계층 분리).
@@ -49,6 +49,7 @@ exports.trade = async (req, res) => {
     assetId,
     tradeType,
     quantity: qty,
+    orderKey,
   });
   res.json(result);
 };

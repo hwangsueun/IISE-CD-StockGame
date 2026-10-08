@@ -1,5 +1,61 @@
 # ANT SURVIVAL 개발 진행 가이드
 
+## 퀀트 모델 실행 (2026-10-06)
+
+현재 로컬 게임에는 수정가격 데이터 `quant-v2-adjusted-2e6c8d6558fc-r2`와 `model-v4-adjusted-open`을 연결했다. 기본 운용 프로필은 `daily_open`이며 다음 개장일 시가에 체결한다. 데이터 정의와 결과는 [ARCHITECTURE.md §15-5](ARCHITECTURE.md#15-5-수정주가-최종-데이터와-게임-반영-2026-10-06)를 참고한다.
+
+- 최종 done: `../data-pipeline/data/done/quant/quant-v2-adjusted-2e6c8d6558fc-r2/`
+- 게임 실행 모델: `data/quant/signals.json`
+- 이전 DB·모델·퀀트 주문 및 적용 검증: `data/quant/deployments/20261006-adjusted/`
+- DB migration: `010_adjusted_stock_prices.sql`까지 적용됨.
+
+현재 수정가격 DB에 기존 raw 주식 seed나 `import_quant.js`를 다시 적용하지 않는다. 현재 최종 버전은 이미 생성됐으므로 덮어쓰지 않으며, 새 데이터/실험은 새 revision/model-version으로 만든다. 원본 엑셀은 수정하지 않는다. 환경 준비:
+
+```bash
+python3.12 -m venv quant/.venv
+quant/.venv/bin/python -m pip install -r quant/requirements.txt
+# 완전한 환경 재현에는 requirements.lock.txt를 사용한다.
+```
+
+다음은 데이터와 모델이 아직 없는 별도 환경에서의 재현 명령이다. 먼저 원본 `quant_data.xlsx`와 새 `quant_data_2.xlsx`를 IISE-CD 루트에 둔다. benchmark는 `data/quant/research-inputs/kospi-open-2013-2023.csv` 및 provenance를 보존한다.
+
+```bash
+quant/.venv/bin/python quant/prepare.py
+quant/.venv/bin/python quant/prepare_adjusted.py --revision r2
+quant_adjusted_done="../data-pipeline/data/done/quant/quant-v2-adjusted-2e6c8d6558fc-r2"
+quant/.venv/bin/python quant/verify_adjusted.py --data "$quant_adjusted_done" --report /tmp/adjusted-data-verification.json
+quant/.venv/bin/python quant/train.py --data "$quant_adjusted_done" --model-version model-v4-adjusted-open
+quant/.venv/bin/python quant/verify.py --data "$quant_adjusted_done" --model-version model-v4-adjusted-open
+quant/.venv/bin/python quant/evaluate.py --data "$quant_adjusted_done" --model-version model-v4-adjusted-open
+node quant/backtest.cjs "$quant_adjusted_done/model-v4-adjusted-open/backtest_input.json"
+```
+
+`prepare_adjusted.py`와 `train.py`는 완료된 버전 덮어쓰기를 거부한다. 이전 v1/v2/v3와 이번 첫 후보는 그대로 보존한다. `compare_diagnostic.py`는 이전 종가 label의 v2 비교 전용이다.
+
+이번 DB 전환은 `deploy_adjusted.cjs`로 수행했다. `--check`는 전체 전환을 실행한 뒤 롤백한다. `--apply`는 API 중지 및 검증된 전체 DB 백업 후에만 실행한다. 현재 스크립트는 이전 v3 hash와 플레이어 주식 거래가 없는 상태를 전제로 한 일회성 이전이며, 이미 적용된 DB에 재실행하지 않는다. 향후 보유 주식이 있는 게임은 별도 포지션 이전 설계 없이 재설정하지 않는다.
+
+```bash
+node quant/deploy_adjusted.cjs "$quant_adjusted_done" --check
+# DB 백업 확인 후, 전환 대상이 이전 raw v3인 경우에만:
+docker compose stop api
+node quant/deploy_adjusted.cjs "$quant_adjusted_done" --apply
+docker compose start api
+```
+
+공개 서버가 별도로 있다면 이 로컬 DB 변경만으로 자동 반영되지 않는다. 실제 API/DB와 실행 signals를 함께 옮기고 공개 URL에서 검증해야 한다.
+
+개발 서버가 클라우드 동기화 중인 의존성 파일을 읽다가 멈추면, 빌드를 완료한 뒤 `npm --prefix frontend run preview -- --host 127.0.0.1 --port 5173 --strictPort`로 빌드 결과를 확인할 수 있다. 현재 로컬 검증 화면은 이 미리보기 모드로 실행 중이다.
+
+로컬 Node 서버는 기본 `data/quant/signals.json`을 읽는다. 다른 위치는 `QUANT_SIGNALS_FILE`로 지정한다. Docker는 compose에 `/app/data/quant/signals.json`이 설정되어 있다. 데이터가 없으면 버튼에서 준비 중으로 표시하며 다른 전략으로 대체하지 않는다. 세션은 최초 조회 모델 hash에 고정되므로 모델 교체 전에 기존 파일을 보존한다.
+
+```bash
+npm --prefix server test
+npm --prefix frontend test
+npm --prefix frontend run build
+node quant/check_open_integration.cjs "$PWD/data/quant/signals.json"
+quant/.venv/bin/python -m unittest discover -s quant -p 'test_*.py'
+```
+
 > **설계 기준(스코프/DB/API/UI)은 [ARCHITECTURE.md](ARCHITECTURE.md)가 유일한 소스다.**
 > 이 문서는 설계를 다루지 않는다 — "서버를 어떻게 돌리는가"와 "앞으로 무엇을 어떤 순서로 하는가"만 다룬다.
 > **코딩이 익숙하지 않은 팀원은 [TEAM_HANDBOOK.md](TEAM_HANDBOOK.md)부터 볼 것** — 설치부터 복붙 명령, 파일 위치, 에러 대처까지 따라하기 형식으로 정리돼 있다.

@@ -29,7 +29,7 @@ async function getPricesAt(date, client) {
 
 /**
  * 종목 목록 (마켓 모달). date 기준 시세를 붙이고 sort 기준으로 정렬.
- * sort: change(상승률) | volume(거래량, 주식만) | amount(거래대금 근사) | name
+ * sort: change(상승률) | decline(하락률) | volume(거래량, 주식만) | amount(거래대금 근사) | name
  * sessionId: 코인은 이 세션이 층화추출한 10종 유니버스로 제한한다(migration 005). 주식/채권은
  *   전역이라 영향받지 않는다(asset_type <> 'coin' 분기로 그대로 통과).
  *
@@ -63,6 +63,10 @@ async function listAssets({ type, sort, date, sessionId }) {
   if (date) {
     params.push(date);
     const d = `$${params.length}`;
+    // 게임 날짜에 실제로 거래 가능한 종목만 보여준다. 상장 전·폐지 후 자산을 남기면
+    // 시세가 없는 행이 순위에 섞이고, 상세 화면에서 거래할 수도 없다.
+    where += ` AND (a.listed_from IS NULL OR a.listed_from <= ${d})
+      AND (a.listed_to IS NULL OR a.listed_to >= ${d})`;
     priceJoin = `
       LEFT JOIN asset_prices p ON p.asset_id = a.asset_id AND p.trade_date = ${d}
       LEFT JOIN stock_price_detail sd ON sd.asset_id = a.asset_id AND sd.trade_date = ${d}`;
@@ -70,6 +74,7 @@ async function listAssets({ type, sort, date, sessionId }) {
   }
   const orderBy =
     sort === 'change' ? 'p.change_rate DESC NULLS LAST'
+    : sort === 'decline' ? 'p.change_rate ASC NULLS LAST'
     : sort === 'volume' ? 'sd.volume DESC NULLS LAST'
     : sort === 'amount' ? '(sd.volume * p.close_price) DESC NULLS LAST'
     : 'a.asset_type, a.masked_name';
@@ -109,6 +114,8 @@ async function getAssetDetail(assetId, date) {
     name: asset.name,
     sector: asset.sector,
     currency: asset.currency,
+    orderSupported: asset.asset_type === 'stock',
+    executionRule: 'next_market_open',
     // 상장기간(migration 003). 차트 "전체" 범위가 이 값을 시작점으로 쓴다.
     // 게임 시점 이후는 어차피 to=현재 턴 날짜로 잘리므로 미래 정보가 새지 않는다.
     listedFrom: asset.listed_from,

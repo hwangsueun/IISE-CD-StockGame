@@ -10,6 +10,8 @@ const eventRoutes = require('./event');
 const memoRoutes = require('./memo');
 const sideJobRoutes = require('./sideJob');
 const surgeRoutes = require('./surge');
+const quantRoutes = require('./quant');
+const orderService = require('../services/orderService');
 
 // POST /api/game/start { difficulty }
 router.post('/start', asyncHandler(game.start));
@@ -22,6 +24,8 @@ router.get('/:sessionId/turn/:turnNumber', asyncHandler(game.getTurn));
 
 // POST /api/game/:sessionId/trade { assetId, tradeType, quantity }
 router.post('/:sessionId/trade', asyncHandler(game.trade));
+router.get('/:sessionId/orders', asyncHandler(async (req,res) => res.json(await orderService.listOrders(req.params.sessionId))));
+router.delete('/:sessionId/orders/:orderId', asyncHandler(async (req,res) => res.json(await orderService.cancelOrder(req.params.sessionId,req.params.orderId))));
 
 // POST /api/game/:sessionId/next-turn
 router.post('/:sessionId/next-turn', asyncHandler(game.nextTurn));
@@ -36,6 +40,7 @@ router.use('/:sessionId/event', eventRoutes);
 router.use('/:sessionId/memo', memoRoutes);
 router.use('/:sessionId/side-job', sideJobRoutes);
 router.use('/:sessionId/surge', surgeRoutes);
+router.use('/:sessionId/quant', quantRoutes);
 
 // 게임 로그 (기능명세서 §기록: 거래/상환/이벤트/상태 통합 타임라인)
 router.get('/:sessionId/log', asyncHandler(game.getLog));

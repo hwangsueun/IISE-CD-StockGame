@@ -27,6 +27,7 @@ test('weekday market holiday blocks every asset trade before holdings or cash ca
   const calls = [];
   const client = { query: async (sql) => {
     calls.push(sql);
+    if (sql.includes('FROM market_orders')) return { rows: [] };
     if (sql.includes('FROM game_sessions')) {
       return { rows: [{
         id: 'session-1',

@@ -1,0 +1,5 @@
+ALTER TABLE stock_price_detail ADD COLUMN IF NOT EXISTS open_price NUMERIC;
+ALTER TABLE stock_price_detail ADD COLUMN IF NOT EXISTS high_price NUMERIC;
+ALTER TABLE stock_price_detail ADD COLUMN IF NOT EXISTS low_price NUMERIC;
+ALTER TABLE stock_price_detail ADD COLUMN IF NOT EXISTS amount NUMERIC;
+ALTER TABLE stock_price_detail ADD COLUMN IF NOT EXISTS vwap NUMERIC;

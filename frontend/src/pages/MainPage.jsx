@@ -16,6 +16,7 @@ import SideJobModal from '../components/SideJobModal';
 import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 import FaintOverlay from '../components/FaintOverlay';
 import GuideModal from '../components/GuideModal';
+import QuantModal from '../components/QuantModal';
 
 const MODALS = {
   market: MarketModal,
@@ -28,6 +29,7 @@ const MODALS = {
   report: ReportModal,
   sidejob: SideJobModal,
   guide: GuideModal,
+  quant: QuantModal,
 };
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
@@ -94,12 +96,16 @@ export default function MainPage() {
           <div className="hud-clock">
             <div className="row"><span className="k">날짜</span><span className="v">{md}</span></div>
             <div className="row"><span className="k">요일</span><span className="v">{dow}</span></div>
+            <div className="row"><span className="k">주식 주문</span><span className="v">다음 개장일 시가</span></div>
             <div className="row"><span className="k">남은 일수</span><span className="v">{240 - turn.turnNumber}일</span></div>
             <div className="row"><span className="k">상환까지</span><span className="v">{turn.isRepaymentTurn ? '오늘!' : `D-${repayDday}`}</span></div>
           </div>
 
           {/* 상태 배지 + HUD 액션 (날짜판 아래) */}
           <div className="hud-side">
+            <button className="hud-btn quant-open-btn" onClick={() => openModal('quant')}>
+              퀀트 모델
+            </button>
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
             {turn.marketOpen === false && <span className="px-badge lock">휴장일 · 거래 불가</span>}
             {turn.actionLocked && <span className="px-badge lock">입원 중</span>}
