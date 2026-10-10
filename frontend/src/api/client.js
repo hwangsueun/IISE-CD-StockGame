@@ -149,7 +149,7 @@ const mockAdapter = {
   ...mockApi,
   // 이름/시그니처 매핑 (mockApi -> 본편 api 계약)
   getState: (sid) => mockApi.getGame(sid),
-  trade: notMocked('다음 시가 예약 주문'),
+  trade: notMocked('다음 턴 예약 주문'),
   getOrders: notMocked('예약 주문 내역'),
   cancelOrder: notMocked('예약 주문 취소'),
   repay: (sid, amount) => mockApi.repay(sid, { amount }),

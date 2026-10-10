@@ -23,7 +23,7 @@ test.after(() => {
   realDb.pool.end();
 });
 
-test('weekday market holiday blocks every asset trade before holdings or cash can change', async () => {
+test('weekday market holiday blocks stock orders before holdings or cash can change', async () => {
   const calls = [];
   const client = { query: async (sql) => {
     calls.push(sql);
@@ -38,13 +38,14 @@ test('weekday market holiday blocks every asset trade before holdings or cash ca
       }] };
     }
     if (sql.includes('FROM game_turns')) return { rows: [{ trade_date: '2024-02-09' }] };
+    if (sql.includes('FROM assets a')) return { rows: [{asset_id:'STOCK_TEST',asset_type:'stock'}] };
     if (sql.includes('SELECT EXISTS')) return { rows: [{ market_open: false }] };
     throw new Error(`unexpected query: ${sql}`);
   } };
   const service = loadService(client);
 
   await assert.rejects(
-    service.executeTrade('session-1', { assetId: 'BOND_KTB3Y', tradeType: 'buy', quantity: 1 }),
+    service.executeTrade('session-1', { assetId: 'STOCK_TEST', tradeType: 'buy', quantity: 1 }),
     (err) => err.statusCode === 409 && /휴장일/.test(err.message)
   );
   assert.equal(calls.some((sql) => /FROM holdings|UPDATE game_sessions|INSERT INTO trades/.test(sql)), false);

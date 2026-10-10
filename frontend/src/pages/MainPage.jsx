@@ -104,6 +104,7 @@ export default function MainPage() {
             <div className="row"><span className="k">날짜</span><span className="v">{md}</span></div>
             <div className="row"><span className="k">요일</span><span className="v">{dow}</span></div>
             <div className="row"><span className="k">주식 주문</span><span className="v">다음 개장일 시가</span></div>
+            <div className="row"><span className="k">채권·코인 주문</span><span className="v">다음 턴 가격</span></div>
             <div className="row"><span className="k">남은 일수</span><span className="v">{240 - turn.turnNumber}일</span></div>
             <div className="row"><span className="k">상환까지</span><span className="v">{turn.isRepaymentTurn ? '오늘!' : `D-${repayDday}`}</span></div>
           </div>
@@ -114,7 +115,7 @@ export default function MainPage() {
               퀀트 모델
             </button>
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
-            {turn.marketOpen === false && <span className="px-badge lock">휴장일 · 거래 불가</span>}
+            {turn.marketOpen === false && <span className="px-badge lock">주식 휴장일</span>}
             {turn.actionLocked && <span className="px-badge lock">입원 중</span>}
             {turn.sideJobDoneToday && <span className="px-badge lock">부업으로 투자 불가</span>}
             <button className="hud-btn" onClick={() => openModal('report', { monthIndex: turn.monthIndex })}>

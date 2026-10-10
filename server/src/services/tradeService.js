@@ -1,4 +1,4 @@
-// Orders are queued at the close and settled by orderService at a later open.
+// Orders settle later: stock opens, or the next turn's bond/coin daily price.
 const { quoteTradeAmount } = require('./executionService');
 const pricingService = require('./pricingService');
 

@@ -17,6 +17,7 @@ const surgeStockService = require('./surgeStockService');
 const newsService = require('./newsService');
 const reportService = require('./reportService');
 const turnSelector = require('./turnSelector');
+const { EXECUTION_RULES } = require('./executionService');
 const { clamp100 } = require('../utils/clamp');
 
 /** 세션+턴 -> 날짜 */
@@ -77,7 +78,8 @@ async function getTurnData(sessionId, turnNumber) {
     isRepaymentTurn: repaymentService.isRepaymentTurn(turnNumber),
     isMonthStart: turnNumber % C.TURNS_PER_MONTH === 1,
     marketOpen,
-    executionRule: 'next_market_open',
+    executionRule: 'by_asset_type',
+    executionRules: EXECUTION_RULES,
     state: {
       cash: Number(session.cash),
       totalAsset,
@@ -166,7 +168,8 @@ async function advanceTurn(sessionId) {
     // (b) daily 스냅샷이 청산 이전 상태로 기록되어 다음 턴 dailyReturn 계산이 틀어진다.
     // assets.listed_from/listed_to 단일 기준만 본다 (coin_info 조인 없음).
     const forcedLiquidations = await tradeService.liquidateDelisted(client, session, nextDate);
-    // Fills use only the open. Salary, events, and close valuation happen afterwards.
+    // Stock opens settle first, then bond/coin daily prices. Salary, events,
+    // and portfolio valuation happen afterwards under the game's turn rules.
     const orderResults = await orderService.settlePendingOrders(client, session, nextDate, marketOpen);
 
     // --- 월초 처리: 월급 지급 + 생활비 차감 (기획서 §7 Monthly turn) ---

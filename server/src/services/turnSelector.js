@@ -45,7 +45,7 @@ async function getTradingCalendar(client) {
   return buildWeekdayCalendar(marketOpenDates[0], marketOpenDates[marketOpenDates.length - 1]);
 }
 
-/** 해당 날짜에 국내 주식 시세가 하나라도 있으면 게임 전체 거래가 가능한 개장일이다. */
+/** 해당 날짜에 국내 주식 시세가 하나라도 있으면 주식 개장일이다. */
 async function isMarketOpen(date, client) {
   const q = client || { query };
   const { rows } = await q.query(

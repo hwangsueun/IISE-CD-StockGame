@@ -27,6 +27,10 @@ export default function TradeModal({ assetId, tradeType: initialType = 'buy' }) 
 
   const qty = Number(quantity) || 0;
   const isCoin = detail?.assetType === 'coin';
+  const isStock = detail?.assetType === 'stock';
+  const executionLabel = isStock ? '다음 개장일 시가로' : '다음 턴 가격으로';
+  const unit = isCoin ? '개' : isStock ? '주' : '좌';
+  const stockHoliday = isStock && turn.marketOpen === false;
   const estAmount = detail?.price ? detail.price * qty : 0;
 
   const submit = async () => {
@@ -45,8 +49,8 @@ export default function TradeModal({ assetId, tradeType: initialType = 'buy' }) 
   if (done) {
     return (
       <Modal title="주문 예약 완료">
-        <p>{tradeType === 'buy' ? '매수' : '매도'} {done.quantity}주를 예약했습니다.</p>
-        <p>NEXT TURN 이후 다음 개장일 시가에 체결됩니다. 아직 현금과 보유 수량은 바뀌지 않았습니다.</p>
+        <p>{tradeType === 'buy' ? '매수' : '매도'} {done.quantity}{unit}를 예약했습니다.</p>
+        <p>NEXT TURN 이후 {executionLabel} 체결됩니다. 아직 현금과 보유 수량은 바뀌지 않았습니다.</p>
         {tradeType === 'buy' && <p>최대 매수 예산: {won(done.cashBudget)}</p>}
         <p>포트폴리오의 주문 내역에서 체결 전 취소할 수 있습니다.</p>
         <button className="btn-primary" onClick={closeModal}>확인</button>
@@ -56,11 +60,10 @@ export default function TradeModal({ assetId, tradeType: initialType = 'buy' }) 
 
   return (
     <Modal title={`${detail?.name || ''} 거래`}>
-      {turn.marketOpen === false && (
-        <p className="market-closed-note">오늘은 휴장일이라 거래할 수 없습니다. 부업과 다른 활동은 가능합니다.</p>
+      {stockHoliday && (
+        <p className="market-closed-note">오늘은 주식 휴장일이라 주식 주문을 예약할 수 없습니다.</p>
       )}
-      {detail && detail.assetType !== 'stock' && <p className="market-closed-note">채권·코인은 시가 자료를 확보할 때까지 주문을 지원하지 않습니다.</p>}
-      <p>현재 장 마감 정보로 주문을 예약하고, 다음 개장일 시가에 체결합니다.</p>
+      <p>현재 정보로 주문을 예약하고, {executionLabel} 체결합니다.</p>
       <div className="filter-bar">
         <button className={tradeType === 'buy' ? 'active' : ''} onClick={() => setTradeType('buy')}>매수</button>
         <button className={tradeType === 'sell' ? 'active' : ''} onClick={() => setTradeType('sell')}>매도</button>
@@ -73,19 +76,19 @@ export default function TradeModal({ assetId, tradeType: initialType = 'buy' }) 
       </dl>
 
       <label className="field">
-        수량 {isCoin ? '(소수 가능)' : '(정수)'}
+        수량 {isCoin ? '(소수점 8자리까지)' : '(정수)'}
         <input
           type="number"
           min="0"
-          step={isCoin ? 'any' : '1'}
+          step={isCoin ? '0.00000001' : '1'}
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
         />
       </label>
-      <p className="est-amount">현재 종가 기준 예상 금액: <b>{won(estAmount)}</b></p>
-      <p className="quant-footnote">매수는 이 금액을 최대 예산으로 잡습니다. 시가가 오르거나 현금이 줄면 가능한 수량만 체결하며, 시가가 없으면 주문이 취소됩니다.</p>
+      <p className="est-amount">현재 가격 기준 예상 금액: <b>{won(tradeType === 'buy' ? Math.ceil(estAmount) : Math.floor(estAmount))}</b></p>
+      <p className="quant-footnote">매수 예산은 예약 시 고정됩니다. 체결 가격이 오르거나 현금이 줄면 가능한 수량만 체결합니다. {isStock ? '개장일에 해당 종목의 시가가' : '다음 턴에 해당 자산의 가격이'} 없으면 미체결 처리됩니다.</p>
 
-      <button className="btn-primary" disabled={detail?.assetType !== 'stock' || turn.turnNumber>=240 || turn.marketOpen === false || submitting || qty <= 0} onClick={submit}>
+      <button className="btn-primary" disabled={!detail?.orderSupported || !(detail?.price > 0) || turn.turnNumber>=240 || stockHoliday || submitting || !Number.isFinite(qty) || qty <= 0} onClick={submit}>
         {submitting ? '처리 중...' : `${tradeType === 'buy' ? '매수' : '매도'} 예약`}
       </button>
       {error && <p className="error-text">{error}</p>}

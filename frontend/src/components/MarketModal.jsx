@@ -83,7 +83,7 @@ export default function MarketModal() {
   return (
     <Modal title="마켓" wide xwide help={MARKET_HELP}>
       {turn.marketOpen === false && (
-        <p className="market-closed-note">오늘은 평일 휴장일입니다. 마켓 정보는 볼 수 있지만 매수·매도는 할 수 없습니다.</p>
+        <p className="market-closed-note">오늘은 주식 휴장일입니다. 채권·코인은 오늘 가격이 있는 자산에 한해 다음 턴 주문을 예약할 수 있습니다.</p>
       )}
       {strip.length > 0 && (
         <div className="mk-strip">

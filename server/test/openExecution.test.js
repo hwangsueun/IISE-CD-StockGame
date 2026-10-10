@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {fillOpenOrder}=require('../src/services/executionService');
+const {fillOpenOrder,fillPriceOrder,validQuantity}=require('../src/services/executionService');
 const {replayQuant,validateArtifact}=require('../src/services/quantReplay');
 
 function fixture(){
@@ -60,4 +60,24 @@ test('last turn fills prior orders but cannot queue an order beyond game end',()
 test('a stock above the available allocation creates no zero-share order',()=>{
  const x=fixture();x.initialCash=50;x.turns=x.turns.slice(0,1);
  const r=replayQuant(x);assert.equal(r.pendingOrders.length,0);assert.equal(r.cash,50);
+});
+
+test('coin daily-price fills preserve fractional quantities and the original cash budget',()=>{
+ const order={side:'buy',quantity:0.5,cashBudget:100};
+ const filled=fillPriceOrder(order,{price:400,cash:1000,assetType:'coin'});
+ assert.equal(filled.filledQuantity,0.25);assert.equal(filled.amount,100);assert.equal(filled.status,'partial');
+ const exact=fillPriceOrder({side:'buy',quantity:0.3,cashBudget:3},{price:10,cash:3,assetType:'coin'});
+ assert.equal(exact.filledQuantity,0.3);assert.equal(exact.amount,3);
+ const tiny=fillPriceOrder({side:'buy',quantity:0.00000001,cashBudget:1},{price:100,cash:1,assetType:'coin'});
+ assert.equal(tiny.filledQuantity,0.00000001);assert.equal(tiny.amount,1);
+ const sell=fillPriceOrder({side:'sell',quantity:0.3},{price:10,heldQuantity:0.15,avgPrice:5,assetType:'coin'});
+ assert.equal(sell.filledQuantity,0.15);assert.equal(sell.amount,1);
+ assert.equal(fillPriceOrder(order,{price:null,cash:1000,assetType:'coin'}).reason,'no_price');
+ assert.equal(fillPriceOrder(order,{price:400,cash:0,assetType:'coin'}).reason,'insufficient_cash');
+});
+
+test('stocks and bonds require integers; coins allow up to eight decimal places',()=>{
+ for(const type of ['stock','bond']){assert.equal(validQuantity(1,type),true);assert.equal(validQuantity(0.1,type),false);}
+ for(const n of [0.1,0.12345678,0.00000001,100])assert.equal(validQuantity(n,'coin'),true);
+ for(const n of [NaN,Infinity,0,-1,0.000000001,Number.MAX_SAFE_INTEGER])assert.equal(validQuantity(n,'coin'),false);
 });

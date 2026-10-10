@@ -2,6 +2,7 @@
 // 게임 응답에는 masked_name만 노출한다 (원 회사명 노출 금지, §6 마스킹).
 const { query } = require('../db');
 const { notFound } = require('../utils/errors');
+const { EXECUTION_RULES } = require('./executionService');
 
 /** 특정 자산의 특정 날짜 종가. 없으면 null. */
 async function getPriceAt(assetId, date, client) {
@@ -114,8 +115,8 @@ async function getAssetDetail(assetId, date) {
     name: asset.name,
     sector: asset.sector,
     currency: asset.currency,
-    orderSupported: asset.asset_type === 'stock',
-    executionRule: 'next_market_open',
+    orderSupported: Boolean(EXECUTION_RULES[asset.asset_type]),
+    executionRule: EXECUTION_RULES[asset.asset_type] || null,
     // 상장기간(migration 003). 차트 "전체" 범위가 이 값을 시작점으로 쓴다.
     // 게임 시점 이후는 어차피 to=현재 턴 날짜로 잘리므로 미래 정보가 새지 않는다.
     listedFrom: asset.listed_from,

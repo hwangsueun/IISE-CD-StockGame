@@ -274,18 +274,18 @@ export default function AssetDetailModal({ assetId }) {
         <span className="spacer" />
         <button
           className="btn-buy"
-          disabled={turn.marketOpen === false || detail.assetType !== 'stock' || turn.turnNumber>=240}
-          title={turn.marketOpen === false ? '휴장일에는 거래할 수 없습니다' : '매수'}
+          disabled={(turn.marketOpen === false && detail.assetType === 'stock') || !detail.orderSupported || !(detail.price > 0) || turn.turnNumber>=240}
+          title={turn.marketOpen === false && detail.assetType === 'stock' ? '주식 휴장일에는 예약할 수 없습니다' : '매수'}
           onClick={() => openModal('trade', { assetId, tradeType: 'buy' })}
         >매수 예약</button>
         <button
           className="btn-sell"
-          disabled={turn.marketOpen === false || detail.assetType !== 'stock' || turn.turnNumber>=240}
-          title={turn.marketOpen === false ? '휴장일에는 거래할 수 없습니다' : '매도'}
+          disabled={(turn.marketOpen === false && detail.assetType === 'stock') || !detail.orderSupported || !(detail.price > 0) || turn.turnNumber>=240}
+          title={turn.marketOpen === false && detail.assetType === 'stock' ? '주식 휴장일에는 예약할 수 없습니다' : '매도'}
           onClick={() => openModal('trade', { assetId, tradeType: 'sell' })}
         >매도 예약</button>
       </div>
-      {detail.assetType !== 'stock' && <p>시가 자료를 확보할 때까지 채권·코인 주문은 지원하지 않습니다.</p>}
+      {detail.assetType !== 'stock' && <p>채권·코인 주문은 다음 턴 가격으로 체결됩니다.</p>}
       {detail.assetType === 'stock' && detail.info?.priceDetail?.adjustment_factor != null &&
         <p className="quant-footnote">수정주가 기준 · 거래량은 당시 실제 거래량입니다.</p>}
       {detail.assetType === 'stock' && detail.info?.priceDetail && <dl className="info-list horizontal">
