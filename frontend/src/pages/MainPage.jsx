@@ -18,6 +18,7 @@ import FaintOverlay from '../components/FaintOverlay';
 import GuideModal from '../components/GuideModal';
 import QuantModal from '../components/QuantModal';
 import TutorialOverlay from '../components/TutorialOverlay';
+import FirstDayTutorial from '../components/FirstDayTutorial';
 
 const MODALS = {
   market: MarketModal,
@@ -45,31 +46,36 @@ function dateParts(dateStr) {
 export default function MainPage() {
   const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
-    retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial } = useGameStore();
+    retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial,
+    firstDayStep, startFirstDay } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
 
-  // 개발용: ?tutorial=market 등으로 카테고리 안내를 다시 확인한다.
+  // 개발용: ?tutorial=market 등으로 카테고리 안내를, ?tutorial(=7)로 첫날 체험형 튜토리얼(7단계부터)을 다시 확인한다.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    if (import.meta.env.DEV && q.has('tutorial')) startTutorial(q.get('tutorial') || 'welcome');
-  }, [startTutorial]);
+    if (!import.meta.env.DEV || !q.has('tutorial')) return;
+    const value = q.get('tutorial');
+    if (!value || Number(value)) startFirstDay(Number(value) || 1);
+    else startTutorial(value);
+  }, [startTutorial, startFirstDay]);
 
+  // 처음 하는 게임이면 첫날 체험형 튜토리얼을 띄운다. 새로고침·첫 턴 로드 재시도에도 동일하게 적용된다.
   useEffect(() => {
-    if (turn && !activeModal && tutorialStep === null && !tutorialProgress.welcome) startTutorial();
-  }, [turn, activeModal, tutorialStep, tutorialProgress.welcome, startTutorial]);
+    if (turn && !activeModal && tutorialStep === null && firstDayStep === null && !tutorialProgress.welcome) startFirstDay();
+  }, [turn, activeModal, tutorialStep, firstDayStep, tutorialProgress.welcome, startFirstDay]);
 
   // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
   // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
   const autoOpenedRepayTurnRef = useRef(null);
   useEffect(() => {
     if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
-    if (tutorialStep !== null || !tutorialProgress.welcome) return;
+    if (tutorialStep !== null || firstDayStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
     if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
     autoOpenedRepayTurnRef.current = turn.turnNumber;
     openModal('repay');
-  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, tutorialProgress.welcome]);
+  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, tutorialProgress.welcome]);
 
   if (!turn) {
     return (
@@ -96,8 +102,9 @@ export default function MainPage() {
   const ActiveModal = activeModal ? MODALS[activeModal] : null;
   const { md, dow } = dateParts(turn.date);
   const repayDday = Math.max(0, turn.monthIndex * 20 - turn.turnNumber);
-  const tutorialVisible = tutorialStep !== null && pendingTurnNumber === null && pendingEvents.length === 0 &&
+  const overlaysClear = pendingTurnNumber === null && pendingEvents.length === 0 &&
     surgeResults.length === 0 && !surgePromptPending && !faintEvent;
+  const tutorialVisible = tutorialStep !== null && overlaysClear;
 
   return (
     <div className="main-page">
@@ -161,7 +168,7 @@ export default function MainPage() {
             <button
               className="nextturn-btn"
               disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
-                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null}
+                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null || firstDayStep !== null}
               onClick={advanceTurn}
               title="다음 턴"
             >
@@ -219,6 +226,8 @@ export default function MainPage() {
       </div>
       {/* 필수 이벤트를 먼저 처리하고 안내 중에는 뒤쪽 화면의 클릭·키보드 조작을 막는다. */}
       {tutorialVisible && <TutorialOverlay />}
+      {/* 첫날 체험형 튜토리얼: 실제 화면을 직접 눌러야 하므로 뒤쪽 화면을 막지 않는다. */}
+      {firstDayStep !== null && overlaysClear && <FirstDayTutorial />}
     </div>
   );
 }

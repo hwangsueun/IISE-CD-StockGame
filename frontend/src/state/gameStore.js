@@ -1,7 +1,14 @@
 // 전역 게임 상태 (zustand) — 서버가 권위, 스토어는 서버 응답 캐시 + UI 상태만.
 import { create } from 'zustand';
 import { api, setToken } from '../api/client';
-import { TUTORIALS, readTutorialProgress, saveTutorialProgress } from '../utils/tutorials';
+import { TUTORIALS, TUTORIAL_STORAGE_KEY, readTutorialProgress, saveTutorialProgress } from '../utils/tutorials';
+
+// 개발용: 주소에 ?reset 을 붙이면 저장된 게임·안내 기록을 지우고 인트로부터 다시 시작한다.
+if (import.meta.env?.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reset')) {
+  localStorage.removeItem('antsurvival_session');
+  localStorage.removeItem(TUTORIAL_STORAGE_KEY);
+  window.history.replaceState(null, '', window.location.pathname);
+}
 
 let sessionRequestGeneration = 0;
 let resumeRequestSequence = 0;
@@ -80,6 +87,7 @@ export const useGameStore = create((set, get) => ({
       modalProps: {},
       tutorialCategory: null,
       tutorialStep: null,
+      firstDayStep: null,
       error: null,
     });
     await get().resumeGame(generation);
@@ -90,6 +98,17 @@ export const useGameStore = create((set, get) => ({
   modalProps: {},
 
   openModal(name, props = {}) {
+    // 첫날 체험형 튜토리얼 중에 연 화면은 거기서 직접 안내하므로 카테고리 안내를 띄우지 않고 본 것으로 기록한다.
+    if (get().firstDayStep !== null) {
+      const { tutorialProgress } = get();
+      if (Object.hasOwn(TUTORIALS, name) && !tutorialProgress[name]) {
+        const progress = { ...tutorialProgress, [name]: true };
+        saveTutorialProgress(progress);
+        set({ tutorialProgress: progress });
+      }
+      set({ activeModal: name, modalProps: props, tutorialCategory: null, tutorialStep: null });
+      return;
+    }
     const showTutorial = Object.hasOwn(TUTORIALS, name) && !get().tutorialProgress[name];
     set({ activeModal: name, modalProps: props,
       tutorialCategory: showTutorial ? name : null, tutorialStep: showTutorial ? 1 : null });
@@ -101,6 +120,20 @@ export const useGameStore = create((set, get) => ({
   tutorialCategory: null,
   tutorialStep: null,      // 1부터 시작 | null(비활성)
   lastTrade: null,         // 직전 예약 주문 { assetId, tradeType, quantity, at }
+
+  // --- 첫날 체험형 튜토리얼 (FirstDayTutorial) ---
+  // 실제 게임 1일차 위에서 직접 눌러 보며 진행한다. 끝내거나 건너뛰면 '게임 시작' 안내를 본 것으로 기록한다.
+  firstDayStep: null,      // 1~9 | null(비활성)
+  startFirstDay: (step = 1) => set({ firstDayStep: step, activeModal: null, modalProps: {},
+    tutorialCategory: null, tutorialStep: null }),
+  nextFirstDayStep: () => set((s) => ({ firstDayStep: s.firstDayStep + 1 })),
+  // 이전 단계로: 열려 있던 창은 닫고 그 단계를 처음부터 다시 보여준다
+  prevFirstDayStep: () => set((s) => ({ firstDayStep: Math.max(1, s.firstDayStep - 1), activeModal: null, modalProps: {} })),
+  endFirstDay() {
+    const progress = { ...get().tutorialProgress, welcome: true };
+    saveTutorialProgress(progress);
+    set({ firstDayStep: null, tutorialProgress: progress });
+  },
   startTutorial(category = 'welcome') {
     if (Object.hasOwn(TUTORIALS, category)) set({ tutorialCategory: category, tutorialStep: 1 });
   },
@@ -136,6 +169,7 @@ export const useGameStore = create((set, get) => ({
       modalProps: {},
       tutorialCategory: null,
       tutorialStep: null,
+      firstDayStep: null,
     });
     try {
       const s = await api.startGame(difficulty);
@@ -368,7 +402,7 @@ export const useGameStore = create((set, get) => ({
       pendingEvents: [], lastTurnResult: null, surgeResults: [], surgePromptPending: false,
       pendingTurnNumber: null, turnLoadError: null,
       activeModal: null, modalProps: {}, loading: false, error: null,
-      tutorialCategory: null, tutorialStep: null,
+      tutorialCategory: null, tutorialStep: null, firstDayStep: null,
     });
   },
 }));

@@ -8,6 +8,7 @@ export default function Modal({ title, children, wide, xwide, help, showTutorial
   const closeModal = useGameStore((s) => s.closeModal);
   const activeModal = useGameStore((s) => s.activeModal);
   const startTutorial = useGameStore((s) => s.startTutorial);
+  const inFirstDay = useGameStore((s) => s.firstDayStep !== null);
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="modal-overlay" onClick={closeModal}>
@@ -16,7 +17,7 @@ export default function Modal({ title, children, wide, xwide, help, showTutorial
           <header className="modal-header">
             <h2>{title}</h2>
             <div className="modal-header-actions">
-              {showTutorial && Object.hasOwn(TUTORIALS, activeModal) && (
+              {showTutorial && !inFirstDay && Object.hasOwn(TUTORIALS, activeModal) && (
                 <button type="button" className="modal-tutorial-btn" onClick={() => startTutorial(activeModal)}
                   aria-label={`${TUTORIALS[activeModal].label} 사용법 다시 보기`}>사용법</button>
               )}
