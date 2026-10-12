@@ -1796,81 +1796,75 @@ textarea { min-height: 80px; resize: vertical; }
 .faint-narration .nar-body .cursor { background: var(--med); }
 .faint-narration .nar-next { color: var(--med); }
 
-/* =====================================================================
-   첫날 튜토리얼 (TutorialOverlay) — 화면을 어둡게 하고 짚을 요소만 흰 빛으로 비춘다.
-   설명은 비춘 요소 옆에 바로 붙인다 (가운데 상자 없음).
-   ===================================================================== */
-.tut-root { position: fixed; inset: 0; z-index: 40; pointer-events: none; animation: px-fade 180ms steps(3, end); }
-.tut-mask { position: absolute; inset: 0; display: block; }
-/* 클릭 막기: 직접 눌러 볼 요소(구멍)만 비워 둔다 */
-.tut-block { position: absolute; pointer-events: auto; }
-/* 비춘 요소: 흰 빛이 은은하게 숨쉰다 */
-.tut-spot {
-  position: absolute; pointer-events: none; border-radius: 6px;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 22px 6px rgba(255, 255, 255, 0.45);
-  animation: tutGlow 1.6s ease-in-out infinite;
+/* 카테고리 첫 방문 안내 */
+.game-content { width: 100%; display: flex; align-items: center; justify-content: center; }
+.tutorial-overlay {
+  position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+  padding: 20px; background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(3px);
+  font-family: 'Galmuri11', monospace; color: var(--px-ink);
+  animation: px-fade 160ms ease-out;
 }
-@keyframes tutGlow {
-  50% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 1), 0 0 36px 12px rgba(255, 255, 255, 0.65); }
+.tutorial-card {
+  width: min(560px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto;
+  background: #1a0f0a; border: 3px solid #090503;
+  box-shadow: inset 0 0 0 2px #785333, 8px 8px 0 #090503, 0 0 60px #d4a34d18;
+  scrollbar-width: thin; scrollbar-color: #785333 transparent;
 }
-/* 비춘 요소 옆 설명 (상자 없이 글자만) */
-.tut-note {
-  position: absolute; pointer-events: none; width: max-content; max-width: 340px;
-  font-family: 'Galmuri11', monospace; color: #fff; font-size: 15px; line-height: 1.6;
-  text-shadow: 0 2px 0 #000, 0 0 8px rgba(0, 0, 0, 0.9);
-  animation: tutNoteIn 260ms steps(3, end) backwards 120ms;
+.tutorial-header {
+  padding: 22px 28px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
 }
-.tut-note.below { transform: translateX(-50%); text-align: center; }
-.tut-note.left  { transform: translate(-100%, -50%); text-align: right; }
-.tut-note.below-right { transform: translateX(-100%); text-align: right; }
-.tut-note.right { transform: translateY(-50%); text-align: left; }
-.tut-note.above-right { transform: translate(-100%, -100%); text-align: right; }
-.tut-note .big { display: block; font-size: 24px; font-weight: bold; color: var(--px-gold); letter-spacing: 1px; }
-.tut-note b { color: var(--px-gold); }
-.tut-note .dim { color: #d6d3d1; font-size: 13px; }
-.tut-note .warn { color: #fca5a5; font-size: 14px; }
-@keyframes tutNoteIn { from { opacity: 0; } }
-/* 가운데 제목 (상자 없이 큰 글자) */
-.tut-headline {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  text-align: center; pointer-events: none; width: max-content; max-width: calc(100vw - 32px);
+.tutorial-eyebrow { color: var(--px-gold); font-size: 12px; line-height: 1.6; }
+.tutorial-count { color: #bdae95; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tutorial-progress { display: flex; gap: 6px; padding: 0 28px; }
+.tutorial-progress span { height: 3px; flex: 1; background: #49321f; }
+.tutorial-progress .filled { background: var(--px-gold); }
+.tutorial-content { padding: 26px 28px 24px; }
+.tutorial-icon {
+  display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 20px;
+  font-size: 26px; color: var(--px-gold); background: #2a1a10; border: 2px solid #785333;
+  box-shadow: 3px 3px 0 #090503;
 }
-.tut-headline .tag { font-family: 'Press Start 2P', monospace; font-size: 10px; letter-spacing: 3px; color: #d6d3d1; text-shadow: 0 2px 0 #000; }
-.tut-headline h3 {
-  margin: 12px 0 0; font-family: 'Galmuri11', monospace; font-size: 32px; color: #fff; letter-spacing: 2px;
-  text-shadow: 0 3px 0 #000, 0 0 18px rgba(255, 255, 255, 0.35);
+.tutorial-content h2 { margin: 0 0 16px; font-size: 22px; line-height: 1.6; word-break: keep-all; }
+.tutorial-content h2:focus { outline: none; }
+.tutorial-content > p { margin: 0; font-size: 14px; line-height: 1.95; word-break: keep-all; }
+.tutorial-tip { margin-top: 22px; padding: 14px 16px; background: #2a2014; border-left: 3px solid var(--px-gold); }
+.tutorial-tip b { color: var(--px-gold); font-size: 11px; }
+.tutorial-tip p { margin: 6px 0 0; font-size: 12px; color: #d4c7b3; line-height: 1.85; word-break: keep-all; }
+.tutorial-footer { padding: 20px 28px; border-top: 1px solid #49321f; background: #140c08; }
+.tutorial-actions, .tutorial-navigation { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tutorial-actions button { font-family: inherit; cursor: pointer; min-height: 42px; }
+.tutorial-skip { background: none; border: 0; padding: 6px 0; color: #bdae95; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.tutorial-prev { background: #2a1a10; color: var(--px-ink); border: 1px solid #785333; padding: 8px 14px; font-size: 13px; }
+.tutorial-next { background: var(--px-gold); color: #1a0f0a; border: 2px solid #090503; padding: 10px 20px; box-shadow: 3px 3px 0 #090503; font-size: 13px; font-weight: bold; }
+.tutorial-next:hover { filter: brightness(1.12); }
+.tutorial-skip:hover, .tutorial-prev:hover { color: #fff; }
+.tutorial-next:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #090503; }
+.tutorial-card button:focus-visible, .modal-tutorial-btn:focus-visible, .guide-tutorial-grid button:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.tutorial-reminder { margin: 16px 0 0; color: #bdae95; font-size: 10px; line-height: 1.8; }
+.modal-tutorial-btn { font-family: 'Galmuri11', monospace; font-size: 11px; padding: 4px 8px; background: #0c0704; border: 2px solid #000; color: var(--px-gold); box-shadow: inset 0 0 0 1px #5a3624; cursor: pointer; white-space: nowrap; }
+.modal-tutorial-btn:hover { color: #fff; }
+.guide-tutorials { margin-top: 24px; padding-top: 20px; border-top: 2px solid #5a3624; }
+.guide-tutorials h3 { margin: 0 0 10px; color: var(--px-gold); font-size: 15px; }
+.guide-tutorials > p { margin: 0 0 14px; color: var(--px-ink-dim); font-size: 12px; line-height: 1.8; }
+.guide-tutorial-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.guide-tutorial-grid button { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 10px; background: #2a1a10; border: 1px solid #5a3624; color: var(--px-ink); font-family: 'Galmuri11', monospace; font-size: 12px; text-align: left; cursor: pointer; }
+.guide-tutorial-grid button:hover { border-color: var(--px-gold); }
+.guide-tutorial-grid small { color: var(--px-gold); font-size: 10px; white-space: nowrap; }
+@media (max-width: 540px) {
+  .tutorial-overlay { padding: 12px; }
+  .tutorial-card { max-height: calc(100dvh - 24px); }
+  .tutorial-header { padding: 18px 20px 14px; }
+  .tutorial-progress { padding: 0 20px; }
+  .tutorial-content { padding: 20px; }
+  .tutorial-content h2 { font-size: 19px; }
+  .tutorial-content > p { font-size: 13px; }
+  .tutorial-footer { padding: 16px 20px; }
+  .tutorial-actions { align-items: stretch; flex-direction: column-reverse; }
+  .tutorial-navigation { justify-content: flex-end; }
+  .tutorial-next { flex: 1; }
+  .tutorial-skip { align-self: center; }
+  .guide-tutorial-grid { grid-template-columns: 1fr; }
 }
-/* 하단 조작 줄: 건너뛰기 / 다음 */
-.tut-controls {
-  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  pointer-events: auto; width: max-content; max-width: calc(100vw - 32px);
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-overlay { animation: none; }
 }
-.tut-controls-row { display: flex; align-items: center; gap: 28px; }
-.tut-hint {
-  margin: 0; text-align: center; font-family: 'Galmuri11', monospace; font-size: 15px; color: #fff;
-  text-shadow: 0 2px 0 #000, 0 0 8px rgba(0, 0, 0, 0.9);
-}
-.tut-hint b { color: var(--px-gold); }
-.tut-skip {
-  background: none; border: none; padding: 4px 0; cursor: pointer;
-  font-family: 'Galmuri11', monospace; font-size: 14px; color: #d6d3d1;
-  text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 2px 0 #000;
-}
-.tut-skip:hover { color: #fff; }
-.tut-next {
-  background: var(--px-panel); border: 3px solid #000; cursor: pointer;
-  box-shadow: inset 0 0 0 2px #5a3624, 4px 4px 0 #000;
-  color: var(--px-gold); padding: 10px 26px;
-  font-family: 'Galmuri11', monospace; font-size: 16px; letter-spacing: 2px;
-}
-.tut-next:hover { background: #5a3624; }
-.tut-prev {
-  background: rgba(26, 15, 10, 0.85); border: 3px solid #000; cursor: pointer;
-  box-shadow: inset 0 0 0 2px #3d2418, 4px 4px 0 #000;
-  color: #d6d3d1; padding: 10px 20px;
-  font-family: 'Galmuri11', monospace; font-size: 15px; letter-spacing: 1px;
-}
-.tut-prev:hover { color: #fff; background: #3d2418; }
-.tut-prev:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #3d2418, 1px 1px 0 #000; }
-.tut-next:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #5a3624, 1px 1px 0 #000; }

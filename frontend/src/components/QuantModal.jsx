@@ -3,6 +3,8 @@ import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import { won, pct, changeClass, relativeYearDate } from '../utils/format';
 import Modal from './Modal';
+import QuantStrategyGuide from './QuantStrategyGuide';
+import { getQuantExplanation } from '../utils/quantExplanation';
 import './QuantModal.css';
 
 const help = (data) => <>
@@ -11,7 +13,7 @@ const help = (data) => <>
     ? <p>처음에는 상위 {data.topK}종목에 같은 금액을 배분합니다. 이후 매 턴 순위를 평가하고 최대 {data.nDrop}종목을 교체합니다. 기존 보유 종목의 비중은 매일 다시 맞추지 않습니다.</p>
     : data?.rebalanceTurns && <p>이 게임에 연결된 기존 모델은 {data.rebalanceTurns}턴마다 상위 {data.topK}종목에 같은 금액을 배분합니다.</p>}
   <p>휴장일에는 매매하지 않고 다음 개장일까지 기다립니다.</p>
-  <p>당일 장 마감 정보로 주문을 예약하고, 다음 개장일 시가에 체결합니다. 평가는 당일 종가로 합니다. 버튼을 누르는 시점과 횟수는 결과에 영향을 주지 않습니다.</p>
+  <p>{getQuantExplanation(data)?.execution} 평가는 당일 종가로 합니다. 버튼을 누르는 시점과 횟수는 결과에 영향을 주지 않습니다.</p>
   <p>매수 수량과 예산은 주문할 때 정합니다. 시가가 오르거나 현금이 부족하면 예산 안에서 수량을 줄이고 나머지는 취소합니다. 매도부터 체결하며, 개별 종목의 시가가 없으면 주문은 체결되지 않습니다.</p>
   <p>순위 점수는 예상 수익률이 아닙니다. 과거 성과는 다음 기간의 성과를 보장하지 않습니다.</p>
 </>;
@@ -36,20 +38,20 @@ export default function QuantModal() {
   return <Modal title="퀀트 모델" wide help={help(data)}>
     <div className="quant-panel">
       <div className="quant-heading"><div><span className="quant-eyebrow">YOUR QUANT RIVAL</span>
-        <h3>숫자로 선택하는 경쟁자</h3><p>Alpha158 · LightGBM</p></div>
+        <h3>숫자로 선택하는 경쟁자</h3><p>가격과 거래량을 읽고 스스로 투자하는 상대</p></div>
         <span className="quant-badge">{dropout ? `매 턴 평가 · 최대 ${data.nDrop}종목 교체` : data?.rebalanceTurns ? `${data.rebalanceTurns}턴마다 교체` : '운용 정보 확인 중'}</span></div>
       {error && <div role="alert" className="quant-empty"><p>{error}</p>
         <button className="btn-primary" onClick={() => setRetry((v) => v + 1)}>다시 불러오기</button></div>}
       {!data && !error && <p role="status" className="quant-empty">퀀트의 포트폴리오를 확인하고 있습니다…</p>}
       {data?.status === 'unavailable' && <p className="quant-empty">{data.message}</p>}
       {data && data.status !== 'unavailable' && <>
-        {data.legacyModel && <p className="quant-notice">현재는 기존 120턴 모델입니다. 매 턴 부분 교체 모델은 수정주가로 재학습한 뒤 연결됩니다.</p>}
         <div className="quant-stats">
           <div><span>퀀트 총자산</span><strong>{won(data.totalAsset)}</strong></div>
           <div><span>퀀트 누적 수익률</span><strong className={changeClass(data.returnRate)}>{pct(data.returnRate)}</strong></div>
           <div><span>내 총자산</span><strong>{won(data.playerTotalAsset)}</strong></div>
         </div>
         <p className="quant-comparison">{data.comparisonNote}</p>
+        <QuantStrategyGuide data={data} />
         <div className="quant-schedule">
           <span>현재 {data.turnNumber}턴</span>
           <span>{data.decision ? `최근 ${actionLabel} ${data.decision.turn}턴` : '첫 개장일 대기'}</span>
@@ -71,9 +73,9 @@ export default function QuantModal() {
             <p className="quant-footnote">정수 주식 수량으로 매수해 남은 금액은 현금으로 보유합니다.</p>
           </>}
           {tab === 'selection' && <>
-            <p className="quant-footnote">{data.decision?.signalDate ? `${relativeYearDate(data.decision.signalDate, data.date)}까지의 정보로 선택했습니다.` : '선택 기록이 없습니다.'} 점수가 높을수록 선호하는 종목입니다.</p>
+            <p className="quant-footnote">{data.decision?.signalDate ? `${relativeYearDate(data.decision.signalDate, data.date)}까지의 정보로 선택했습니다.` : '선택 기록이 없습니다.'} 모델 점수가 높은 종목을 우선 검토합니다. 점수는 예상 수익률(%)이 아닙니다.</p>
             {dropout && <p className="quant-footnote">순위가 유지되면 거래하지 않습니다. 처음 종목을 채울 때를 제외하고 하루 최대 {data.nDrop}종목을 교체하며, 아래 비중은 최근 평가 시점의 실제 보유 비중입니다.</p>}
-            <table className="data-table"><thead><tr><th>순위</th><th>종목</th><th>순위 점수</th><th>{dropout ? '보유 비중' : '목표 비중'}</th>{dropout && <th>선택</th>}</tr></thead>
+            <table className="data-table"><thead><tr><th>순위</th><th>종목</th><th>모델 점수</th><th>{dropout ? '보유 비중' : '목표 비중'}</th>{dropout && <th>선택</th>}</tr></thead>
               <tbody>{(data.decision?.selections || []).map((s) => <tr key={s.assetId}><td>{s.rank ?? '—'}</td><td>{s.name}</td><td>{Number.isFinite(s.score) ? s.score.toFixed(4) : '—'}</td><td>{pct(dropout ? s.weight : s.targetWeight, 1)}</td>{dropout && <td>{{bought:'신규 매수',buy_pending:'매수 예약',sell_pending:'매도 예약'}[s.action] || '유지'}</td>}</tr>)}</tbody></table>
           </>}
           {tab === 'orders' && <>

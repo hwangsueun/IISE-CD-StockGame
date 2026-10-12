@@ -2,9 +2,12 @@
 // help prop을 넘기면 헤더에 ? 버튼이 생기고, 누르면 그 화면 설명이 토글로 펼쳐진다.
 import { useState } from 'react';
 import { useGameStore } from '../state/gameStore';
+import { TUTORIALS } from '../utils/tutorials';
 
-export default function Modal({ title, children, wide, xwide, help }) {
+export default function Modal({ title, children, wide, xwide, help, showTutorial = true }) {
   const closeModal = useGameStore((s) => s.closeModal);
+  const activeModal = useGameStore((s) => s.activeModal);
+  const startTutorial = useGameStore((s) => s.startTutorial);
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="modal-overlay" onClick={closeModal}>
@@ -13,6 +16,10 @@ export default function Modal({ title, children, wide, xwide, help }) {
           <header className="modal-header">
             <h2>{title}</h2>
             <div className="modal-header-actions">
+              {showTutorial && Object.hasOwn(TUTORIALS, activeModal) && (
+                <button type="button" className="modal-tutorial-btn" onClick={() => startTutorial(activeModal)}
+                  aria-label={`${TUTORIALS[activeModal].label} 사용법 다시 보기`}>사용법</button>
+              )}
               {help && (
                 <button
                   type="button"

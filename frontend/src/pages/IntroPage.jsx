@@ -245,7 +245,7 @@ export default function IntroPage() {
             >
               <span className="num">CONTINUE</span>
               <span className="text">{loading ? '진행 중...' : '▶ 전화를 끊는다'}</span>
-              <span className="sub">&nbsp;</span>
+              <span className="sub">게임 시작 후 각 화면의 첫 방문 안내가 나옵니다</span>
             </button>
           </div>
         )}

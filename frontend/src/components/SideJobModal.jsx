@@ -1,7 +1,7 @@
 // 부업 모달 (기능명세서 §부업): 게임 선택 -> 미니게임 플레이 -> 결과 제출/보상
 // 하루 1회 / 입원 중 불가 / 부업한 날은 투자 불가
 // howtoOnly: 튜토리얼용. 미니게임 시작화면의 '게임방법'만 체험 가능, 실제 플레이는 잠금
-//   (openModal('sidejob', { howtoOnly: true }), 또는 첫날 튜토리얼 진행 중이면 자동)
+//   (openModal('sidejob', { howtoOnly: true }), 또는 카테고리 안내 진행 중이면 자동)
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
@@ -61,7 +61,7 @@ export default function SideJobModal({ howtoOnly: howtoOnlyProp = false }) {
 
   if (result) {
     return (
-      <Modal title="부업 결과">
+      <Modal title="부업 결과" showTutorial={false}>
         <h3 className="sidejob-grade">{GRADE_LABEL[result.grade]}!</h3>
         <dl className="info-list">
           <div><dt>점수</dt><dd>{result.rawScore}</dd></div>
@@ -76,7 +76,7 @@ export default function SideJobModal({ howtoOnly: howtoOnlyProp = false }) {
   if (playing) {
     const { label, Component } = GAMES[playing];
     return (
-      <Modal title={`부업 — ${label}`} wide>
+      <Modal title={`부업 — ${label}`} wide showTutorial={false}>
         <Component onFinish={onFinish} howtoOnly={howtoOnly} />
       </Modal>
     );

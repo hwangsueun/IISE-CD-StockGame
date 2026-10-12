@@ -17,9 +17,33 @@
 .quant-cash { background: #2b2017; }
 .quant-empty { padding: 50px 16px; text-align: center; line-height: 1.8; }
 .quant-notice { background: #45341e; padding: 12px; font-size: 13px; }
+.quant-strategy-guide { margin-bottom: 18px; padding: 15px; border: 1px solid #68754b; background: #20251b; }
+.quant-strategy-heading h4 { margin: 0; font-size: 16px; color: #e7eddb; }
+.quant-strategy-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0; margin: 12px 0; list-style: none; }
+.quant-strategy-steps li { padding: 10px 12px; background: #171b13; border-top: 2px solid #8caa69; }
+.quant-step-number { color: #aac895; font-size: 11px; font-weight: bold; letter-spacing: 2px; }
+.quant-strategy-steps h5 { margin: 9px 0; color: #f4e6cb; font-size: 13px; line-height: 1.7; word-break: keep-all; }
+.quant-strategy-steps p { margin: 0; color: #c8ccb9; font-size: 12px; line-height: 1.85; word-break: keep-all; }
+.quant-execution-note { margin: 0 0 14px; color: #c8ccb9; font-size: 12px; line-height: 1.8; }
+.quant-execution-note b { color: #e7eddb; }
+.quant-strategy-details { border-top: 1px solid #49583a; }
+.quant-strategy-details summary { padding: 13px 0 8px; cursor: pointer; color: #d4e5bb; font-size: 12px; }
+.quant-strategy-details summary:hover { color: #fff; }
+.quant-strategy-details summary:focus-visible { outline: 2px solid #d4e5bb; outline-offset: 3px; }
+.quant-strategy-details dl { margin: 6px 0 12px; padding: 14px; background: #171b13; font-size: 12px; line-height: 1.85; }
+.quant-strategy-details dl > div + div { margin-top: 15px; }
+.quant-strategy-details dt { margin-bottom: 5px; color: #e7eddb; font-weight: bold; }
+.quant-strategy-details dd { margin: 0; color: #c8ccb9; word-break: keep-all; }
+.quant-score-note { margin: 8px 0 0; color: #b8bda8; font-size: 11px; line-height: 1.8; }
 @media (max-width: 620px) {
-  .quant-heading { align-items: flex-start; }
+  .quant-heading { align-items: flex-start; flex-direction: column; }
   .quant-heading h3 { font-size: 18px; }
+  .quant-badge { white-space: normal; line-height: 1.7; }
+  .quant-strategy-guide { padding: 14px; }
+  .quant-strategy-steps { grid-template-columns: 1fr; gap: 8px; }
+  .quant-strategy-steps li { padding: 10px 12px; }
+  .quant-step-number { float: left; margin: 4px 10px 0 0; }
+  .quant-strategy-steps h5 { margin: 0 0 6px; }
   .quant-stats { grid-template-columns: 1fr; }
   .quant-stats > div { display: flex; justify-content: space-between; gap: 8px; }
   .quant-stats span { margin: 0; }

@@ -45,26 +45,31 @@ function dateParts(dateStr) {
 export default function MainPage() {
   const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
-    retryPendingTurn, resumeGame, dismissFaint, tutorialStep, startTutorial } = useGameStore();
+    retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
 
-  // 개발용: 주소에 ?tutorial 을 붙이면 현재 게임 위에서 튜토리얼을 다시 띄운다 (?tutorial=7 → 7단계부터)
+  // 개발용: ?tutorial=market 등으로 카테고리 안내를 다시 확인한다.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    if (import.meta.env.DEV && q.has('tutorial')) startTutorial(Number(q.get('tutorial')) || 1);
+    if (import.meta.env.DEV && q.has('tutorial')) startTutorial(q.get('tutorial') || 'welcome');
   }, [startTutorial]);
+
+  useEffect(() => {
+    if (turn && !activeModal && tutorialStep === null && !tutorialProgress.welcome) startTutorial();
+  }, [turn, activeModal, tutorialStep, tutorialProgress.welcome, startTutorial]);
 
   // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
   // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
   const autoOpenedRepayTurnRef = useRef(null);
   useEffect(() => {
     if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
+    if (tutorialStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
     if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
     autoOpenedRepayTurnRef.current = turn.turnNumber;
     openModal('repay');
-  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal]);
+  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, tutorialProgress.welcome]);
 
   if (!turn) {
     return (
@@ -91,9 +96,12 @@ export default function MainPage() {
   const ActiveModal = activeModal ? MODALS[activeModal] : null;
   const { md, dow } = dateParts(turn.date);
   const repayDday = Math.max(0, turn.monthIndex * 20 - turn.turnNumber);
+  const tutorialVisible = tutorialStep !== null && pendingTurnNumber === null && pendingEvents.length === 0 &&
+    surgeResults.length === 0 && !surgePromptPending && !faintEvent;
 
   return (
     <div className="main-page">
+      <div className="game-content" inert={tutorialVisible} aria-hidden={tutorialVisible ? true : undefined}>
       <div className="game-frame">
         <div className="title-plate">★ ANT SURVIVAL ★</div>
         <StatusBar />
@@ -183,10 +191,6 @@ export default function MainPage() {
 
       {ActiveModal && <ActiveModal {...modalProps} />}
 
-      {/* 첫날 튜토리얼: 이벤트·급등주 팝업이 먼저 정리된 뒤에 띄운다 */}
-      {tutorialStep !== null && pendingTurnNumber === null && pendingEvents.length === 0 &&
-        surgeResults.length === 0 && !surgePromptPending && !faintEvent && <TutorialOverlay />}
-
       {/* 기절(입원): 강제 페널티형 즉시 이벤트 — 확인 전까지 최상단에 표시 */}
       {faintEvent && <FaintOverlay event={faintEvent} onDismiss={dismissFaint} />}
 
@@ -212,6 +216,9 @@ export default function MainPage() {
           </div>
         </div>
       )}
+      </div>
+      {/* 필수 이벤트를 먼저 처리하고 안내 중에는 뒤쪽 화면의 클릭·키보드 조작을 막는다. */}
+      {tutorialVisible && <TutorialOverlay />}
     </div>
   );
 }

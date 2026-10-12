@@ -1,6 +1,8 @@
 // 게임 가이드 모달: 상단 상태바 스탯 의미 + 게임 목표를 한 화면에 정리.
 // 메인화면 상태바의 ? 버튼(StatusBar)에서 openModal('guide')로 연다.
 import Modal from './Modal';
+import { useGameStore } from '../state/gameStore';
+import { TUTORIALS } from '../utils/tutorials';
 
 const STATS = [
   { ic: '♥', cls: 'trust-ic', name: '신뢰도',
@@ -16,6 +18,7 @@ const STATS = [
 ];
 
 export default function GuideModal() {
+  const { startTutorial, tutorialProgress } = useGameStore();
   return (
     <Modal title="게임 가이드">
       <p className="guide-intro">
@@ -33,6 +36,18 @@ export default function GuideModal() {
         ))}
       </dl>
       <p className="guide-tip">💡 각 항목에 마우스를 올리면 간단 설명이 바로 뜬다.</p>
+      <section className="guide-tutorials" aria-labelledby="guide-tutorials-title">
+        <h3 id="guide-tutorials-title">카테고리별 사용법</h3>
+        <p>각 화면의 첫 안내는 한 번만 표시됩니다. 언제든 여기서 다시 볼 수 있어요.</p>
+        <div className="guide-tutorial-grid">
+          {Object.entries(TUTORIALS).map(([key, tutorial]) => (
+            <button key={key} type="button" onClick={() => startTutorial(key)}>
+              <span><span aria-hidden="true">{tutorial.icon}</span> {tutorial.label}</span>
+              <small>{tutorialProgress[key] ? '다시 보기' : '안내 보기'}</small>
+            </button>
+          ))}
+        </div>
+      </section>
     </Modal>
   );
 }

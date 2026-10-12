@@ -1,6 +1,7 @@
 // 전역 게임 상태 (zustand) — 서버가 권위, 스토어는 서버 응답 캐시 + UI 상태만.
 import { create } from 'zustand';
 import { api, setToken } from '../api/client';
+import { TUTORIALS, readTutorialProgress, saveTutorialProgress } from '../utils/tutorials';
 
 let sessionRequestGeneration = 0;
 let resumeRequestSequence = 0;
@@ -77,6 +78,8 @@ export const useGameStore = create((set, get) => ({
       turnLoadError: null,
       activeModal: null,
       modalProps: {},
+      tutorialCategory: null,
+      tutorialStep: null,
       error: null,
     });
     await get().resumeGame(generation);
@@ -86,21 +89,34 @@ export const useGameStore = create((set, get) => ({
   activeModal: null,       // market | asset | trade | portfolio | news | calendar | report | repay | null
   modalProps: {},
 
-  openModal: (name, props = {}) => set({ activeModal: name, modalProps: props }),
-  closeModal: () => set({ activeModal: null, modalProps: {} }),
+  openModal(name, props = {}) {
+    const showTutorial = Object.hasOwn(TUTORIALS, name) && !get().tutorialProgress[name];
+    set({ activeModal: name, modalProps: props,
+      tutorialCategory: showTutorial ? name : null, tutorialStep: showTutorial ? 1 : null });
+  },
+  closeModal: () => set({ activeModal: null, modalProps: {}, tutorialCategory: null, tutorialStep: null }),
 
-  // --- 첫날 튜토리얼 (TutorialOverlay) ---
-  // 실제 게임 1일차 위에서 진행하고, 끝나면 그대로 이어서 플레이한다.
-  // 한 번 끝내거나 건너뛰면 localStorage에 기록해 다시 자동으로 뜨지 않는다.
-  tutorialStep: null,      // 1~9 | null(비활성)
+  // --- 카테고리 첫 방문 안내 (브라우저별 1회, 완료·건너뛰기 모두 기록) ---
+  tutorialProgress: readTutorialProgress(),
+  tutorialCategory: null,
+  tutorialStep: null,      // 1부터 시작 | null(비활성)
   lastTrade: null,         // 직전 예약 주문 { assetId, tradeType, quantity, at }
-  startTutorial: (step = 1) => set({ tutorialStep: step, activeModal: null, modalProps: {} }),
-  nextTutorialStep: () => set((s) => ({ tutorialStep: s.tutorialStep + 1 })),
-  // 이전 단계로: 열려 있던 창은 닫고 그 단계를 처음부터 다시 보여준다
-  prevTutorialStep: () => set((s) => ({ tutorialStep: Math.max(1, s.tutorialStep - 1), activeModal: null, modalProps: {} })),
+  startTutorial(category = 'welcome') {
+    if (Object.hasOwn(TUTORIALS, category)) set({ tutorialCategory: category, tutorialStep: 1 });
+  },
+  nextTutorialStep() {
+    const { tutorialCategory, tutorialStep } = get();
+    if (tutorialStep === null) return;
+    if (tutorialStep >= TUTORIALS[tutorialCategory].steps.length) get().endTutorial();
+    else set({ tutorialStep: tutorialStep + 1 });
+  },
+  prevTutorialStep: () => set((s) => s.tutorialStep === null ? {} : ({ tutorialStep: Math.max(1, s.tutorialStep - 1) })),
   endTutorial() {
-    localStorage.setItem('antsurvival_tutorial_done', '1');
-    set({ tutorialStep: null });
+    const { tutorialCategory, tutorialProgress } = get();
+    if (!tutorialCategory) return;
+    const progress = { ...tutorialProgress, [tutorialCategory]: true };
+    saveTutorialProgress(progress);
+    set({ tutorialCategory: null, tutorialStep: null, tutorialProgress: progress });
   },
 
   /** 게임 시작 (인트로 화면) */
@@ -118,6 +134,8 @@ export const useGameStore = create((set, get) => ({
       turnLoadError: null,
       activeModal: null,
       modalProps: {},
+      tutorialCategory: null,
+      tutorialStep: null,
     });
     try {
       const s = await api.startGame(difficulty);
@@ -125,11 +143,7 @@ export const useGameStore = create((set, get) => ({
       localStorage.setItem('antsurvival_session', s.sessionId);
       set({ sessionId: s.sessionId, status: s.status, state: s });
       await get().loadTurn(s.currentTurn ?? 1, generation);
-      // 처음 하는 게임이면 1일차에 튜토리얼을 띄운다
-      if (sessionRequestGeneration === generation && get().turn &&
-          localStorage.getItem('antsurvival_tutorial_done') !== '1') {
-        get().startTutorial();
-      }
+      // 시작 안내는 MainPage에서 표시한다. 새로고침·첫 턴 로드 재시도에도 동일하게 적용된다.
     } catch (e) {
       if (sessionRequestGeneration !== generation) return;
       if (get().pendingTurnNumber) set({ turnLoadError: e.message });
@@ -354,6 +368,7 @@ export const useGameStore = create((set, get) => ({
       pendingEvents: [], lastTurnResult: null, surgeResults: [], surgePromptPending: false,
       pendingTurnNumber: null, turnLoadError: null,
       activeModal: null, modalProps: {}, loading: false, error: null,
+      tutorialCategory: null, tutorialStep: null,
     });
   },
 }));
