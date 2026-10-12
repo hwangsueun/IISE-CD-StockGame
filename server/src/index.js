@@ -1,6 +1,10 @@
 // ANT SURVIVAL API 부트스트랩 (ARCHITECTURE.md §8)
 const express = require('express');
 const cors = require('cors');
+const fs = require('node:fs');
+const path = require('node:path');
+const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 require('dotenv').config();
 
 const { query } = require('./db');
@@ -14,8 +18,27 @@ const authRoutes = require('./routes/auth');
 const { authMiddleware } = require('./services/authService');
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
-app.use(express.json());
+const production = process.env.NODE_ENV === 'production';
+if (process.env.RENDER === 'true') app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use(helmet({ contentSecurityPolicy: false, strictTransportSecurity: production }));
+const allowedOrigin = process.env.CORS_ORIGIN || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173';
+app.use(cors({ origin: allowedOrigin }));
+app.use(express.json({ limit: '64kb' }));
+
+// A single public origin serves the built game and /api. Never serve the repo root.
+const staticDir = process.env.STATIC_DIR && path.resolve(process.env.STATIC_DIR);
+if (staticDir) {
+  if (!fs.existsSync(path.join(staticDir, 'index.html'))) throw new Error('Built frontend is missing');
+  app.use(express.static(staticDir, { dotfiles: 'deny', maxAge: 0 }));
+}
+if (production) {
+  app.use('/api', rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false,
+    message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' } }));
+  const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false,
+    message: { error: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.' } });
+  app.use(['/api/auth/register', '/api/auth/login'], authLimit);
+}
 app.use(authMiddleware); // Bearer 토큰 -> req.user (게스트면 null)
 
 app.get('/health', async (_req, res) => {
@@ -23,7 +46,7 @@ app.get('/health', async (_req, res) => {
     await query('SELECT 1');
     res.json({ status: 'ok', db: 'up' });
   } catch (err) {
-    res.status(503).json({ status: 'degraded', db: 'down', error: err.message });
+    res.status(503).json({ status: 'degraded', db: 'down', ...(production ? {} : { error: err.message }) });
   }
 });
 
@@ -50,12 +73,16 @@ app.use((req, res) => {
 app.use((err, req, res, _next) => {
   const status = err.statusCode || 500;
   if (status >= 500) console.error('[api:error]', err);
-  res.status(status).json({ error: err.message, detail: err.detail });
+  res.status(status).json(status >= 500 && production
+    ? { error: '서버 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' }
+    : { error: err.message, detail: err.detail });
 });
 
 const port = Number(process.env.PORT || 3001);
-app.listen(port, () => {
-  console.log(`[antsurvival] API listening on :${port}`);
-});
+if (require.main === module) {
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`[antsurvival] API listening on :${port}`);
+  });
+}
 
 module.exports = app;

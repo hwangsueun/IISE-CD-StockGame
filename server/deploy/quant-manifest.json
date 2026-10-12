@@ -1,0 +1,8 @@
+{
+  "model_version": "quant-v2-adjusted-2e6c8d6558fc-r2-model-v4-adjusted-open",
+  "data_version": "quant-v2-adjusted-2e6c8d6558fc-r2",
+  "price_basis": "adjusted, DataGuide standard daily OHLC (S410000650/660/670/700); no separate cash-dividend flows",
+  "execution": "next_market_open",
+  "sha256": "68e484f4090c3b8685efdcfb9b4073f04cd949108d982f892629398343185269",
+  "bytes": 23635241
+}

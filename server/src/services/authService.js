@@ -22,9 +22,10 @@ async function register(username, password, nickname) {
   if (!/^[a-zA-Z0-9_]{4,20}$/.test(username || '')) {
     throw badRequest('아이디는 영문/숫자/_ 4~20자입니다');
   }
-  if (!password || password.length < 8) {
-    throw badRequest('비밀번호는 8자 이상입니다');
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+    throw badRequest('비밀번호는 8~128자입니다');
   }
+  if (nickname != null && (typeof nickname !== 'string' || nickname.length > 30)) throw badRequest('닉네임은 30자 이하입니다');
   try {
     const { rows } = await query(
       `INSERT INTO users (username, password_hash, nickname) VALUES ($1, $2, $3)
@@ -40,6 +41,9 @@ async function register(username, password, nickname) {
 
 /** 로그인: 정보 일치 확인 -> 토큰 발급 */
 async function login(username, password) {
+  if (typeof username !== 'string' || typeof password !== 'string' || password.length > 128) {
+    throw badRequest('아이디와 비밀번호를 확인해 주세요');
+  }
   const { rows } = await query(`SELECT * FROM users WHERE username = $1`, [username]);
   const user = rows[0];
   if (!user || !verifyPassword(password, user.password_hash)) {
@@ -60,7 +64,7 @@ async function userFromToken(token) {
   if (!token) return null;
   const { rows } = await query(
     `SELECT u.id, u.username, u.nickname FROM auth_tokens t JOIN users u ON u.id = t.user_id
-     WHERE t.token = $1`,
+     WHERE t.token = $1 AND t.created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'`,
     [token]
   );
   return rows[0] || null;

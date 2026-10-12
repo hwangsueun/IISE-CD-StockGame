@@ -12,6 +12,22 @@ const sideJobRoutes = require('./sideJob');
 const surgeRoutes = require('./surge');
 const quantRoutes = require('./quant');
 const orderService = require('../services/orderService');
+const { query } = require('../db');
+
+// Guest sessions retain their random UUID capability; account sessions require their owner.
+router.param('sessionId', async (req, res, next, sessionId) => {
+  try {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)) {
+      return res.status(400).json({ error: '잘못된 게임 주소입니다' });
+    }
+    const { rows: [session] } = await query('SELECT user_id FROM game_sessions WHERE id = $1', [sessionId]);
+    if (!session) return res.status(404).json({ error: '게임을 찾을 수 없습니다' });
+    if (session.user_id && session.user_id !== req.user?.id) {
+      return res.status(403).json({ error: '이 게임을 저장한 계정으로 로그인해 주세요' });
+    }
+    next();
+  } catch (error) { next(error); }
+});
 
 // POST /api/game/start { difficulty }
 router.post('/start', asyncHandler(game.start));

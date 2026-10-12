@@ -1,5 +1,7 @@
 # 동학개미 서바이벌 (ANT SURVIVAL) 아키텍처
 
+> **2026-10-12 무료 공개 시연 배포:** `deploy/render-free-20261012` 브랜치는 Render의 무료 Node 웹 서비스와 무료 PostgreSQL 16을 사용한다. Express가 빌드된 프런트와 `/api`를 같은 오리진으로 제공한다. 수정주가 퀀트 v4 신호는 checksum을 고정해 함께 배포하며 DB의 활성 가격 버전과 일치할 때만 기동한다. 계정·기존 플레이 기록을 제외한 시장 DB를 별도 복원한다. 인증 토큰은 7일 후 만료되고 계정 세션에는 소유자 검사, 공개 API에는 요청 제한을 적용한다. DB 만료와 운영 절차는 [DEPLOYMENT.md](DEPLOYMENT.md)를 따른다.
+
 > 이 문서가 레포의 단일 기준 문서다. 기존 `TECH_STACK*`, `ARCHITECTURE_revised`, `UI_SCREENS`, `DEVELOPMENT_PIPELINE` 내용은 본 문서로 통합하고 삭제했다.
 
 ## 1. 제품 스코프

@@ -1,0 +1,35 @@
+# Both resources are explicitly free. The database expires after 30 days.
+services:
+  - type: web
+    name: antsurvival-game
+    runtime: node
+    plan: free
+    region: singapore
+    branch: deploy/render-free-20261012
+    buildCommand: npm --prefix server ci --omit=dev && npm --prefix frontend ci --include=dev && npm --prefix frontend run build
+    startCommand: node server/deploy/start.cjs
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: antsurvival-db
+          property: connectionString
+      - key: GAME_START_RANGE
+        value: 2014-01-02..2023-12-31
+      - key: VITE_USE_MOCK
+        value: false
+      - key: VITE_API_BASE
+        value: ""
+databases:
+  - name: antsurvival-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"
+    databaseName: antsurvival
+    user: antsurvival
+    ipAllowList: []
