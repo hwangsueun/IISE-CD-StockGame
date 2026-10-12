@@ -274,6 +274,7 @@ export default function IntroPage() {
       {error && <p className="error-text">{error}</p>}
 
       {/* [개발용 임시] Phase D 미리보기 — 확인 끝나면 제거 예정 */}
+      {import.meta.env.DEV && <>
       <button
         type="button"
         style={{ marginTop: 12, opacity: 0.6, fontSize: 12 }}
@@ -374,6 +375,7 @@ export default function IntroPage() {
           </div>
         );
       })()}
+      </>}
     </div>
   );
 }
