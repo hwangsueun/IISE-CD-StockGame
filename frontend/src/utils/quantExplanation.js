@@ -25,8 +25,8 @@ export function getQuantExplanation(data) {
       ? `상위 최대 ${data.topK}종목으로 시작하고, 이후 매 턴 비교해 최대 ${data.nDrop}종목씩 교체해요.`
       : `상위 최대 ${data.topK}종목을 고르고, ${data.rebalanceTurns}턴마다 구성을 다시 정해요.`,
     steps: [
-      { title: '가격·거래량으로 점수 매기기',
-        body: '가격 흐름·변동 폭·거래량으로 코스피 대비 수익률을 예측하고 순위를 매겨요.' },
+      { title: '학습된 AI가 점수 계산',
+        body: '과거 지표와 실제 성과를 배운 LightGBM에 오늘의 158개 지표를 넣어, 코스피 대비 수익률을 예측해요.' },
       { title: `상위 최대 ${data.topK}종목에 분산`,
         body: dropout
           ? '처음에는 거래 가능한 상위 종목에 같은 금액씩 배분해요. 이후 비중은 주가에 따라 달라져요.'

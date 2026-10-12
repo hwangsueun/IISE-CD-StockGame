@@ -35,6 +35,50 @@
 .quant-strategy-details dt { margin-bottom: 5px; color: #e7eddb; font-weight: bold; }
 .quant-strategy-details dd { margin: 0; color: #c8ccb9; word-break: keep-all; }
 .quant-score-note { margin: 8px 0 0; color: #b8bda8; font-size: 11px; line-height: 1.8; }
+.quant-panel .quant-tabs { margin: 16px 0; padding: 10px 0; position: sticky; top: 50px; z-index: 1; background: #2b2017; }
+.quant-tabs button:focus-visible, .quant-guide-link:focus-visible, .quant-panel summary:focus-visible,
+.quant-panel input:focus-visible, .quant-panel select:focus-visible, .quant-indicator-list:focus-visible {
+  outline: 2px solid #d4e5bb; outline-offset: 3px;
+}
+.quant-guide-link { display: inline-block; border: 0; background: none; color: #d4e5bb; font: inherit; font-size: 12px; line-height: 1.8; text-align: left; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; padding: 4px 0; }
+.quant-guide-link:hover { color: #fff; }
+.quant-strategy-guide > .quant-guide-link { margin-bottom: 12px; }
+.quant-guide-intro { padding: 18px; border: 1px solid #68754b; background: #20251b; }
+.quant-guide-intro h4 { font-size: 18px; line-height: 1.6; margin: 8px 0; color: #e7eddb; }
+.quant-learning-guide p, .quant-indicator-guide p, .quant-calculation-basics dd { font-size: 13px; line-height: 1.9; word-break: keep-all; overflow-wrap: anywhere; color: #c8ccb9; margin: 8px 0; }
+.quant-learning-guide b, .quant-indicator-guide b { color: #e7eddb; }
+.quant-learning-steps { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 14px; }
+.quant-learning-steps > li { padding: 18px; border: 1px solid #74573d; border-left: 3px solid #8caa69; background: #2b2017; }
+.quant-learning-guide h5, .quant-indicator-guide h5 { margin: 8px 0; font-size: 15px; line-height: 1.7; word-break: keep-all; }
+.quant-worked-example { margin: 12px 0; padding: 14px; background: #171b13; border: 1px solid #49583a; min-width: 0; }
+.quant-worked-example > span { color: #aac895; font-size: 11px; line-height: 1.7; }
+.quant-worked-example > strong { display: block; font-size: 14px; color: #e7eddb; line-height: 1.9; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.quant-learning-callout { margin: 16px 0; padding: 14px 16px; background: #293021; border-left: 3px solid #8caa69; font-size: 13px; line-height: 1.9; }
+.quant-learning-callout h5 { margin-top: 0; }
+.quant-indicator-examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.quant-indicator-examples .quant-worked-example { margin: 0; }
+.quant-indicator-guide .quant-section-title { margin: 22px 0 8px; }
+.quant-calculation-basics { padding: 12px 14px; border: 1px solid #74573d; }
+.quant-calculation-basics summary { cursor: pointer; font-size: 13px; line-height: 1.8; }
+.quant-calculation-basics dl { margin: 14px 0 0; }
+.quant-calculation-basics dl > div + div { margin-top: 14px; }
+.quant-calculation-basics dt { font-size: 13px; font-weight: bold; color: #e7eddb; }
+.quant-indicator-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: 10px; }
+.quant-indicator-filters label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #c9b79d; min-width: 0; }
+.quant-indicator-filters input, .quant-indicator-filters select { width: 100%; min-width: 0; border: 1px solid #74573d; border-radius: 0; background: #241a12; color: #f4e6cb; padding: 10px 8px; font: inherit; font-size: 13px; }
+.quant-indicator-filters input::placeholder { color: #ad9c86; }
+.quant-indicator-results { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin: 8px 0; }
+.quant-indicator-results .quant-footnote { font-size: 12px; }
+.quant-indicator-list { max-height: 460px; overflow: auto; border: 1px solid #74573d; background: #241a12; }
+.quant-indicator-item + .quant-indicator-item { border-top: 1px solid #543f2d; }
+.quant-indicator-item > summary { cursor: pointer; padding: 12px; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.quant-indicator-item > summary > code { display: inline-block; min-width: 76px; margin-right: 8px; font-size: 12px; color: #aac895; }
+.quant-indicator-item[open] > summary { background: #293021; }
+.quant-indicator-body { padding: 0 14px 14px; }
+.quant-indicator-body .quant-indicator-formula { padding: 10px; background: #171b13; color: #e7eddb; font-size: 13px; }
+.quant-raw-expression { margin-top: 12px; }
+.quant-raw-expression summary { font-size: 11px; color: #c9b79d; cursor: pointer; }
+.quant-raw-expression > code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.8; margin-top: 10px; color: #c8ccb9; }
 @media (max-width: 620px) {
   .quant-heading { align-items: flex-start; flex-direction: column; }
   .quant-heading h3 { font-size: 18px; }
@@ -48,4 +92,11 @@
   .quant-stats > div { display: flex; justify-content: space-between; gap: 8px; }
   .quant-stats span { margin: 0; }
   .quant-stats strong { font-size: 16px; }
+  .quant-guide-intro, .quant-learning-steps > li { padding: 14px; }
+  .quant-guide-intro h4 { font-size: 16px; }
+  .quant-indicator-examples { grid-template-columns: 1fr; }
+  .quant-indicator-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quant-indicator-filters label:first-child { grid-column: 1 / -1; }
+  .quant-indicator-filters input, .quant-indicator-filters select { font-size: 16px; }
+  .quant-indicator-item > summary > code { min-width: 64px; }
 }
