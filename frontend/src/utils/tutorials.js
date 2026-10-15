@@ -16,7 +16,7 @@ export const TUTORIALS = {
     steps: [
       { title: '투자 전에 오늘의 소식부터',
         body: '오늘 공개된 뉴스를 읽고 시장과 기업에 어떤 변화가 있는지 살펴보세요. 관심 있는 종목은 마켓에서 가격과 차트를 함께 확인할 수 있습니다.',
-        tip: '중요 표시가 붙은 기사도 확인해 보세요. 뉴스만으로 가격 방향이 정해지는 것은 아닙니다.' },
+        tip: '뉴스만으로 가격 방향이 정해지는 것은 아닙니다. 차트와 종목 정보도 함께 확인해 보세요.' },
       { title: '놓친 소식과 지난 뉴스 확인하기',
         body: '스트레스가 높으면 일부 뉴스를 보지 못할 수 있습니다. 이전에 실제로 읽었던 뉴스는 캘린더에서 날짜를 선택해 다시 볼 수 있습니다.',
         tip: '뉴스를 읽은 뒤 캘린더에 오늘의 투자 판단을 메모해 두세요.' },
@@ -124,13 +124,16 @@ export const TUTORIALS = {
 };
 
 export const TUTORIAL_STORAGE_KEY = 'antsurvival_category_tutorials_v1';
+// 카테고리 안내 외에 같은 저장소에 기록하는 1회성 안내 (퀀트 모델 튜토리얼, 10일 경과 후)
+const EXTRA_PROGRESS_KEYS = ['quantTour'];
 
 // 저장 차단·손상된 데이터가 게임 진행을 막지 않도록 안내 기록만 안전하게 읽는다.
 export function readTutorialProgress(storage) {
   try {
     const value = JSON.parse((storage ?? globalThis.localStorage).getItem(TUTORIAL_STORAGE_KEY));
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-    return Object.fromEntries(Object.keys(TUTORIALS).filter((key) => value[key] === true).map((key) => [key, true]));
+    return Object.fromEntries([...Object.keys(TUTORIALS), ...EXTRA_PROGRESS_KEYS]
+      .filter((key) => value[key] === true).map((key) => [key, true]));
   } catch {
     return {};
   }

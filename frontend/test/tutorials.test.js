@@ -35,3 +35,9 @@ test('blocked browser storage does not prevent opening or finishing an explanati
   assert.deepEqual(readTutorialProgress(storage), {});
   assert.doesNotThrow(() => saveTutorialProgress({ news: true }, storage));
 });
+
+test('finishing the day-10 quant tour is remembered after reload', () => {
+  const storage = memoryStorage();
+  saveTutorialProgress({ welcome: true, quant: true, quantTour: true }, storage);
+  assert.deepEqual(readTutorialProgress(storage), { welcome: true, quant: true, quantTour: true });
+});

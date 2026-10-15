@@ -87,7 +87,7 @@ export const useGameStore = create((set, get) => ({
       modalProps: {},
       tutorialCategory: null,
       tutorialStep: null,
-      firstDayStep: null,
+      firstDayStep: null, quantTourStep: null,
       error: null,
     });
     await get().resumeGame(generation);
@@ -99,7 +99,7 @@ export const useGameStore = create((set, get) => ({
 
   openModal(name, props = {}) {
     // 첫날 체험형 튜토리얼 중에 연 화면은 거기서 직접 안내하므로 카테고리 안내를 띄우지 않고 본 것으로 기록한다.
-    if (get().firstDayStep !== null) {
+    if (get().firstDayStep !== null || get().quantTourStep !== null) {
       const { tutorialProgress } = get();
       if (Object.hasOwn(TUTORIALS, name) && !tutorialProgress[name]) {
         const progress = { ...tutorialProgress, [name]: true };
@@ -123,16 +123,36 @@ export const useGameStore = create((set, get) => ({
 
   // --- 첫날 체험형 튜토리얼 (FirstDayTutorial) ---
   // 실제 게임 1일차 위에서 직접 눌러 보며 진행한다. 끝내거나 건너뛰면 '게임 시작' 안내를 본 것으로 기록한다.
-  firstDayStep: null,      // 1~9 | null(비활성)
+  firstDayStep: null,      // 1~10 | null(비활성)
   startFirstDay: (step = 1) => set({ firstDayStep: step, activeModal: null, modalProps: {},
     tutorialCategory: null, tutorialStep: null }),
-  nextFirstDayStep: () => set((s) => ({ firstDayStep: s.firstDayStep + 1 })),
+  // from: 호출한 쪽이 보고 있던 단계. 턴 전환처럼 한 단계 완료가 연달아 두 번 감지돼도 한 칸만 넘어가게 한다
+  nextFirstDayStep: (from) => set((s) => (
+    from == null || s.firstDayStep === from ? { firstDayStep: s.firstDayStep + 1 } : {}
+  )),
   // 이전 단계로: 열려 있던 창은 닫고 그 단계를 처음부터 다시 보여준다
   prevFirstDayStep: () => set((s) => ({ firstDayStep: Math.max(1, s.firstDayStep - 1), activeModal: null, modalProps: {} })),
   endFirstDay() {
     const progress = { ...get().tutorialProgress, welcome: true };
     saveTutorialProgress(progress);
     set({ firstDayStep: null, tutorialProgress: progress });
+  },
+  // --- 퀀트 모델 튜토리얼 (QuantTutorial) — 10일이 지나면 한 번. 끝내거나 건너뛰면 quantTour로 기록 ---
+  quantTourStep: null,     // 1~5 | null(비활성)
+  startQuantTour: () => set({ quantTourStep: 1, activeModal: null, modalProps: {},
+    tutorialCategory: null, tutorialStep: null }),
+  nextQuantTourStep: (from) => set((s) => (
+    from == null || s.quantTourStep === from ? { quantTourStep: s.quantTourStep + 1 } : {}
+  )),
+  // 1단계(버튼 누르기)로 돌아가면 창을 닫아야 다시 누를 수 있다. 창 안 단계끼리는 창을 유지한다
+  prevQuantTourStep: () => set((s) => (s.quantTourStep <= 2
+    ? { quantTourStep: 1, activeModal: null, modalProps: {} }
+    : { quantTourStep: s.quantTourStep - 1 })),
+  endQuantTour() {
+    // 투어에서 퀀트 화면을 소개했으니 퀀트 카테고리 첫 방문 안내도 본 것으로 기록한다
+    const progress = { ...get().tutorialProgress, quantTour: true, quant: true };
+    saveTutorialProgress(progress);
+    set({ quantTourStep: null, tutorialProgress: progress });
   },
   startTutorial(category = 'welcome') {
     if (Object.hasOwn(TUTORIALS, category)) set({ tutorialCategory: category, tutorialStep: 1 });
@@ -169,7 +189,7 @@ export const useGameStore = create((set, get) => ({
       modalProps: {},
       tutorialCategory: null,
       tutorialStep: null,
-      firstDayStep: null,
+      firstDayStep: null, quantTourStep: null,
     });
     try {
       const s = await api.startGame(difficulty);
@@ -402,7 +422,7 @@ export const useGameStore = create((set, get) => ({
       pendingEvents: [], lastTurnResult: null, surgeResults: [], surgePromptPending: false,
       pendingTurnNumber: null, turnLoadError: null,
       activeModal: null, modalProps: {}, loading: false, error: null,
-      tutorialCategory: null, tutorialStep: null, firstDayStep: null,
+      tutorialCategory: null, tutorialStep: null, firstDayStep: null, quantTourStep: null,
     });
   },
 }));

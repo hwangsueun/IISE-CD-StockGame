@@ -454,6 +454,20 @@ button { cursor: pointer; font: inherit; }
 }
 .hud-btn:hover { background: #5a3624; }
 .hud-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+/* 퀀트 모델 튜토리얼이 시작되면 버튼을 금색으로 깜빡여 강조한다 */
+.hud-btn.quant-open-btn.is-spotlit {
+  position: relative; background: var(--px-gold); color: #1a0f0a; border-color: #000;
+  animation: quantBtnPulse 0.9s steps(2, end) infinite;
+}
+.hud-btn.quant-open-btn.is-spotlit::after {
+  content: 'NEW'; position: absolute; top: -10px; right: -10px;
+  background: #ef4444; color: #fff; border: 2px solid #000; padding: 1px 4px;
+  font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px;
+}
+@keyframes quantBtnPulse {
+  0%, 100% { box-shadow: 0 0 0 2px #000, 0 0 12px 2px rgba(245, 197, 66, 0.9); }
+  50% { box-shadow: 0 0 0 2px #000, 0 0 22px 6px rgba(245, 197, 66, 0.5); }
+}
 .hud-btn.repay { background: #7f1d1d; }
 .hud-btn.repay:hover { background: #b91c1c; }
 
@@ -542,7 +556,6 @@ button { cursor: pointer; font: inherit; }
 .news-asset { color: var(--px-gold); font-style: normal; }
 .news-empty { color: var(--px-ink-dim); }
 .news-hidden { color: var(--px-red); font-size: 0.85rem; }
-.news-strong { color: var(--px-gold); margin-left: 6px; font-family: 'Press Start 2P', monospace; font-size: 8px; }
 .news-date { color: var(--px-ink-dim); font-size: 0.8rem; margin-right: 8px; }
 .news-article p { line-height: 1.6; }
 .news-dir.positive { color: #4ade80; }
@@ -1900,6 +1913,21 @@ textarea { min-height: 80px; resize: vertical; }
 .tut-note.below-right { transform: translateX(-100%); text-align: right; }
 .tut-note.right { transform: translateY(-50%); text-align: left; }
 .tut-note.above-right { transform: translate(-100%, -100%); text-align: right; }
+/* 창 안의 탭·행을 짚을 때: 창 바깥 옆에 띄우고, 화살표로 짚은 쪽을 가리킨다 */
+.tut-note.modal-left { transform: translate(-100%, -50%); text-align: right; padding-right: 22px; }
+.tut-note.modal-right { transform: translateY(-50%); text-align: left; padding-left: 22px; }
+.tut-note.modal-left::after, .tut-note.modal-right::before {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--px-gold);
+}
+.tut-note.modal-left::after { content: '▶'; right: 0; }
+.tut-note.modal-left .big, .tut-note.modal-right .big { font-size: 20px; }
+/* 창 안 내용 위에 놓이는 설명: 어두운 상자를 깔아 뒤 글자와 섞이지 않게 한다 */
+.tut-note.boxed {
+  background: rgba(12, 7, 4, 0.94); border: 2px solid var(--px-gold-dark);
+  box-shadow: 4px 4px 0 #000; padding: 10px 14px; max-width: 440px;
+}
+.tut-note.modal-right::before { content: '◀'; left: 0; }
 .tut-note .big { display: block; font-size: 24px; font-weight: bold; color: var(--px-gold); letter-spacing: 1px; }
 .tut-note b { color: var(--px-gold); }
 .tut-note .dim { color: #d6d3d1; font-size: 13px; }

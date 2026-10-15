@@ -18,7 +18,8 @@ import FaintOverlay from '../components/FaintOverlay';
 import GuideModal from '../components/GuideModal';
 import QuantModal from '../components/QuantModal';
 import TutorialOverlay from '../components/TutorialOverlay';
-import FirstDayTutorial from '../components/FirstDayTutorial';
+import FirstDayTutorial, { NEXT_DAY_STEP } from '../components/FirstDayTutorial';
+import QuantTutorial, { QUANT_TOUR_TURN } from '../components/QuantTutorial';
 
 const MODALS = {
   market: MarketModal,
@@ -47,35 +48,46 @@ export default function MainPage() {
   const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
     retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial,
-    firstDayStep, startFirstDay } = useGameStore();
+    firstDayStep, startFirstDay, quantTourStep, startQuantTour } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
 
-  // 개발용: ?tutorial=market 등으로 카테고리 안내를, ?tutorial(=7)로 첫날 체험형 튜토리얼(7단계부터)을 다시 확인한다.
+  // 개발용: ?tutorial=market 등으로 카테고리 안내를, ?tutorial(=7)로 첫날 체험형 튜토리얼(7단계부터)을,
+  // ?tutorial=quanttour로 퀀트 모델 튜토리얼을 다시 확인한다.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (!import.meta.env.DEV || !q.has('tutorial')) return;
     const value = q.get('tutorial');
-    if (!value || Number(value)) startFirstDay(Number(value) || 1);
+    if (value === 'quanttour') startQuantTour();
+    else if (!value || Number(value)) startFirstDay(Number(value) || 1);
     else startTutorial(value);
-  }, [startTutorial, startFirstDay]);
+  }, [startTutorial, startFirstDay, startQuantTour]);
 
   // 처음 하는 게임이면 첫날 체험형 튜토리얼을 띄운다. 새로고침·첫 턴 로드 재시도에도 동일하게 적용된다.
   useEffect(() => {
     if (turn && !activeModal && tutorialStep === null && firstDayStep === null && !tutorialProgress.welcome) startFirstDay();
   }, [turn, activeModal, tutorialStep, firstDayStep, tutorialProgress.welcome, startFirstDay]);
 
+  // 10일이 지나면 퀀트 모델 튜토리얼을 한 번 띄운다. 다른 안내·이벤트·창이 모두 닫혀 있을 때만 시작한다.
+  useEffect(() => {
+    if (!turn || turn.turnNumber < QUANT_TOUR_TURN || tutorialProgress.quantTour || !tutorialProgress.welcome) return;
+    if (tutorialStep !== null || firstDayStep !== null || quantTourStep !== null || activeModal) return;
+    if (pendingTurnNumber !== null || pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent) return;
+    startQuantTour();
+  }, [turn, tutorialProgress.quantTour, tutorialProgress.welcome, tutorialStep, firstDayStep, quantTourStep, activeModal,
+    pendingTurnNumber, pendingEvents, surgeResults, surgePromptPending, faintEvent, startQuantTour]);
+
   // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
   // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
   const autoOpenedRepayTurnRef = useRef(null);
   useEffect(() => {
     if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
-    if (tutorialStep !== null || firstDayStep !== null || !tutorialProgress.welcome) return;
+    if (tutorialStep !== null || firstDayStep !== null || quantTourStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
     if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
     autoOpenedRepayTurnRef.current = turn.turnNumber;
     openModal('repay');
-  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, tutorialProgress.welcome]);
+  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, quantTourStep, tutorialProgress.welcome]);
 
   if (!turn) {
     return (
@@ -126,7 +138,8 @@ export default function MainPage() {
 
           {/* 상태 배지 + HUD 액션 (날짜판 아래) */}
           <div className="hud-side">
-            <button className="hud-btn quant-open-btn" onClick={() => openModal('quant')}>
+            <button className={`hud-btn quant-open-btn${quantTourStep !== null && activeModal !== 'quant' ? ' is-spotlit' : ''}`}
+              onClick={() => openModal('quant')}>
               퀀트 모델
             </button>
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
@@ -168,7 +181,8 @@ export default function MainPage() {
             <button
               className="nextturn-btn"
               disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
-                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null || firstDayStep !== null}
+                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null ||
+                (firstDayStep !== null && firstDayStep !== NEXT_DAY_STEP) || quantTourStep !== null}
               onClick={advanceTurn}
               title="다음 턴"
             >
@@ -228,6 +242,8 @@ export default function MainPage() {
       {tutorialVisible && <TutorialOverlay />}
       {/* 첫날 체험형 튜토리얼: 실제 화면을 직접 눌러야 하므로 뒤쪽 화면을 막지 않는다. */}
       {firstDayStep !== null && overlaysClear && <FirstDayTutorial />}
+      {/* 퀀트 모델 튜토리얼 (10일 경과 후 1회) */}
+      {quantTourStep !== null && overlaysClear && <QuantTutorial />}
     </div>
   );
 }
