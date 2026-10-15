@@ -143,20 +143,34 @@ const EVENT_DEFS = {
   },
 
   // ------------------------------------------------------------------
-  // D. 경조사 (외부 랜덤형, 미팅4 §14): 거부 불가, 비용 확정 차감, 스트레스 방향 랜덤
+  // D. 경조사 = 지인 결혼식 초대 (선택형): 참석(축의금 + 스트레스 랜덤) / 불참(스트레스 증가)
   // ------------------------------------------------------------------
   condolence: {
-    kind: 'immediate',
+    kind: 'choice',
     trigger: () => Math.random() < C.CONDOLENCE.prob,
-    apply: () => {
-      const t = pick(C.CONDOLENCE.TYPES);
-      const down = Math.random() < t.downProb;
-      return {
-        cashDelta: -t.cost,
-        stressDelta: down ? -t.stressAbs : +t.stressAbs,
-        detail: { type: t.key, label: t.label, cost: t.cost },
-      };
-    },
+    prompt: '지인의 결혼식 초대장이 도착했다.',
+    choices: [
+      {
+        key: 'attend', label: `참석한다 (-${C.CONDOLENCE.attendCost.toLocaleString()}원)`,
+        effect: ({ session }) => {
+          const cfg = C.CONDOLENCE;
+          // 축의금 낼 현금이 없으면 참석하지 못하고 불참과 같은 결과가 된다
+          if (Number(session.cash) < cfg.attendCost) {
+            return { stressDelta: cfg.declineStress, detail: { outcome: 'broke', cost: 0 } };
+          }
+          const down = Math.random() < cfg.attendDownProb;
+          return {
+            cashDelta: -cfg.attendCost,
+            stressDelta: down ? -cfg.attendStressAbs : +cfg.attendStressAbs,
+            detail: { outcome: down ? 'down' : 'up', cost: cfg.attendCost },
+          };
+        },
+      },
+      {
+        key: 'decline', label: '불참한다 (스트레스 증가)',
+        effect: () => ({ stressDelta: C.CONDOLENCE.declineStress, detail: { outcome: 'decline', cost: 0 } }),
+      },
+    ],
   },
 
   // ------------------------------------------------------------------

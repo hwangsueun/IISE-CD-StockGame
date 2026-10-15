@@ -827,6 +827,8 @@ textarea { min-height: 80px; resize: vertical; }
   display: grid; place-items: center; z-index: 20;
   animation: px-fade 180ms steps(3, end);
 }
+/* 좁은 화면에서 축소(scale)된 1280px 프레임이 그리드 밖으로 밀려나지 않게 화면 정중앙에 고정 */
+.cutscene-overlay > .game-frame { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
 
 /* --- 독촉전화 이벤트 (픽셀: 디자인 public/game/Loanshark Call.html 이식) --- */
 .ev-frame { overflow: hidden; }
@@ -1947,3 +1949,127 @@ textarea { min-height: 80px; resize: vertical; }
 .tut-prev:hover { color: #fff; background: #3d2418; }
 .tut-prev:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #3d2418, 1px 1px 0 #000; }
 .tut-next:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #5a3624, 1px 1px 0 #000; }
+
+/* =====================================================================
+   경조사(결혼식 초대) 이벤트 — Phase D: public/game/Wedding Event.html 이식
+   ===================================================================== */
+.wed-frame {
+  --wed-rose: #ff9ec4; --wed-rose-deep: #b8527e;
+  overflow: hidden; background: #000; cursor: pointer;
+  box-shadow: 0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000, 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 80px rgba(245, 197, 66, 0.16);
+}
+.wed-frame .title-plate { background: #1c1208; border-color: var(--px-gold-dark); text-shadow: 0 0 6px rgba(245, 197, 66, 0.5); }
+.wed-frame .screen-tag .nm { background: #1c1208; border-color: var(--px-gold-dark); }
+.wed-frame .screen-tag .step { margin-left: 6px; color: var(--px-gold); text-shadow: 1px 1px 0 #000; }
+.wed-room {
+  position: absolute; inset: 0; z-index: 0;
+  background: #d8cfc4 url('/game/assets/bg_wedding.png') center 28%/cover no-repeat;
+  image-rendering: pixelated; filter: brightness(0.86) saturate(1.05);
+}
+.wed-room::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 30%, rgba(255, 236, 200, 0.34), transparent 72%),
+    radial-gradient(ellipse 90% 72% at 50% 62%, transparent 28%, rgba(26, 12, 6, 0.6) 100%),
+    linear-gradient(180deg, rgba(26, 16, 8, 0.18) 0%, rgba(26, 16, 8, 0.55) 66%, rgba(12, 6, 2, 0.82) 100%);
+}
+.wed-datebox {
+  position: absolute; top: 16px; right: 22px; z-index: 30; text-align: center;
+  background: #1c1208; border: 3px solid #000; box-shadow: inset 0 0 0 2px var(--px-gold-dark), 3px 3px 0 #000; padding: 8px 14px;
+}
+.wed-datebox .ring { font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--wed-rose); text-shadow: 0 0 6px rgba(255, 158, 196, 0.5); }
+.wed-datebox .lbl { display: block; margin-top: 4px; font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--px-ink-dim); letter-spacing: 1px; }
+.wed-stage {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 250px;
+  display: flex; align-items: center; justify-content: center; padding: 78px 60px 16px; z-index: 5;
+}
+@keyframes wedCardPop { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+
+.wed-invite, .wed-celebrate, .wed-result {
+  position: relative; border: 4px solid #000; animation: wedCardPop 280ms steps(5, end);
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 30px, rgba(245, 197, 66, 0.05) 30px 31px), #1c1208;
+  box-shadow: inset 0 0 0 2px var(--px-gold-dark), inset 0 0 0 6px #281a0c, 8px 8px 0 #000, 0 0 34px rgba(245, 197, 66, 0.2);
+}
+.wed-invite { width: 560px; max-width: 92%; padding: 22px 30px 22px; text-align: center; }
+.wed-stage.invite { bottom: 390px; padding-top: 64px; }
+.wed-invite::before { content: "INVITATION"; position: absolute; top: 12px; right: 18px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #7c5040; letter-spacing: 2px; }
+.wed-invite .rings, .wed-celebrate .rings {
+  font-family: 'Press Start 2P', monospace; font-size: 26px; color: var(--wed-rose);
+  letter-spacing: 4px; text-shadow: 0 0 10px rgba(255, 158, 196, 0.55); margin-bottom: 14px;
+}
+.wed-invite .ttl { font-family: 'Galmuri11', monospace; font-size: 34px; color: var(--px-gold); letter-spacing: 6px; text-shadow: 3px 3px 0 #000; margin-bottom: 6px; }
+.wed-invite .eng, .wed-celebrate .eng { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-ink-dim); letter-spacing: 4px; margin-bottom: 18px; }
+.wed-invite .divider { height: 0; border-top: 3px double var(--px-gold-dark); margin: 4px 0 18px; }
+.wed-invite .body { font-family: 'Galmuri11', monospace; font-size: 17px; line-height: 1.85; color: var(--px-ink); letter-spacing: 0.5px; text-align: left; }
+.wed-invite .body .row { display: flex; gap: 12px; align-items: flex-start; margin: 6px 0; }
+.wed-invite .body .bullet { color: var(--wed-rose); flex: none; }
+.wed-invite .body .em { color: var(--px-gold); }
+.wed-invite .body .red { color: #ff5a4a; }
+
+.wed-celebrate {
+  width: 600px; max-width: 92%; padding: 26px 30px; text-align: center;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 30px, rgba(255, 158, 196, 0.06) 30px 31px), #1c1208;
+  box-shadow: inset 0 0 0 2px var(--wed-rose-deep), inset 0 0 0 6px #2a1018, 8px 8px 0 #000, 0 0 36px rgba(255, 158, 196, 0.26);
+}
+.wed-celebrate::before { content: "JUST MARRIED"; position: absolute; top: 12px; right: 18px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #7c5040; letter-spacing: 2px; }
+.wed-celebrate .rings { font-size: 28px; letter-spacing: 6px; animation: wedRingPulse 0.9s steps(2, end) infinite; }
+@keyframes wedRingPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.wed-celebrate .ttl { font-family: 'Galmuri11', monospace; font-size: 32px; color: var(--wed-rose); letter-spacing: 6px; text-shadow: 3px 3px 0 #000; margin-bottom: 6px; }
+.wed-celebrate .divider { height: 0; border-top: 3px double var(--wed-rose-deep); margin: 4px 0 18px; }
+.wed-celebrate .cele-cap {
+  font-family: 'Galmuri11', monospace; font-size: 19px; line-height: 1.75; color: var(--px-ink);
+  min-height: 70px; display: flex; align-items: center; justify-content: center;
+}
+.wed-celebrate .confetti {
+  margin-top: 18px; font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--px-gold);
+  letter-spacing: 8px; text-shadow: 0 0 8px rgba(245, 197, 66, 0.5); animation: wedConfetti 0.8s steps(2, end) infinite;
+}
+@keyframes wedConfetti { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+.wed-choices { position: absolute; left: 0; right: 0; bottom: 280px; display: flex; justify-content: center; gap: 26px; z-index: 7; cursor: default; }
+.wed-choice {
+  min-width: 280px; border: 4px solid #000; padding: 16px 24px;
+  font-family: 'Galmuri11', monospace; letter-spacing: 3px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: transform 90ms steps(2, end);
+}
+.wed-choice .key { font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; }
+.wed-choice .name { font-size: 22px; font-weight: bold; }
+.wed-choice .hint { font-family: 'Galmuri11', monospace; font-size: 12px; letter-spacing: 1px; }
+.wed-choice:hover { transform: translate(-1px, -2px); }
+.wed-choice:active { transform: translate(2px, 2px); }
+.wed-choice:disabled { opacity: 0.6; cursor: default; }
+.wed-choice.attend { background: var(--px-gold); color: #1c1208; box-shadow: inset 0 0 0 2px #ffe9a8, inset 0 -7px 0 var(--px-gold-dark), 5px 5px 0 #000; }
+.wed-choice.attend .key, .wed-choice.attend .hint { color: #7a5418; }
+.wed-choice.attend:hover { background: #ffd968; }
+.wed-choice.decline { background: #2a1a10; color: var(--px-ink); box-shadow: inset 0 0 0 2px #7c5040, inset 0 -7px 0 #120a04, 5px 5px 0 #000; }
+.wed-choice.decline .key { color: var(--wed-rose); }
+.wed-choice.decline .hint { color: var(--px-ink-dim); }
+.wed-choice.decline:hover { background: #3a2616; }
+
+.wed-result { width: 720px; max-width: 94%; padding: 18px 28px 16px; cursor: default; }
+.wed-stage.result { bottom: 340px; padding-top: 56px; }
+.wed-result::before { content: "RECEIPT"; position: absolute; top: 10px; right: 20px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #7c5040; letter-spacing: 2px; }
+.wed-result .rc-head { text-align: center; padding-bottom: 14px; margin-bottom: 8px; border-bottom: 3px double var(--px-gold-dark); }
+.wed-result .rc-head .rings { display: inline-block; color: var(--wed-rose); font-family: 'Press Start 2P', monospace; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px; }
+.wed-result .rc-head .ttl { font-family: 'Galmuri11', monospace; font-size: 22px; color: var(--px-gold); letter-spacing: 3px; text-shadow: 2px 2px 0 #000; }
+.wed-result .rc-head .sub { font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--px-ink-dim); letter-spacing: 1px; margin-top: 8px; }
+.wed-result .rc-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 11px 4px; border-bottom: 1px dashed #3a2616; }
+.wed-result .rc-row .k { font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--px-ink-dim); letter-spacing: 1px; white-space: nowrap; }
+.wed-result .rc-row .k small { display: block; font-family: 'Press Start 2P', monospace; font-size: 7px; color: #7c5040; letter-spacing: 2px; margin-top: 4px; }
+.wed-result .rc-row .v { font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--px-ink); font-variant-numeric: tabular-nums; text-align: right; }
+.wed-result .rc-row .v.gold { color: var(--px-gold); font-weight: bold; }
+.wed-result .rc-row .v.up { color: #ff5a4a; font-weight: bold; }
+.wed-result .rc-row .v.down { color: var(--px-green); font-weight: bold; }
+.wed-result .rc-row.result { border-bottom: none; }
+.wed-result .rc-row.result .v { font-size: 16px; max-width: 70%; line-height: 1.55; font-weight: normal; }
+
+.wed-confirm { position: absolute; left: 0; right: 0; bottom: 262px; display: flex; justify-content: center; z-index: 7; cursor: default; }
+.wed-confirm-btn { background: var(--px-gold); color: #1c1208; box-shadow: inset 0 0 0 2px #ffe9a8, inset 0 -7px 0 var(--px-gold-dark), 5px 5px 0 #000; }
+.wed-confirm-btn:hover { background: #ffd968; }
+
+.wed-narration { height: 200px; box-shadow: inset 0 0 0 2px var(--px-gold-dark), inset 0 0 0 6px #281a0c, 6px 6px 0 #000; background: #1c1208; }
+.wed-narration .nar-portrait { color: var(--px-gold); background: #281a0c; box-shadow: inset 0 0 0 1px var(--px-gold-dark); }
+.wed-narration .nar-body { font-size: 20px; }
+.wed-narration .nar-body .rose { color: var(--wed-rose); }
+.wed-narration .nar-body .green { color: var(--px-green); }

@@ -5,6 +5,7 @@ import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import FaintOverlay from '../components/FaintOverlay';
 import { InvestStudyEvent, TravelEvent } from '../components/EventPopup';
+import CondolenceOverlay from '../components/CondolenceOverlay';
 import { SurgeStockPopup, SurgeResultPopup } from '../components/SurgeStockPopup';
 import CatchWaxon from '../components/minigames/CatchWaxon';
 import AvoidProfessor from '../components/minigames/AvoidProfessor';
@@ -79,6 +80,30 @@ const DEV_MOCK_TRAVEL_EVENT = {
     { key: 'skip', label: '안 간다' },
   ],
 };
+// [개발용 임시] 백엔드 없이 경조사(결혼식 초대) 이벤트를 미리보기 위한 목데이터
+// eventEngine.js condolence 정의(C.CONDOLENCE: 참석 -100,000 / 스트레스 ±10 랜덤, 불참 +10)와 동일
+const DEV_MOCK_WEDDING_EVENT = {
+  eventLogId: 'dev-wedding',
+  eventType: 'condolence',
+  prompt: '지인의 결혼식 초대장이 도착했다.',
+  choices: [
+    { key: 'attend', label: '참석한다 (-100,000원)' },
+    { key: 'decline', label: '불참한다 (스트레스 증가)' },
+  ],
+};
+function devResolveWedding(eventLogId, choice) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (choice === 'decline') {
+        resolve({ eventLogId, chosen: 'decline', stressDelta: 10, detail: { outcome: 'decline', cost: 0 } });
+        return;
+      }
+      const down = Math.random() < 0.5;
+      resolve({ eventLogId, chosen: 'attend', cashDelta: -100_000, stressDelta: down ? -10 : 10,
+        detail: { outcome: down ? 'down' : 'up', cost: 100_000 } });
+    }, 250);
+  });
+}
 // eventEngine.js travel.choices[].effect()를 그대로 흉내낸 목업 resolveEvent
 // (현금 부족 분기까지 재현하려면 DEV_TRAVEL_CASH를 1,000,000 미만으로 낮춰서 테스트)
 const DEV_TRAVEL_CASH = 50_000_000;
@@ -125,6 +150,7 @@ export default function IntroPage() {
   const [devPreviewFaint, setDevPreviewFaint] = useState(false);
   const [devPreviewStudy, setDevPreviewStudy] = useState(false);
   const [devPreviewTravel, setDevPreviewTravel] = useState(false);
+  const [devPreviewWedding, setDevPreviewWedding] = useState(false);
   const [devPreviewSurge, setDevPreviewSurge] = useState(false);
   const [devPreviewSurgeResult, setDevPreviewSurgeResult] = useState(false);
   const [devPreviewGame, setDevPreviewGame] = useState(null); // null | 'waxon' | 'professor'
@@ -310,6 +336,20 @@ export default function IntroPage() {
           event={DEV_MOCK_TRAVEL_EVENT}
           onResolve={devResolveTravel}
           onDismiss={() => setDevPreviewTravel(false)}
+        />
+      )}
+      <button
+        type="button"
+        style={{ marginTop: 4, opacity: 0.6, fontSize: 12 }}
+        onClick={() => setDevPreviewWedding(true)}
+      >
+        [개발용] 경조사(결혼식) 이벤트 미리보기
+      </button>
+      {devPreviewWedding && (
+        <CondolenceOverlay
+          event={DEV_MOCK_WEDDING_EVENT}
+          onResolve={devResolveWedding}
+          onDismiss={() => setDevPreviewWedding(false)}
         />
       )}
       <button

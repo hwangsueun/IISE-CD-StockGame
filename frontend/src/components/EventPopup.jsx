@@ -1,11 +1,13 @@
 // 이벤트 팝업 — 선택형(choice) 이벤트는 해결 전 턴 진행 불가 (§10)
 // 독촉전화(loan_shark_call)는 디자인 원본 Loanshark Call.html, 투자 스터디(invest_study)는
 // game-live/Invest Study Event.html, 여행(travel)은 public/game/Travel Event.html 픽셀
-// 연출을 이식. 나머지 이벤트 타입은 공용 모달 유지.
+// 연출을 이식. 경조사(condolence, 결혼식 초대)는 CondolenceOverlay(Wedding Event.html).
+// 나머지 이벤트 타입은 공용 모달 유지.
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { won } from '../utils/format';
+import CondolenceOverlay from './CondolenceOverlay';
 
 const EVENT_ICON = {
   loan_shark_call: '📞', invest_study: '📚', travel: '✈️',
@@ -19,6 +21,7 @@ export default function EventPopup({ event }) {
   if (eventType === 'loan_shark_call') return <LoanSharkCallEvent event={event} />;
   if (eventType === 'invest_study') return <InvestStudyEvent event={event} />;
   if (eventType === 'travel') return <TravelEvent event={event} />;
+  if (eventType === 'condolence') return <CondolenceOverlay event={event} />;
   return <GenericEventPopup event={event} />;
 }
 
