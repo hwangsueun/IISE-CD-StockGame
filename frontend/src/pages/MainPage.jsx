@@ -44,7 +44,7 @@ function dateParts(dateStr) {
 }
 
 export default function MainPage() {
-  const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
+  const { sessionId, turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
     retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial,
     firstDayStep, startFirstDay } = useGameStore();
@@ -68,14 +68,22 @@ export default function MainPage() {
   // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
   // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
   const autoOpenedRepayTurnRef = useRef(null);
+  const autoOpenedChallengeRef = useRef(null);
   useEffect(() => {
-    if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
+    if (!turn || !turn.isRepaymentTurn) return;
     if (tutorialStep !== null || firstDayStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
+    const key = `${sessionId}:${turn.turnNumber}`;
+    if (turn.challenge?.rounds?.some(r => r.endTurn === turn.turnNumber) && autoOpenedChallengeRef.current !== key) {
+      autoOpenedChallengeRef.current = key;
+      openModal('quant');
+      return;
+    }
+    if (turn.actionLocked) return;
     if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
     autoOpenedRepayTurnRef.current = turn.turnNumber;
     openModal('repay');
-  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, tutorialProgress.welcome]);
+  }, [sessionId, turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, tutorialProgress.welcome]);
 
   if (!turn) {
     return (
@@ -127,7 +135,7 @@ export default function MainPage() {
           {/* 상태 배지 + HUD 액션 (날짜판 아래) */}
           <div className="hud-side">
             <button className="hud-btn quant-open-btn" onClick={() => openModal('quant')}>
-              퀀트 모델
+              퀀트 모델{turn.challenge?.unclaimedPrize > 0 ? ' · 상금 수령' : turn.challenge?.enrolled ? ' · 챌린지' : ' · 초대장'}
             </button>
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
             {turn.marketOpen === false && <span className="px-badge lock">주식 휴장일</span>}

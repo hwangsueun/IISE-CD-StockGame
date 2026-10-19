@@ -33,6 +33,13 @@ export default function ResultPage() {
         {report && <div><dt>총 수익률</dt><dd>{pct(report.totalReturn)}</dd></div>}
       </dl>
 
+      {result.challenge?.enrolled && <section className="challenge-card">
+        <h2>퀀트 투자 챌린지</h2>
+        <p>{result.challenge.rounds.filter(r => r.outcome === 'win').length}승 · {result.challenge.rounds.length}회 결산</p>
+        <p>누적 수령 상금 {won(result.challenge.totalClaimed)}</p>
+        {result.challenge.unclaimedPrize > 0 && <p>미수령 상금 {won(result.challenge.unclaimedPrize)} · 게임 종료로 수령 마감</p>}
+      </section>}
+
       {/* TODO(frontend): 월별 자산 추이 차트 (report.monthlyTrend), AI 투자성향 분석 (report.aiAnalysis) */}
 
       <button className="btn-primary" onClick={resetGame}>다시 하기</button>

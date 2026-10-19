@@ -60,6 +60,8 @@ const httpApi = {
   // 포트폴리오 / 리포트
   getPortfolio: (sid) => get(`/api/game/${sid}/portfolio`),
   getQuantPortfolio: (sid) => get(`/api/game/${sid}/quant`),
+  joinQuantChallenge: (sid) => post(`/api/game/${sid}/quant/challenge/join`),
+  claimQuantPrize: (sid, month) => post(`/api/game/${sid}/quant/challenge/claim`, { month }),
   getPortfolioHistory: (sid) => get(`/api/game/${sid}/portfolio/history`),
   getPortfolioDashboard: (sid, unit = 'day', assetType = 'all') => {
     const q = new URLSearchParams({ unit, assetType });
@@ -184,6 +186,8 @@ const mockAdapter = {
   getPortfolioHistory: notMocked('수익률 추이'),
   getPortfolioDashboard: notMocked('포트폴리오 대시보드'),
   getQuantPortfolio: () => Promise.resolve({ status: 'unavailable', message: '퀀트 모델은 실제 데이터 서버에서 확인할 수 있습니다.' }),
+  joinQuantChallenge: notMocked('퀀트 챌린지 참가'),
+  claimQuantPrize: notMocked('퀀트 챌린지 상금'),
   getGameLog: notMocked('게임 로그'),
 };
 

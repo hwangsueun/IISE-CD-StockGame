@@ -72,6 +72,7 @@ async function getTurnData(sessionId, turnNumber) {
     .filter((a) => a.price !== null); // 해당일 시세 없는 자산(상장 전/폐지)은 목록 제외
 
   return {
+    challenge: session.quant_challenge_enabled ? await require('./challengeService').overview(sessionId) : { enrolled: false },
     turnNumber,
     date: iso,
     monthIndex: repaymentService.monthIndexOf(turnNumber),
@@ -178,6 +179,7 @@ async function advanceTurn(sessionId) {
       const livingCost = Number(session.monthly_living_cost) || C.LIVING_COST_DEFAULT;
       const livingStress = stressPolicy.livingCostStressDelta(livingCost);
       const cashDelta = C.MONTHLY_SALARY - livingCost;
+      await require('./challengeService').externalFlow(client, session, cashDelta);
       session.cash = Number(session.cash) + cashDelta;
       session.stress = clamp100(session.stress + livingStress);
       monthly = { salary: C.MONTHLY_SALARY, livingCost, stressDelta: livingStress };
@@ -246,7 +248,8 @@ async function advanceTurn(sessionId) {
       [sessionId, nextTurn, Math.round(Number(session.cash)), Math.round(Number(session.debt)),
        session.stress, session.trust]
     );
-    await require('./quantService').syncQuantOrders(client,{...session,status});
+    const quantReplay = await require('./quantService').syncQuantOrders(client,{...session,status});
+    await require('./challengeService').settleMonth(client, session, totalAssetAfter, quantReplay);
 
     // --- 주간/일간 스냅샷 (리포트·차트용) ---
     await reportService.writeSnapshot(client, sessionId, nextTurn, 'daily', {

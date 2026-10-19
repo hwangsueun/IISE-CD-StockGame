@@ -125,6 +125,7 @@ async function getResult(sessionId) {
     status: session.status,
     difficulty: session.difficulty,
     turnsPlayed: session.current_turn,
+    challenge: session.quant_challenge_enabled ? await require('./challengeService').overview(sessionId) : { enrolled: false },
     initialCash: Number(session.initial_cash),
     debtInitial: Number(session.debt_initial),
     debtRemaining: Number(session.debt),

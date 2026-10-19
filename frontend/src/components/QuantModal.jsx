@@ -6,10 +6,11 @@ import Modal from './Modal';
 import QuantStrategyGuide from './QuantStrategyGuide';
 import QuantModelGuide from './QuantModelGuide';
 import QuantIndicatorGuide from './QuantIndicatorGuide';
+import QuantChallenge, { ChallengeInvitation } from './QuantChallenge';
 import { getQuantExplanation } from '../utils/quantExplanation';
 import './QuantModal.css';
 
-const tabs = [['holdings', '보유 포트폴리오'], ['selection', '종목 선택'], ['orders', '예약 주문'],
+const tabs = [['challenge', '투자 챌린지'], ['holdings', '보유 포트폴리오'], ['selection', '종목 선택'], ['orders', '예약 주문'],
   ['history', '운용 기록'], ['learning', 'AI 학습·예측'], ['indicators', '지표 계산법']];
 
 const help = (data) => <>
@@ -24,11 +25,33 @@ const help = (data) => <>
 </>;
 
 export default function QuantModal() {
-  const { sessionId, turn } = useGameStore();
+  const { sessionId, turn, closeModal, loadTurn } = useGameStore();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
-  const [tab, setTab] = useState('holdings');
+  const [tab, setTab] = useState('challenge');
+  const [exploring, setExploring] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [message, setMessage] = useState('');
+  const act = async (month) => {
+    setBusy(true);
+    setActionError('');
+    try {
+      if (month === undefined) {
+        await api.joinQuantChallenge(sessionId);
+        setMessage('참가 신청이 완료되었습니다. 첫 월말 결산을 준비하세요.');
+      } else {
+        const result = await api.claimQuantPrize(sessionId, month);
+        setMessage(`${won(result.prize)} 상금 수령 완료. 보유 현금에 반영되었습니다.`);
+      }
+      // Refresh even after a committed action; retries are idempotent on the server.
+      const result = await api.getQuantPortfolio(sessionId);
+      setData(result);
+      await loadTurn(turn.turnNumber);
+    } catch (e) { setActionError(e.message); }
+    finally { setBusy(false); }
+  };
   const tabRefs = useRef({});
   const tabNavigation = useRef(false);
   const selectTab = (key) => {
@@ -68,6 +91,14 @@ export default function QuantModal() {
     return () => { cancelled = true; };
   }, [sessionId, turn?.turnNumber, retry]);
 
+  if (data?.challenge && !data.challenge.enrolled && !exploring) {
+    return <Modal title="퀀트 모델 · 투자 챌린지 초대" wide showTutorial={false}>
+      <ChallengeInvitation challenge={data.challenge} available={data.status !== 'unavailable'}
+        busy={busy} error={actionError} onJoin={() => act()} onLater={closeModal}
+        onExplore={() => { setExploring(true); setTab('holdings'); }} />
+    </Modal>;
+  }
+
   return <Modal title="퀀트 모델" wide help={help(data)}>
     <div className="quant-panel">
       <div className="quant-heading"><div><span className="quant-eyebrow">YOUR QUANT RIVAL</span>
@@ -76,8 +107,11 @@ export default function QuantModal() {
       {error && <div role="alert" className="quant-empty"><p>{error}</p>
         <button className="btn-primary" onClick={() => setRetry((v) => v + 1)}>다시 불러오기</button></div>}
       {!data && !error && <p role="status" className="quant-empty">퀀트의 포트폴리오를 확인하고 있습니다…</p>}
-      {data?.status === 'unavailable' && <p className="quant-empty">{data.message}</p>}
+      {data?.status === 'unavailable' && <><p className="quant-empty">{data.message}</p>
+        {data.challenge?.enrolled && <QuantChallenge challenge={data.challenge} busy={busy} message={message}
+          error={actionError} onClaim={act} onExplore={() => {}} />}</>}
       {data && data.status !== 'unavailable' && <>
+        {tab !== 'challenge' && <>
         <div className="quant-stats">
           <div><span>퀀트 총자산</span><strong>{won(data.totalAsset)}</strong></div>
           <div><span>퀀트 누적 수익률</span><strong className={changeClass(data.returnRate)}>{pct(data.returnRate)}</strong></div>
@@ -91,6 +125,7 @@ export default function QuantModal() {
         </div>
         {data.status === 'no_signal' && <p className="quant-notice">이 시점의 예측 정보가 없어 매매를 건너뛰고 기존 보유 종목과 현금을 유지합니다.</p>}
         {data.status === 'no_eligible_stocks' && <p className="quant-notice">거래 가능한 선택 종목이 없습니다.</p>}
+        </>}
         <div className="filter-bar quant-tabs" role="tablist" aria-label="퀀트 모델 정보">
           {tabs.map(([key, label]) =>
             <button key={key} ref={(element) => { tabRefs.current[key] = element; }} id={`quant-tab-${key}`}
@@ -98,10 +133,12 @@ export default function QuantModal() {
               className={tab === key ? 'active' : ''} onClick={() => selectTab(key)} onKeyDown={(event) => handleTabKey(event, key)}>{label}</button>)}
         </div>
         <div id="quant-tab-panel" role="tabpanel" aria-labelledby={`quant-tab-${tab}`} tabIndex={0}>
+          {tab === 'challenge' && <QuantChallenge challenge={data.challenge} busy={busy} message={message}
+            error={actionError} onClaim={act} onInvite={() => setExploring(false)} onExplore={() => selectTab('holdings')} />}
           {tab === 'learning' && <QuantModelGuide data={data} onIndicators={() => selectTab('indicators')} />}
           {tab === 'indicators' && <QuantIndicatorGuide data={data} />}
           {tab === 'holdings' && <QuantStrategyGuide data={data} onLearn={() => selectTab('learning')} />}
-          {!['learning', 'indicators'].includes(tab) && <div className="quant-table-wrap">
+          {!['learning', 'indicators', 'challenge'].includes(tab) && <div className="quant-table-wrap">
           {tab === 'holdings' && <>
             <table className="data-table"><thead><tr><th>종목</th><th>수량</th><th>비중</th><th>평가액</th><th>수익률</th></tr></thead>
               <tbody>{data.holdings.map((h) => <tr key={h.assetId}><td>{h.name}</td><td>{h.quantity.toLocaleString('ko-KR')}</td>

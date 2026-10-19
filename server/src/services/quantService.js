@@ -68,8 +68,8 @@ async function persistQuantOrders(client,session,orders) {
 // Called during turn advancement even when the quant modal was never opened.
 async function syncQuantOrders(client,session) {
   const loaded=loadArtifact();
-  if(!loaded || loaded.artifact.schema_version!==3)return;
-  await replaySession(client,session,loaded);
+  if(!loaded)return;
+  return (await replaySession(client,session,loaded)).replay;
 }
 
 async function getQuantPortfolio(sessionId) {
@@ -77,10 +77,12 @@ async function getQuantPortfolio(sessionId) {
   return withTransaction(async client=>{
     const {rows:[session]}=await client.query('SELECT * FROM game_sessions WHERE id=$1 FOR UPDATE',[sessionId]);
     if(!session)throw notFound('세션을 찾을 수 없습니다');
-    if(!loaded)return {status:'unavailable',message:'퀀트 학습 데이터를 준비 중입니다.'};
+    if(!loaded)return {status:'unavailable',message:'퀀트 학습 데이터를 준비 중입니다.',
+      challenge: await require('./challengeService').getState(client, session)};
     const {replay,to,artifact}=await replaySession(client,session,loaded);
     const playerTotalAsset = await computeTotalAsset(sessionId, client, { tradeDate: to, cash: session.cash });
-    return { ...replay, date: to, turnNumber: session.current_turn, modelVersion: artifact.model_version,
+    return { ...replay, challenge: await require('./challengeService').getState(client, session, replay, playerTotalAsset),
+      date: to, turnNumber: session.current_turn, modelVersion: artifact.model_version,
       topK: artifact.top_k, rebalanceTurns: artifact.rebalance_turns,
       strategy: artifact.strategy || 'equal_weight_rebalance', nDrop: artifact.n_drop ?? null,
       labelHorizon: artifact.label_horizon || { unit: 'weekdays', value: 120 },
@@ -93,4 +95,4 @@ async function getQuantPortfolio(sessionId) {
   });
 }
 
-module.exports = { getQuantPortfolio, loadArtifact, syncQuantOrders };
+module.exports = { getQuantPortfolio, loadArtifact, syncQuantOrders, replaySession };

@@ -64,6 +64,7 @@ async function submitPlay(sessionId, gameKey, rawScore) {
     const cashReward = Math.round(C.SIDE_JOB.BASE_PAY * payRate);
     const newStress = clamp100(session.stress + stressDelta);
 
+    await require('./challengeService').externalFlow(client, session, cashReward);
     await client.query(
       `UPDATE game_sessions
        SET cash = cash + $2, stress = $3, side_job_turn = $4, updated_at = NOW()

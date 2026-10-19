@@ -277,6 +277,7 @@ async function applyEffect(client, session, eventType, eff) {
     ? session.current_turn + eff.lockDays
     : session.action_locked_until_turn;
 
+  await require('./challengeService').externalFlow(client, session, cashDelta);
   await client.query(
     `UPDATE game_sessions
      SET cash = cash + $2, debt = debt + $3, stress = $4, trust = $5,
@@ -330,6 +331,7 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     const debtDelta = eff.debtDelta || 0;
     const newStress = clamp100(row.stress + (eff.stressDelta || 0));
     const newTrust = clamp100(row.trust + (eff.trustDelta || 0));
+    await require('./challengeService').externalFlow(client, session, cashDelta);
     session.cash = Number(row.cash) + cashDelta;
     session.debt = Number(row.debt) + debtDelta;
     session.stress = newStress;
