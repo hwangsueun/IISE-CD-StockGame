@@ -18,7 +18,7 @@ function applyFlow(state, beforeAsset, amount) {
 }
 
 function scoreRound(playerReturn, quantReturn, prizeBase) {
-  if (!Number.isFinite(playerReturn) || !Number.isFinite(quantReturn)) {
+  if (!Number.isFinite(playerReturn) || !Number.isFinite(quantReturn) || !Number.isFinite(prizeBase) || prizeBase <= 0) {
     return { outcome: 'unavailable', excess: null, prize: 0 };
   }
   // Stabilize equality and integer-won prizes against floating point noise.

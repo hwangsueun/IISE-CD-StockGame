@@ -125,7 +125,7 @@
 .challenge-receipt { color: #c2dfa5; }
 .challenge-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
 .challenge-history-heading span { color: #cfbc92; font-size: 12px; }
-.challenge-panel .data-table { min-width: 560px; }
+.challenge-panel .data-table { min-width: 680px; }
 @media (max-width: 620px) {
   .challenge-invitation, .challenge-card { padding: 16px; }
   .challenge-invitation h3, .challenge-card h3 { font-size: 19px; }

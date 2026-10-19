@@ -42,6 +42,14 @@ test('zero/negative capital and missing model returns cannot create a prize', ()
   assert.equal(investmentReturn(initial, -1), null);
   assert.equal(scoreRound(null, -.5, 50_000_000).outcome, 'unavailable');
   assert.equal(scoreRound(.5, undefined, 50_000_000).prize, 0);
+  for (const base of [null, 0, -100, NaN, Infinity]) {
+    assert.equal(scoreRound(.08, .03, base).outcome, 'unavailable');
+  }
+});
+
+test('identical outperformance scales with each month opening capital', () => {
+  assert.equal(scoreRound(.08, .03, 30_000_000).prize, 1_500_000);
+  assert.equal(scoreRound(.08, .03, 60_000_000).prize, 3_000_000);
 });
 
 test('only first-day enrollment includes month one; later entries wait for a full month', () => {

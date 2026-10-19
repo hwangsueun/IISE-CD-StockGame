@@ -156,6 +156,7 @@ async function advanceTurn(sessionId) {
     }
 
     const nextTurn = session.current_turn + 1;
+    await require('./challengeService').captureOpeningCapital(client, session);
     // Persist the close-t quant decision before the next open is processed.
     await require('./quantService').syncQuantOrders(client,session);
     const prevDate = await getTurnDate(sessionId, session.current_turn, client);
@@ -179,7 +180,7 @@ async function advanceTurn(sessionId) {
       const livingCost = Number(session.monthly_living_cost) || C.LIVING_COST_DEFAULT;
       const livingStress = stressPolicy.livingCostStressDelta(livingCost);
       const cashDelta = C.MONTHLY_SALARY - livingCost;
-      await require('./challengeService').externalFlow(client, session, cashDelta);
+      await require('./challengeService').externalFlow(client, session, cashDelta, { openingFunding: true });
       session.cash = Number(session.cash) + cashDelta;
       session.stress = clamp100(session.stress + livingStress);
       monthly = { salary: C.MONTHLY_SALARY, livingCost, stressDelta: livingStress };

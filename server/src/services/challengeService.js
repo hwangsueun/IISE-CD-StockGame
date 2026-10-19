@@ -10,7 +10,7 @@ async function entry(client, sessionId) {
 
 // Call BEFORE changing external cash, under the existing session row lock.
 // An explicit turn date is required: advanceTurn has not saved current_turn yet.
-async function externalFlow(client, session, amount) {
+async function externalFlow(client, session, amount, { openingFunding = false } = {}) {
   if (!session.quant_challenge_enabled || !amount) return;
   const challenge = await entry(client, session.id);
   if (!challenge || challenge.reference_asset === null) return;
@@ -22,8 +22,23 @@ async function externalFlow(client, session, amount) {
   });
   const next = applyFlow(challenge, before, amount);
   await client.query(`UPDATE quant_challenges SET performance_factor = $2,
-    reference_asset = $3, invalid_period = $4 WHERE session_id = $1`,
-  [session.id, next.factor, next.reference, next.invalid]);
+    reference_asset = $3, invalid_period = $4,
+    prize_base = CASE WHEN $5 THEN GREATEST(0, prize_base + $6) ELSE prize_base END
+    WHERE session_id = $1`,
+  [session.id, next.factor, next.reference, next.invalid, openingFunding, amount]);
+}
+
+// Freeze the next month's opening assets after previous-month claims/repayment,
+// before any next-day price change or fill. Monthly salary/living expenses are
+// added by externalFlow(openingFunding) in the same advanceTurn transaction.
+async function captureOpeningCapital(client, session) {
+  if (!session.quant_challenge_enabled) return;
+  const challenge = await entry(client, session.id);
+  if (!challenge || challenge.reference_asset === null) return;
+  if (session.current_turn !== challenge.last_boundary && session.current_turn !== 1) return;
+  const capital = await valuation.computeTotalAsset(session.id, client, { cash: session.cash });
+  await client.query('UPDATE quant_challenges SET prize_base = $2 WHERE session_id = $1',
+    [session.id, Math.max(0, capital)]);
 }
 
 function quantReturnForMonth(history, month, initialCash, currentTotal) {
@@ -44,15 +59,17 @@ async function settleMonth(client, session, totalAsset, quantReplay) {
     const quantReturn = quantReturnForMonth(quantReplay?.history, month,
       Number(session.initial_cash), quantReplay?.totalAsset);
     const score = scoreRound(playerReturn, quantReturn, Number(challenge.prize_base));
-    const reason = playerReturn === null ? 'nonpositive_capital' : quantReturn === null ? 'model_unavailable' : null;
+    const reason = playerReturn === null || Number(challenge.prize_base) <= 0
+      ? 'nonpositive_capital' : quantReturn === null ? 'model_unavailable' : null;
     await client.query(`INSERT INTO quant_challenge_rounds
-      (session_id, month_index, end_turn, player_return, quant_return, excess_return, outcome, reason, prize)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (session_id, month_index) DO NOTHING`,
-    [session.id, month, turn, playerReturn, quantReturn, score.excess, score.outcome, reason, score.prize]);
+      (session_id, month_index, end_turn, player_return, quant_return, excess_return, outcome, reason, prize, prize_base)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (session_id, month_index) DO NOTHING`,
+    [session.id, month, turn, playerReturn, quantReturn, score.excess, score.outcome, reason, score.prize,
+      Number(challenge.prize_base)]);
   }
   if (month >= challenge.first_month - 1) {
-    await client.query(`UPDATE quant_challenges SET performance_factor = 1, reference_asset = $2,
-      invalid_period = $3, last_boundary = $4 WHERE session_id = $1`,
+    await client.query(`UPDATE quant_challenges SET performance_factor = 1, reference_asset = $2::numeric,
+      invalid_period = $3, last_boundary = $4, prize_base = GREATEST(0, $2::numeric) WHERE session_id = $1`,
     [session.id, totalAsset, totalAsset <= 0, turn]);
   }
 }
@@ -60,7 +77,7 @@ async function settleMonth(client, session, totalAsset, quantReplay) {
 function roundDto(row) {
   return { month: row.month_index, endTurn: row.end_turn, playerReturn: row.player_return,
     quantReturn: row.quant_return, excessReturn: row.excess_return, outcome: row.outcome,
-    reason: row.reason, prize: Number(row.prize), claimed: Boolean(row.claimed_at) };
+    reason: row.reason, prize: Number(row.prize), prizeBase: Number(row.prize_base), claimed: Boolean(row.claimed_at) };
 }
 
 async function overview(sessionId, client = { query }) {
@@ -70,7 +87,7 @@ async function overview(sessionId, client = { query }) {
     WHERE session_id = $1 ORDER BY month_index DESC`, [sessionId]);
   const rounds = rows.map(roundDto);
   return { enrolled: true, joinedTurn: challenge.joined_turn, firstMonth: challenge.first_month,
-    prizeBase: Number(challenge.prize_base), rounds,
+    prizeBase: challenge.prize_base === null ? null : Number(challenge.prize_base), rounds,
     unclaimedPrize: rounds.filter(r => !r.claimed).reduce((sum, r) => sum + r.prize, 0),
     totalClaimed: rounds.filter(r => r.claimed).reduce((sum, r) => sum + r.prize, 0) };
 }
@@ -79,7 +96,7 @@ async function getState(client, session, quantReplay, totalAsset) {
   const result = await overview(session.id, client);
   const firstMonth = firstEligibleMonth(session.current_turn);
   if (!result.enrolled) return { ...result, canJoin: session.status === 'active' && firstMonth <= 12,
-    firstMonth, prizeBase: Number(session.initial_cash) };
+    firstMonth, prizeBase: session.current_turn === 1 && Number.isFinite(totalAsset) ? Math.max(0, totalAsset) : null };
   const challenge = await entry(client, session.id);
   const month = Math.ceil(session.current_turn / 20);
   const settled = result.rounds.find(r => r.month === month);
@@ -87,10 +104,12 @@ async function getState(client, session, quantReplay, totalAsset) {
   const playerReturn = live ? investmentReturn(challenge, totalAsset) : null;
   const quantReturn = live ? quantReturnForMonth(quantReplay?.history, month,
     Number(session.initial_cash), quantReplay?.totalAsset) : null;
-  return { ...result, canClaim: session.status === 'active', current: {
+  const prizeBase = settled ? settled.prizeBase : !live ? null
+    : session.current_turn === 1 && Number.isFinite(totalAsset) ? Math.max(0, totalAsset) : result.prizeBase;
+  return { ...result, prizeBase, canClaim: session.status === 'active', current: {
     month, endTurn: month * 20, state: settled ? 'settled' : live ? 'running' : 'waiting',
-    playerReturn, quantReturn,
-    estimatedPrize: live ? scoreRound(playerReturn, quantReturn, result.prizeBase).prize : 0,
+    playerReturn, quantReturn, prizeBase,
+    estimatedPrize: live ? scoreRound(playerReturn, quantReturn, prizeBase).prize : 0,
   } };
 }
 
@@ -113,7 +132,7 @@ async function enroll(sessionId) {
     await client.query(`INSERT INTO quant_challenges
       (session_id, joined_turn, first_month, prize_base, reference_asset, last_boundary)
       VALUES ($1,$2,$3,$4,$5,$6)`,
-    [sessionId, session.current_turn, firstMonth, Number(session.initial_cash), reference, atBoundary ? session.current_turn : 0]);
+    [sessionId, session.current_turn, firstMonth, reference, reference, atBoundary ? session.current_turn : 0]);
     await client.query('UPDATE game_sessions SET quant_challenge_enabled = TRUE WHERE id = $1', [sessionId]);
     return overview(sessionId, client);
   });
@@ -141,4 +160,4 @@ async function claim(sessionId, month) {
   });
 }
 
-module.exports = { externalFlow, settleMonth, overview, getState, enroll, claim, quantReturnForMonth };
+module.exports = { externalFlow, captureOpeningCapital, settleMonth, overview, getState, enroll, claim, quantReturnForMonth };
