@@ -54,7 +54,8 @@ async function workspace(sid) {
   const [versions, runs, modelCapabilities, assets] = await Promise.all([
     query(`SELECT id,saved_turn,saved_date,config,created_at FROM user_strategy_versions WHERE session_id=$1 ORDER BY created_at DESC LIMIT 20`, [sid]),
     query(`SELECT id,config,created_at,report->'own' AS performance,report->>'from' AS from_date,report->>'to' AS to_date,
-      report->>'feeBps' AS fee_bps,report->>'kind' AS kind FROM user_strategy_runs WHERE session_id=$1 ORDER BY created_at DESC LIMIT 12`, [sid]),
+      report->>'feeBps' AS fee_bps,report->>'kind' AS kind,report->>'comparison' AS comparison,
+      report->>'comparisonPeriod' AS comparison_period FROM user_strategy_runs WHERE session_id=$1 ORDER BY created_at DESC LIMIT 12`, [sid]),
     capabilities(),
     query("SELECT asset_id,masked_name FROM assets WHERE asset_type='stock' AND is_active=true ORDER BY masked_name"),
   ]);
@@ -70,6 +71,33 @@ async function practice(sid, body, mode = 'practice') {
     const s = await snapshot(sid), input = await inputs(s);
     const report = await run({ ...input, mode, config, feeBps: body.feeBps });
     const { rows: [row] } = await query(`INSERT INTO user_strategy_runs(session_id,config,report) VALUES($1,$2,$3) RETURNING id`, [sid, config, report]);
+    return { ...report, id: row.id };
+  });
+}
+async function compareSaved(sid, body = {}) {
+  const { versionIds, period, feeBps } = body;
+  if (!Array.isArray(versionIds) || versionIds.length < 2 || versionIds.length > 4 ||
+      !versionIds.every(uuid) || new Set(versionIds).size !== versionIds.length) {
+    throw badRequest('서로 다른 저장 모델을 2~4개 선택해 주세요.');
+  }
+  if (!['practice', 'observe'].includes(period)) throw badRequest('비교할 기간을 선택해 주세요.');
+  if (period === 'practice' && ![0, 10, 20].includes(feeBps)) throw badRequest('편도 비용은 0·10·20bp 중 선택해 주세요.');
+  return exclusive(sid, async () => {
+    const s = await snapshot(sid);
+    const { rows } = await query('SELECT * FROM user_strategy_versions WHERE session_id=$1 AND id=ANY($2::uuid[])', [sid, versionIds]);
+    if (rows.length !== versionIds.length) throw notFound('이 게임에 저장한 모델만 비교할 수 있습니다.');
+    const versions = versionIds.map(id => rows.find(v => v.id === id));
+    if (versions.some(v => v.saved_date > s.trade_date || v.saved_turn > s.current_turn)) throw conflict('현재 턴 이후에 저장한 모델은 비교할 수 없습니다.');
+    const observing = period === 'observe';
+    const input = observing ? await inputs(s, versions.map(v => v.source_from).sort()[0]) : await inputs(s);
+    if (observing && versions.some(v => v.quant_sha !== input.quantSha)) throw conflict('저장 당시의 alpha158 비교 모델이 필요합니다.');
+    if (observing && versions.some(v => Number(v.fee_bps) !== Number(versions[0].fee_bps))) throw conflict('관찰 비교에는 같은 거래비용으로 저장한 모델이 필요합니다.');
+    const report = await run({ ...input, mode: 'compareSaved', comparisonPeriod: period,
+      feeBps: observing ? Number(versions[0].fee_bps) : feeBps, ended: s.status !== 'active',
+      versions: versions.map(v => ({ id: v.id, config: configOf(v.config), model: v.model,
+        savedDate: v.saved_date, savedTurn: v.saved_turn, sourceFrom: v.source_from, sourceHash: v.source_hash })) });
+    const { rows: [row] } = await query('INSERT INTO user_strategy_runs(session_id,config,report) VALUES($1,$2,$3) RETURNING id',
+      [sid, report.config, report]);
     return { ...report, id: row.id };
   });
 }
@@ -122,4 +150,4 @@ async function report(sid, id) {
   if (!row) throw notFound('연습 기록을 찾을 수 없습니다.');
   return { ...row.report, id };
 }
-module.exports = { workspace, practice, compare: (sid, body) => practice(sid, body, 'compare'), save, observe, report, inputs, run };
+module.exports = { workspace, practice, compare: (sid, body) => practice(sid, body, 'compare'), compareSaved, save, observe, report, inputs, run };

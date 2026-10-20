@@ -3,7 +3,6 @@
 .quant-eyebrow { font-size: 10px; letter-spacing: 2px; color: #aac895; font-weight: 800; }
 .quant-heading h3 { margin: 8px 0 5px; font-size: 22px; }
 .quant-heading p { margin: 0; color: #c9b79d; font-size: 12px; }
-.quant-badge { padding: 8px 10px; border: 2px solid #6d8254; background: #283423; color: #d4e5bb; font-size: 12px; white-space: nowrap; }
 .quant-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .quant-stats > div { background: #2b2017; border: 1px solid #74573d; padding: 15px 12px; }
 .quant-stats span { display: block; font-size: 12px; color: #c9b79d; margin-bottom: 10px; }
@@ -82,7 +81,6 @@
 @media (max-width: 620px) {
   .quant-heading { align-items: flex-start; flex-direction: column; }
   .quant-heading h3 { font-size: 18px; }
-  .quant-badge { white-space: normal; line-height: 1.7; }
   .quant-strategy-guide { padding: 14px; }
   .quant-strategy-steps { grid-template-columns: 1fr; gap: 8px; }
   .quant-strategy-steps li { padding: 10px 12px; }

@@ -10,6 +10,7 @@ router.post('/strategies/automation', asyncHandler(async (req,res)=>
   res.json(await require('../services/strategyAutomation').configure(req.params.sessionId,req.body))));
 router.post('/strategies/practice', asyncHandler(async (req, res) => res.json(await strategies.practice(req.params.sessionId, req.body))));
 router.post('/strategies/compare', asyncHandler(async (req, res) => res.json(await strategies.compare(req.params.sessionId, req.body))));
+router.post('/strategies/compare-saved', asyncHandler(async (req, res) => res.json(await strategies.compareSaved(req.params.sessionId, req.body))));
 router.post('/strategies', asyncHandler(async (req, res) => res.json(await strategies.save(req.params.sessionId, req.body))));
 router.get('/strategies/runs/:id', asyncHandler(async (req, res) => res.json(await strategies.report(req.params.sessionId, req.params.id))));
 router.get('/strategies/:id', asyncHandler(async (req, res) => res.json(await strategies.observe(req.params.sessionId, req.params.id))));

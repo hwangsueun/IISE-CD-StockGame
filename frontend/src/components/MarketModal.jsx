@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import Modal from './Modal';
-import { won, signed, changeClass } from '../utils/format';
+import { won, signed, changeClass, relativeYearDate } from '../utils/format';
 
 const CATS = [
   { key: 'stock', label: '주식' },
+  { key: 'sector', label: '업종별' },
   { key: 'ref', label: '참고지표' },
 ];
 const SORTS = [
@@ -41,6 +42,7 @@ const MARKET_HELP = (
       <li><b>상단 지수</b> — 코스피·코스닥·환율로 그날 시장 분위기를 읽는다.</li>
       <li><b>화면 선택</b> — 왼쪽에서 주식 종목과 시장 참고지표를 확인한다.</li>
       <li><b>정렬</b> — 거래대금·거래량·상승률·하락률로 순위를 바꾼다.</li>
+      <li><b>업종별</b> — 코스피·코스닥 업종 지수가 전 개장일보다 얼마나 올랐는지 확인한다.</li>
       <li>가격 옆 등락률은 <b>오르면 빨강, 내리면 파랑</b>이다.</li>
     </ul>
   </>
@@ -53,13 +55,24 @@ export default function MarketModal() {
   const [assets, setAssets] = useState([]);
   const [macro, setMacro] = useState([]);
   const [openRef, setOpenRef] = useState(null); // 참고지표 카드별 설명 토글 (code)
+  const [sectorData, setSectorData] = useState(null);
+  const [sectorError, setSectorError] = useState('');
+  const [sectorMarket, setSectorMarket] = useState('KOSPI');
+
+  useEffect(() => {
+    let active = true;
+    setSectorData(null); setSectorError('');
+    api.getSectors(sessionId, turn.date).then(data => { if (active) setSectorData(data); })
+      .catch(() => { if (active) setSectorError('업종별 등락률을 불러오지 못했어요.'); });
+    return () => { active = false; };
+  }, [sessionId, turn.date]);
 
   useEffect(() => {
     api.getMacro(turn.date).then(setMacro).catch(console.error);
   }, [turn.date]);
 
   useEffect(() => {
-    if (cat === 'ref') return;
+    if (cat !== 'stock') return;
     let cancelled = false;
     const serverSort = sort === 'up' ? 'change' : sort === 'down' ? 'decline' : sort;
     api.listAssets({ type: cat, sort: serverSort, date: turn.date, sessionId })
@@ -76,6 +89,7 @@ export default function MarketModal() {
   }, [cat, sort, turn.date, sessionId]);
 
   const strip = STRIP_CODES.map((code) => macro.find((m) => m.code === code)).filter(Boolean);
+  const sectors = sectorData?.sectors.filter(s => s.market === sectorMarket) || [];
 
   return (
     <Modal title="마켓" wide xwide help={MARKET_HELP}>
@@ -108,7 +122,31 @@ export default function MarketModal() {
         </aside>
 
         <div className="mk-main">
-          {cat === 'ref' ? (
+          {cat === 'sector' ? (
+            <div className="mk-sectors">
+              <h3>오늘 어떤 업종이 올랐을까?</h3>
+              <p>각 업종의 주가 흐름을 모은 지수예요. 전 개장일 종가보다 얼마나 올랐는지 비교해 보세요.</p>
+              <div className="dash-unit-tabs" aria-label="업종 시장">
+                {['KOSPI', 'KOSDAQ'].map(m => <button type="button" key={m}
+                  className={sectorMarket === m ? 'active' : ''} aria-pressed={sectorMarket === m}
+                  onClick={() => setSectorMarket(m)}>{m === 'KOSPI' ? '코스피' : '코스닥'}</button>)}
+              </div>
+              {sectorData?.asOfDate && <p className="mk-sector-date">
+                {sectorData.marketOpen ? '전 개장일 대비' : '최근 개장일 기준'} · {relativeYearDate(sectorData.asOfDate, turn.date)}
+                {' · '}상승 {sectors.filter(s => s.changeRate > 0).length}개 업종 · 하락 {sectors.filter(s => s.changeRate < 0).length}개 업종
+              </p>}
+              {sectorError && <p className="dash-error">{sectorError}</p>}
+              {!sectorData && !sectorError && <p>업종별 흐름을 불러오는 중…</p>}
+              {sectorData && sectors.length === 0 && <p>이 날짜에 확인할 수 있는 업종 자료가 없어요.</p>}
+              <div className="mk-sector-grid">{sectors.map(s => <article key={s.code}
+                className={`mk-sector-card ${changeClass(s.changeRate)}`}>
+                <span className="mk-sector-title">{s.sector}</span>
+                <strong>{signed(s.changeRate)}</strong>
+                <span className="mk-sector-breadth">지수 {s.value?.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</span>
+                <small>{s.previousDate ? relativeYearDate(s.previousDate, turn.date) : '이전 자료 없음'} → {relativeYearDate(s.date, turn.date)}</small>
+              </article>)}</div>
+            </div>
+          ) : cat === 'ref' ? (
             <>
             <p className="mk-ref-note">
               📈 투자할 때 참고할 수 있는 지표들이다. 개별 종목이 아니라 <b>환율·금리·유가 같은 거시 흐름</b>으로 시장 전체 분위기를 읽는다.

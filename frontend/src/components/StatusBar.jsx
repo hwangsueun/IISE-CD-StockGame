@@ -2,6 +2,7 @@
 // 디자인 원본: public/game/Main Screen.html의 .statusbar (Phase D 이식)
 import { useGameStore } from '../state/gameStore';
 import { won } from '../utils/format';
+import { MarketComparisonBadge } from './MarketComparison';
 
 const GAUGE_CELLS = 20;
 
@@ -32,6 +33,7 @@ export default function StatusBar() {
 
   return (
     <header className="px-statusbar">
+      <MarketComparisonBadge />
       <div className="px-stat" data-tip="신뢰도 — 빚 갚을 능력에 대한 사채업자의 신뢰. 낮으면 독촉·불이익이 커진다. 제때 갚으면 오른다.">
         <div className="px-stat-icon trust-ic">♥</div>
         <div className="px-stat-body">

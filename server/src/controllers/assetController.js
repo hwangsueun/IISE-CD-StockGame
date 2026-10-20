@@ -1,6 +1,10 @@
 const { badRequest } = require('../utils/errors');
 const pricingService = require('../services/pricingService');
 
+exports.sectors = async (req, res) => {
+  res.json(await require('../services/sectorService').getSectors(req.query.sessionId, req.query.date));
+};
+
 /** GET /api/assets?type=stock&sort=&date= — 주식 목록 */
 exports.list = async (req, res) => {
   const { type, sort, date, sessionId } = req.query;

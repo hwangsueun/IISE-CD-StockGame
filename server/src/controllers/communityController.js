@@ -8,7 +8,7 @@ exports.listPosts = async (req, res) => {
   );
 };
 
-/** GET /api/community/post/:postId/comments */
+/** GET /api/community/post/:postId/comments?date= */
 exports.listComments = async (req, res) => {
-  res.json(await communityService.listComments(Number(req.params.postId)));
+  res.json(await communityService.listComments(Number(req.params.postId), req.query.date));
 };

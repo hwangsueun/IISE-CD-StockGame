@@ -27,6 +27,7 @@ async function main() {
 
   const { importStocks } = require('./import_stocks');
   const { importMacro } = require('./import_macro');
+  const { importSectors } = require('./import_sectors');
   const { importNews } = require('./import_news');
   const { importCommunity } = require('./import_community');
   const { applyMasking } = require('./apply_masking');
@@ -36,6 +37,7 @@ async function main() {
   await importStocks(path.join(DATA_DIR, 'data/raw/stock/stock_price-volume_npq.xlsx'));
   // 2. 시장 참고지표 (macro_daily)
   await importMacro(path.join(DATA_DIR, 'market_indicator/data/processed/macro_context_daily.csv'));
+  await importSectors(path.join(DATA_DIR, 'market_indicator/data/raw/kr_sector_indices_long_20130101_20231231.csv'));
   // 3. 뉴스 4종 JSONL (stock_code -> asset_id 매칭 + maskingService로 본문 마스킹 포함)
   await importNews(path.join(DATA_DIR, 'news_generator/data/interim/game_publish_calendar'));
   // 4. 종토방: 스레드 JSONL 단일 원천 (target_kind/target_id -> asset_id 직접 매핑, 003 계약)

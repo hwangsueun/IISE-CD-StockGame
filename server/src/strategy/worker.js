@@ -5,7 +5,44 @@ const engine = require('./engine');
 const C = require('../config/constants');
 const riskEngine = require('./risk');
 const { replayQuant, validateArtifact } = require('../services/quantReplay');
+
+function compareSaved(input) {
+  const observing = input.comparisonPeriod === 'observe';
+  const versions = input.versions;
+  const commonDate = versions.map(v => v.savedDate).sort().at(-1);
+  const commonTurn = Math.max(...versions.map(v => v.savedTurn));
+  const reports = versions.map((version, index) => {
+    // Frozen models keep the exact history used when they were saved. Only the
+    // evaluation start moves to the latest save so every portfolio starts equal.
+    const sourceFrom = observing ? version.sourceFrom : input.sourceFrom;
+    const source = { ...input, config: version.config,
+      prices: input.prices.filter(p => p.trade_date >= sourceFrom),
+      benchmark: input.benchmark.filter(p => p.trade_date >= sourceFrom) };
+    try {
+      if (observing && engine.sourceHash(source, version.savedDate) !== version.sourceHash) {
+        throw Error('저장 당시의 가격 데이터가 달라졌습니다.');
+      }
+      const report = execute({ ...source, mode: observing ? 'observe' : 'practice',
+        model: observing ? version.model : null, savedDate: commonDate,
+        expectedSourceHash: observing ? engine.sourceHash(source, commonDate) : null });
+      return { ...report, versionId: version.id, savedTurn: version.savedTurn, variantLabel: `${index + 1}. ${version.config.name}` };
+    } catch (error) {
+      throw Error(`${version.config.name}: ${error.message}`);
+    }
+  });
+  const first = reports[0];
+  if (reports.some(r => r.from !== first.from || r.to !== first.to || r.turnCount !== first.turnCount)) {
+    throw Error('모델들의 비교 기간을 맞출 수 없습니다.');
+  }
+  return { kind: 'compare', comparison: 'custom', comparisonPeriod: input.comparisonPeriod,
+    config: { ...first.config, name: `${versions.length}개 모델 비교` },
+    from: first.from, to: first.to, turnCount: first.turnCount, initialCash: input.initialCash,
+    feeBps: input.feeBps, commonStartTurn: observing ? commonTurn : null,
+    comparedModels: versions.map(v => ({ id: v.id, name: v.config.name, savedTurn: v.savedTurn })), reports };
+}
+
 function execute(input) {
+  if (input.mode === 'compareSaved') return compareSaved(input);
   const config = engine.validateConfig(input.config), data = engine.buildFrames(input);
   // Each worker has its own module state. Cost stress cannot change the running game's fee rate.
   C.TRADE_FEE_RATE = input.feeBps / 10000;

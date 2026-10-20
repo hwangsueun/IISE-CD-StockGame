@@ -349,10 +349,10 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     await client.query(
       `UPDATE event_log
        SET resolved = TRUE, cash_delta = $2, stress_delta = $3, trust_delta = $4,
-           detail = detail || $5
+           detail = detail || $5::jsonb || jsonb_build_object('appliedAt', NOW(), 'appliedTurn', $6::int)
        WHERE id = $1`,
       [eventLogId, cashDelta, eff.stressDelta || 0, eff.trustDelta || 0,
-       JSON.stringify({ chosen: choiceKey, ...(eff.detail || {}) })]
+       JSON.stringify({ chosen: choiceKey, ...(eff.detail || {}) }), session.current_turn]
     );
 
     // 선택 효과(예: 독촉 전화에서 마지막 부채 상환)까지 적용한 상태로 즉시 종료를 판정한다.

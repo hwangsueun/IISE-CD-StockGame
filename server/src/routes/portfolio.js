@@ -5,6 +5,7 @@ const portfolio = require('../controllers/portfolioController');
 
 // 보유자산, 평가금액, 수익률, 자산군 비중
 router.get('/', asyncHandler(portfolio.getPortfolio));
+router.get('/market-comparison', asyncHandler(portfolio.getMarketComparison));
 
 // 턴별 총자산/순자산/초기자본 대비 수익률 (대시보드 라인차트)
 router.get('/history', asyncHandler(portfolio.getPortfolioHistory));

@@ -111,8 +111,8 @@ export default function QuantModal() {
   return <Modal title="투자 챌린지 · 모델 연구실" wide>
     <div className="quant-panel">
       <div className="quant-heading"><div><span className="quant-eyebrow">ALPHA158</span>
-        <h3>alpha158과 투자하기</h3><p>가격과 거래량을 읽고 스스로 투자하는 상대</p></div>
-        <span className="quant-badge">{dropout ? `매 턴 평가 · 최대 ${data.nDrop}종목 교체` : data?.rebalanceTurns ? `${data.rebalanceTurns}턴마다 교체` : '운용 정보 확인 중'}</span></div>
+        <h3>alpha158과 투자하기</h3></div>
+      </div>
       {error && <div role="alert" className="quant-empty"><p>{error}</p>
         <button className="btn-primary" onClick={() => setRetry((v) => v + 1)}>다시 불러오기</button></div>}
       {!data && !error && <p role="status" className="quant-empty">alpha158의 포트폴리오를 확인하고 있습니다…</p>}

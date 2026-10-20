@@ -1,6 +1,10 @@
 const { badRequest } = require('../utils/errors');
 const valuationService = require('../services/valuationService');
 
+exports.getMarketComparison = async (req, res) => {
+  res.json(await require('../services/marketComparisonService').getPerformance(req.params.sessionId));
+};
+
 /** GET /api/game/:sessionId/portfolio */
 exports.getPortfolio = async (req, res) => {
   res.json(await valuationService.getPortfolio(req.params.sessionId));
