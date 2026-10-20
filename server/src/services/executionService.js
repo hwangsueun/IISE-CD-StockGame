@@ -2,14 +2,10 @@
 const { roundTradeAmount } = require('../utils/money');
 const C = require('../config/constants');
 
-const EXECUTION_RULES = Object.freeze({ stock: 'next_market_open', bond: 'next_turn_price', coin: 'next_turn_price' });
-const COIN_SCALE = 100000000;
+const EXECUTION_RULES = Object.freeze({ stock: 'next_market_open' });
 
 function validQuantity(quantity, assetType) {
-  if (!Number.isFinite(quantity) || quantity <= 0) return false;
-  return assetType === 'coin'
-    ? Number.isSafeInteger(Math.round(quantity * COIN_SCALE)) && Number(quantity.toFixed(8)) === quantity
-    : Number.isSafeInteger(quantity);
+  return assetType === 'stock' && Number.isSafeInteger(quantity) && quantity > 0;
 }
 
 function quoteTradeAmount(side, price, quantity) {
@@ -28,32 +24,14 @@ function affordableShares(cash, price) {
 // Both actors submit a fixed maximum quantity and cash budget at the prior close.
 // A gap up can reduce a fill, but never increase the predeclared cash budget.
 function fillOpenOrder(order, { openPrice, cash, heldQuantity = 0, avgPrice = 0 }) {
-  return fillPriceOrder(order, { price: openPrice, cash, heldQuantity, avgPrice, missingReason: 'no_open_price' });
-}
-
-// Daily bond/coin observations are execution prices, never fabricated stock opens.
-function fillPriceOrder(order, { price, cash, heldQuantity = 0, avgPrice = 0, assetType = 'stock', missingReason = 'no_price' }) {
+  const price = openPrice;
   const rejected = (reason) => ({ status: 'rejected', reason, filledQuantity: 0, price: null, amount: 0, realizedPnl: null });
-  if (!Number.isFinite(price) || price <= 0) return rejected(missingReason);
+  if (!validQuantity(Number(order.quantity), 'stock')) return rejected('invalid_quantity');
+  if (!Number.isFinite(price) || price <= 0) return rejected('no_open_price');
   const budget = Math.min(cash, Number(order.cashBudget));
-  let quantity;
-  if (assetType === 'coin') {
-    let units = Math.round(Number(order.quantity) * COIN_SCALE);
-    if (order.side === 'buy') {
-      // Search integer 1e-8 units using the actual rounded KRW charge. This avoids
-      // fractional precision errors and never spends more than the fixed budget.
-      let low = 0, high = units;
-      while (low < high) {
-        const mid = low + Math.ceil((high - low) / 2);
-        if (quoteTradeAmount('buy', price, mid / COIN_SCALE) <= budget) low = mid;
-        else high = mid - 1;
-      }
-      units = low;
-    } else units = Math.min(units, Math.round(heldQuantity * COIN_SCALE));
-    quantity = units / COIN_SCALE;
-  } else quantity = order.side === 'buy'
+  const quantity = order.side === 'buy'
     ? Math.min(Number(order.quantity), affordableShares(budget, price))
-    : Math.min(Number(order.quantity), heldQuantity);
+    : Math.min(Number(order.quantity), Math.floor(heldQuantity));
   if (!(quantity > 0)) return rejected(order.side === 'buy' ? 'insufficient_cash' : 'insufficient_holdings');
   return { status: quantity < Number(order.quantity) ? 'partial' : 'filled',
     reason: quantity < Number(order.quantity) ? 'unfilled_remainder_cancelled' : null,
@@ -61,4 +39,4 @@ function fillPriceOrder(order, { price, cash, heldQuantity = 0, avgPrice = 0, as
     realizedPnl: order.side === 'sell' ? quoteTradeAmount('sell', price, quantity) - avgPrice * quantity : null };
 }
 
-module.exports = { quoteTradeAmount, affordableShares, fillOpenOrder, fillPriceOrder, validQuantity, EXECUTION_RULES, COIN_SCALE };
+module.exports = { quoteTradeAmount, affordableShares, fillOpenOrder, validQuantity, EXECUTION_RULES };

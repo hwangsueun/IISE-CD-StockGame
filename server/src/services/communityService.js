@@ -4,7 +4,7 @@ const { query } = require('../db');
 /** 종목별 게시글 목록. date 기준 과거 글만 노출 (미래 정보 차단). */
 async function listPosts(assetId, date, limit) {
   const params = [assetId];
-  let where = `asset_id = $1`;
+  let where = `asset_id = $1 AND EXISTS (SELECT 1 FROM assets a WHERE a.asset_id = $1 AND a.asset_type = 'stock')`;
   if (date) {
     params.push(date);
     where += ` AND post_date <= $${params.length}`;
@@ -24,7 +24,9 @@ async function listPosts(assetId, date, limit) {
 async function listComments(postId) {
   const { rows } = await query(
     `SELECT id, npc_nickname, body, comment_date, sentiment
-     FROM community_comments WHERE post_id = $1 ORDER BY id`,
+     FROM community_comments WHERE post_id = $1
+       AND EXISTS (SELECT 1 FROM community_posts p JOIN assets a USING(asset_id)
+                   WHERE p.id = $1 AND a.asset_type = 'stock') ORDER BY id`,
     [postId]
   );
   return rows;

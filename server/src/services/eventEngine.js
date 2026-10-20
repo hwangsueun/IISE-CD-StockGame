@@ -202,7 +202,7 @@ const EVENT_DEFS = {
 function buildInsight() {
   return pick([
     '분산 투자는 개별 종목 리스크를 줄여준다.',
-    '금리가 오르면 일반적으로 채권 가격은 내려간다.',
+    '금리가 오르면 기업의 이자 부담이 커질 수 있다.',
     '거래량이 실리지 않은 급등은 오래가지 못하는 경우가 많다.',
     'PER이 낮다고 무조건 저평가는 아니다. 업종 평균과 비교하라.',
   ]);
@@ -296,6 +296,8 @@ async function applyEffect(client, session, eventType, eff) {
   session.stress = newStress;
   session.trust = newTrust;
   session.action_locked_until_turn = lockUntil;
+  const blocked = await require('./investmentPolicy').enforce(client, session);
+  if (blocked) eff.investmentRestriction = blocked;
 }
 
 /** 미해결 선택형 이벤트 */
@@ -336,6 +338,7 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     session.debt = Number(row.debt) + debtDelta;
     session.stress = newStress;
     session.trust = newTrust;
+    await require('./investmentPolicy').enforce(client, session);
 
     await client.query(
       `UPDATE game_sessions

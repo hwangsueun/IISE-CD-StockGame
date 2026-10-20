@@ -23,11 +23,12 @@ const GRADE_LABEL = {
 // 부업 화면 도움말 (Modal의 ? 버튼으로 토글)
 const SIDEJOB_HELP = (
   <>
-    <p>급하게 <b>현금</b>이 필요할 때 <b>부업</b>으로 벌 수 있다. 단, 대가가 따른다.</p>
+    <p>급하게 <b>현금</b>이 필요할 때 <b>부업</b>으로 벌 수 있다. 부업을 하면 스트레스가 오른다.</p>
     <ul>
       <li><b>하루 1회</b>만 할 수 있다.</li>
-      <li>미니게임 성적(등급)에 따라 <b>일당</b>과 <b>스트레스</b>가 정해진다 — 잘할수록 돈은 많이, 스트레스는 적게 오른다.</li>
-      <li>부업을 한 날은 <b>그날 투자(매매)를 할 수 없다.</b></li>
+      <li>미니게임 성적(등급)에 따라 <b>일당</b>과 <b>스트레스</b>가 정해진다 — 잘할수록 일당이 늘고 스트레스 증가량은 줄어든다.</li>
+      <li>부업을 한 날은 <b>직접 주문과 자동 투자를 쉰다.</b> 미체결 주문은 취소된다.</li>
+      <li>자동 투자 설정은 유지된다. 다음 날부터 다시 판단할 수 있다.</li>
       <li><b>입원 중</b>에는 부업을 할 수 없다.</li>
     </ul>
   </>
@@ -68,7 +69,11 @@ export default function SideJobModal({ howtoOnly: howtoOnlyProp = false }) {
           <div><dt>일당</dt><dd>{won(result.cashReward)}</dd></div>
           <div><dt>스트레스</dt><dd>+{result.stressDelta}</dd></div>
         </dl>
-        <p className="minigame-help">오늘은 부업으로 지쳐서 투자를 할 수 없다.</p>
+        <p className="minigame-help">오늘은 직접 주문과 자동 투자를 쉽니다. 자동 투자 설정은 유지됩니다.</p>
+        {result.cancelledOrderCount > 0 && <p className="minigame-help">미체결 주문 {result.cancelledOrderCount}건을 취소했습니다. 이미 보유한 주식은 유지합니다.</p>}
+        <p className="minigame-help">{result.investmentRestriction?.code === 'stress_limit'
+          ? '스트레스가 한계에 도달했습니다. 입원 기간이 끝나야 투자를 재개할 수 있습니다.'
+          : '다음 날부터 다시 판단할 수 있습니다. 입원하게 되면 입원 기간도 쉬어야 합니다.'}</p>
       </Modal>
     );
   }
@@ -88,10 +93,12 @@ export default function SideJobModal({ howtoOnly: howtoOnlyProp = false }) {
         <p className="error-text">
           {status.reason === 'already_done' ? '오늘은 이미 부업을 했다.'
             : status.reason === 'hospitalized' ? '입원 중에는 부업을 할 수 없다.'
+            : status.reason === 'stress_limit' ? '스트레스가 한계에 도달해 부업을 할 수 없다.'
             : '지금은 부업을 할 수 없다.'}
         </p>
       )}
-      <p className="minigame-help">잘할수록 돈은 많이 벌고, 스트레스는 적게 오른다. (기본급 {won(status?.basePay)})</p>
+      <p className="minigame-help">잘할수록 일당이 늘고 스트레스 증가량은 줄어든다. (기본급 {won(status?.basePay)})</p>
+      <p className="minigame-help">부업을 마치면 오늘의 직접 주문과 자동 투자를 쉽니다. 미체결 주문은 취소됩니다.</p>
       <div className="sidejob-list">
         {Object.entries(GAMES).map(([key, g]) => (
           <button

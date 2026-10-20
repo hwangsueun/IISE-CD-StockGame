@@ -3,7 +3,6 @@ const { query, withTransaction } = require('../db');
 const { notFound, badRequest } = require('../utils/errors');
 const C = require('../config/constants');
 const turnSelector = require('./turnSelector');
-const coinUniverseService = require('./coinUniverseService');
 const valuationService = require('./valuationService');
 
 /** 세션 로우 조회 (없으면 404) */
@@ -31,13 +30,8 @@ async function startGame(difficulty, userId = null) {
     );
     const session = rows[0];
     await turnSelector.createGameTurns(client, session.id, dates);
-    // 코인 층화추출 (migration 005) — 240턴 날짜가 확정된 직후, 같은 트랜잭션 안에서 실행해야
-    // 세션 생성과 원자적으로 묶인다(둘 중 하나만 커밋되는 상태 방지). dates[0]/dates[dates.length-1]
-    // = 세션의 첫/마지막 평일 턴 (coinUniverseService의 전 기간 생존 조건 판단 기준).
-    await coinUniverseService.selectForSession(client, session.id, dates[0], dates[dates.length - 1]);
-
     // 수익률 대시보드의 기준점. 이후 턴은 turnService가 같은 daily 스냅샷을 이어 쓴다.
-    // 세션·턴·코인 유니버스와 한 트랜잭션에 묶어 부분 생성 상태를 만들지 않는다.
+    // 세션·턴과 한 트랜잭션에 묶어 부분 생성 상태를 만들지 않는다.
     await client.query(
       `INSERT INTO session_snapshots
          (session_id, turn_number, snapshot_type, total_asset, cash, debt, stress, trust)

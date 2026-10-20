@@ -1,0 +1,5 @@
+# Read-only Alpha158 contribution runtime; no Qlib or model retraining needed.
+lightgbm==4.6.0
+numpy==2.2.6
+pandas==2.2.3
+pyarrow==25.0.1

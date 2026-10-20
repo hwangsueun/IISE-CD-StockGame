@@ -18,7 +18,7 @@ exports.getPortfolioDashboard = async (req, res) => {
     throw badRequest('unit은 day|week|month|all 중 하나입니다');
   }
   if (!valuationService.DASHBOARD_ASSET_TYPES.includes(assetType)) {
-    throw badRequest('assetType은 all|stock|bond|coin 중 하나입니다');
+    throw badRequest('assetType은 all|stock 중 하나입니다');
   }
   res.json(await valuationService.getPortfolioDashboard(req.params.sessionId, unit, assetType));
 };
@@ -29,8 +29,8 @@ exports.getRealizedPnl = async (req, res) => {
   if (!['daily', 'weekly', 'monthly', 'yearly', 'all'].includes(period)) {
     throw badRequest('period는 daily|weekly|monthly|yearly|all 중 하나입니다');
   }
-  if (assetType && !['stock', 'bond', 'coin'].includes(assetType)) {
-    throw badRequest('assetType은 stock|bond|coin 중 하나입니다');
+  if (assetType && assetType !== 'stock') {
+    throw badRequest('주식 수익분석만 제공합니다');
   }
   res.json(await valuationService.getRealizedPnl(req.params.sessionId, period, assetType));
 };

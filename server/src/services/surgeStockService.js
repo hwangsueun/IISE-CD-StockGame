@@ -41,7 +41,7 @@ async function spawn(client, session, random = Math.random) {
 async function getActive(sessionId) {
   const { rows } = await query(
     `SELECT s.*, g.current_turn, g.cash, g.status,
-            g.action_locked_until_turn, g.side_job_turn,
+            g.action_locked_until_turn, g.side_job_turn, g.stress,
             EXISTS (
               SELECT 1 FROM asset_prices p
               JOIN assets a ON a.asset_id = p.asset_id
@@ -87,8 +87,7 @@ async function getActive(sessionId) {
       s.market_open === true &&
       s.has_future_market_open === true &&
       spawnTurn === currentTurn &&
-      currentTurn > Number(s.action_locked_until_turn) &&
-      Number(s.side_job_turn) !== currentTurn &&
+      !require('./investmentPolicy').restriction(s) &&
       quantity === 0 &&
       Number(s.invested_amount) === 0 &&
       maxBuyQuantity >= 1,
@@ -107,7 +106,7 @@ async function buy(sessionId, surgeStockId, quantity, client) {
 
   const { rows } = await q.query(
     `SELECT s.*, g.cash, g.current_turn, g.status,
-            g.action_locked_until_turn, g.side_job_turn,
+            g.action_locked_until_turn, g.side_job_turn, g.stress,
             EXISTS (
               SELECT 1 FROM asset_prices p
               JOIN assets a ON a.asset_id = p.asset_id
@@ -139,12 +138,8 @@ async function buy(sessionId, surgeStockId, quantity, client) {
     throw conflict('게임 종료 전 정산 가능한 개장일이 없습니다');
   }
   if (Number(s.spawn_turn) !== Number(s.current_turn)) throw conflict('매수 가능 시간이 지났습니다');
-  if (Number(s.current_turn) <= Number(s.action_locked_until_turn)) {
-    throw conflict('현재 턴에는 투자 행동을 할 수 없습니다');
-  }
-  if (Number(s.side_job_turn) === Number(s.current_turn)) {
-    throw conflict('부업을 한 턴에는 투자할 수 없습니다');
-  }
+  const blocked = require('./investmentPolicy').restriction(s);
+  if (blocked) throw conflict(blocked.message);
 
   const buyPrice = Number(s.buy_price);
   const cash = Number(s.cash);

@@ -72,7 +72,7 @@ function getActiveSurgeWithTimeout(sessionId, signal, timeoutMessage) {
 const OUTCOME_LABEL = {
   surge: '소문이 맞았다! 상한가를 찍었다.',
   rise: '기대만큼은 아니어도 확실히 올랐다.',
-  small_rise: '소폭 상승, 나쁘지 않은 결과다.',
+  small_rise: '조금 올랐다. 이 정도면 나쁘지 않다.',
   fall: '기대와 달리 소폭 하락했다.',
   plunge: '작전주였다... 크게 물렸다.',
   crash: '휴지조각이 됐다. 완전히 속았다.',

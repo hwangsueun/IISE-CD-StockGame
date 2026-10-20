@@ -1,7 +1,5 @@
-// 포트폴리오 대시보드: 자산군별 구성 파이 + 전체 플레이 기간의 일/주/월 단위 성과
-// 2026-08-13: 팀원 브랜치(agent/backend-portfolio-surge) 디자인으로 전면 교체
-// (구 버전: 라인차트+KPI+종목별 랭킹 — git log로 확인 가능)
-import { useEffect, useMemo, useState } from 'react';
+// 현금과 개별 보유 종목 구성 + 전체 플레이 기간의 일/주/월 단위 성과
+import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { won, pct, signed, changeClass } from '../utils/format';
 
@@ -11,9 +9,8 @@ const UNIT_TABS = [
   { key: 'month', label: '월', performanceLabel: '월별 성과' },
   { key: 'all', label: '전체', performanceLabel: '누적 성과' },
 ];
-const TYPE_LABEL = { all: '전체', stock: '주식', bond: '채권', coin: '코인' };
 const BASE_COLORS = {
-  cash: '#9a8d7d', stock: '#e2504c', bond: '#4f7ed8', coin: '#e8a33d',
+  cash: '#9a8d7d',
 };
 const HOLDING_COLORS = ['#e2504c', '#4f7ed8', '#e8a33d', '#7bb36a', '#b56bd4', '#d97945', '#55a9a5', '#d86d91'];
 
@@ -23,31 +20,20 @@ const signedWon = (value) => {
   return `${rounded > 0 ? '+' : ''}${rounded.toLocaleString('ko-KR')}원`;
 };
 
-function chartRows(allocation, assetType) {
-  if (allocation.length <= 8) return allocation;
-  const visible = allocation.slice(0, 7);
-  const rest = allocation.slice(7).reduce((sum, row) => sum + row.value, 0);
-  const total = visible.reduce((sum, row) => sum + row.value, rest);
-  return [
-    ...visible.map((row) => ({ ...row, weight: total ? row.value / total : 0 })),
-    { key: `${assetType}-other`, label: `기타 ${allocation.length - 7}종`, value: rest, weight: total ? rest / total : 0 },
-  ];
-}
-
-function DonutChart({ allocation, assetType, currentValue }) {
-  const rows = useMemo(() => chartRows(allocation, assetType), [allocation, assetType]);
+function DonutChart({ allocation, currentValue }) {
+  const rows = allocation;
   let offset = 0;
 
   return (
     <div className="dash-pie-grid">
-      <div className="dash-donut" role="img" aria-label={`${TYPE_LABEL[assetType]} 자산 구성 파이차트`}>
+      <div className="dash-donut" role="img" aria-label="현금과 보유 주식 종목별 비중">
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle className="dash-donut-track" cx="60" cy="60" r="46" pathLength="100" />
           {rows.map((row, index) => {
             const size = row.weight * 100;
             const start = offset;
             offset += size;
-            return (
+            return size > 0 ? (
               <circle
                 key={row.key}
                 className="dash-donut-segment"
@@ -58,16 +44,16 @@ function DonutChart({ allocation, assetType, currentValue }) {
               >
                 <title>{row.label} {pct(row.weight, 1)} · {won(row.value)}</title>
               </circle>
-            );
+            ) : null;
           })}
         </svg>
         <div className="dash-donut-center">
-          <span>{TYPE_LABEL[assetType]} 평가액</span>
+          <span>현금 + 보유 주식</span>
           <b>{won(currentValue)}</b>
         </div>
       </div>
 
-      <ul className="dash-pie-legend">
+      <ul className="dash-pie-legend" aria-label="현금과 종목별 평가액">
         {rows.map((row, index) => (
           <li key={row.key}>
             <i style={{ background: BASE_COLORS[row.key] || HOLDING_COLORS[index % HOLDING_COLORS.length] }} />
@@ -76,7 +62,7 @@ function DonutChart({ allocation, assetType, currentValue }) {
             <span>{won(row.value)}</span>
           </li>
         ))}
-        {rows.length === 0 && <li className="empty">현재 보유한 {TYPE_LABEL[assetType]} 자산이 없다.</li>}
+        {rows.every((row) => row.key === 'cash') && <li className="empty">보유한 주식이 없습니다.</li>}
       </ul>
     </div>
   );
@@ -107,7 +93,7 @@ function PeriodTable({ periods, unit }) {
   );
 }
 
-export default function ReturnsDashboard({ sessionId, assetType }) {
+export default function ReturnsDashboard({ sessionId }) {
   const [unit, setUnit] = useState('day');
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -118,12 +104,12 @@ export default function ReturnsDashboard({ sessionId, assetType }) {
     setLoading(true);
     setDashboard(null);
     setError('');
-    api.getPortfolioDashboard(sessionId, unit, assetType)
+    api.getPortfolioDashboard(sessionId, unit, 'all')
       .then((result) => { if (active) setDashboard(result); })
       .catch((err) => { if (active) setError(err.message || '대시보드를 불러오지 못했다.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [sessionId, unit, assetType]);
+  }, [sessionId, unit]);
 
   const summary = dashboard?.summary;
   const unitMeta = UNIT_TABS.find((item) => item.key === unit);
@@ -131,11 +117,10 @@ export default function ReturnsDashboard({ sessionId, assetType }) {
   return (
     <div className="dash">
       <section className="dash-pie-card">
-        <h4 className="dash-h">{TYPE_LABEL[assetType]} 포트폴리오 구성 <small>현재 평가액 기준</small></h4>
+        <h4 className="dash-h">포트폴리오 구성 <small>현금과 종목별 비중</small></h4>
         {dashboard ? (
           <DonutChart
             allocation={dashboard.allocation}
-            assetType={assetType}
             currentValue={dashboard.currentValue}
           />
         ) : !loading && error ? (

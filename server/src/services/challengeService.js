@@ -123,7 +123,7 @@ async function enroll(sessionId) {
     if (firstMonth > 12) throw conflict('참가할 수 있는 다음 달이 남아 있지 않습니다');
     const quant = require('./quantService');
     const loaded = quant.loadArtifact();
-    if (!loaded) throw conflict('퀀트 모델 준비 후 참가할 수 있습니다');
+    if (!loaded) throw conflict('alpha158 준비 후 참가할 수 있습니다');
     await quant.replaySession(client, session, loaded); // verify the pinned opponent before enrollment
     const atBoundary = session.current_turn % 20 === 0;
     const reference = session.current_turn === 1 || atBoundary

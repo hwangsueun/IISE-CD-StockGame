@@ -34,7 +34,7 @@ export default function ResultPage() {
       </dl>
 
       {result.challenge?.enrolled && <section className="challenge-card">
-        <h2>퀀트 투자 챌린지</h2>
+        <h2>투자 챌린지</h2>
         <p>{result.challenge.rounds.filter(r => r.outcome === 'win').length}승 · {result.challenge.rounds.length}회 결산</p>
         <p>누적 수령 상금 {won(result.challenge.totalClaimed)}</p>
         {result.challenge.unclaimedPrize > 0 && <p>미수령 상금 {won(result.challenge.unclaimedPrize)} · 게임 종료로 수령 마감</p>}

@@ -127,26 +127,20 @@ export default function MainPage() {
             <div className="row"><span className="k">날짜</span><span className="v">{md}</span></div>
             <div className="row"><span className="k">요일</span><span className="v">{dow}</span></div>
             <div className="row"><span className="k">주식 주문</span><span className="v">다음 개장일 시가</span></div>
-            <div className="row"><span className="k">채권·코인 주문</span><span className="v">다음 턴 가격</span></div>
             <div className="row"><span className="k">남은 일수</span><span className="v">{240 - turn.turnNumber}일</span></div>
             <div className="row"><span className="k">상환까지</span><span className="v">{turn.isRepaymentTurn ? '오늘!' : `D-${repayDday}`}</span></div>
           </div>
 
-          {/* 상태 배지 + HUD 액션 (날짜판 아래) */}
+          {/* 상태 배지 (날짜판 아래) */}
           <div className="hud-side">
-            <button className="hud-btn quant-open-btn" onClick={() => openModal('quant')}>
-              퀀트 모델{turn.challenge?.unclaimedPrize > 0 ? ' · 상금 수령' : turn.challenge?.enrolled ? ' · 챌린지' : ' · 초대장'}
-            </button>
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
             {turn.marketOpen === false && <span className="px-badge lock">주식 휴장일</span>}
             {turn.actionLocked && <span className="px-badge lock">입원 중</span>}
             {turn.sideJobDoneToday && <span className="px-badge lock">부업으로 투자 불가</span>}
-            <button className="hud-btn" onClick={() => openModal('report', { monthIndex: turn.monthIndex })}>
-              📊 리포트
-            </button>
+            {turn.investmentRestriction?.code === 'stress_limit' && <span className="px-badge lock">스트레스 한계 · 투자 일시정지</span>}
           </div>
 
-          {/* 오브젝트 버튼 (좌표: 디자인 Main Screen.html LAYOUT 그대로) */}
+          {/* 방 안의 오브젝트 버튼 */}
           <button className="pbtn b-calendar" title="캘린더" onClick={() => openModal('calendar')}>
             <img src="/game/assets/btn_calendar.png" alt="캘린더" />
             <span className="lbl">캘린더</span>
@@ -166,6 +160,36 @@ export default function MainPage() {
           <button className="pbtn b-game" title="부업" onClick={() => openModal('sidejob')}>
             <img src="/game/assets/btn_game.png" alt="부업" />
             <span className="lbl">부업</span>
+          </button>
+          <button
+            type="button"
+            className="pbtn b-computer"
+            title="alpha158 투자 챌린지"
+            aria-label="alpha158 투자 챌린지"
+            aria-describedby={turn.challenge?.unclaimedPrize > 0 || !turn.challenge?.enrolled ? 'computer-challenge-notice' : undefined}
+            aria-haspopup="dialog"
+            onClick={() => openModal('quant')}
+          >
+            {/* 배경의 모니터·키보드를 같은 좌표로 겹쳐 호버할 때 함께 움직인다. */}
+            <svg className="computer-art" viewBox="1396 712 390 436" aria-hidden="true" focusable="false">
+              <defs>
+                <g id="room-computer-shape">
+                  <path d="M1447 712H1738V720H1747V728H1763V996H1755V1003H1681V1017H1688V1048H1500V1017H1524V1003H1426V728H1441V720H1447Z" />
+                  <path d="M1396 1117H1403V1102H1410V1086H1418V1065H1763V1072H1771V1086H1778V1102H1786V1147H1396Z" />
+                </g>
+                <clipPath id="room-computer-clip">
+                  <use href="#room-computer-shape" />
+                </clipPath>
+              </defs>
+              <use href="#room-computer-shape" fill="none" stroke="#fff" strokeWidth="7" strokeLinejoin="miter" />
+              <image href="/game/assets/bg_room.png" width="2400" height="1792" clipPath="url(#room-computer-clip)" />
+            </svg>
+            <span className="lbl">alpha158 투자 챌린지</span>
+            {(turn.challenge?.unclaimedPrize > 0 || !turn.challenge?.enrolled) && (
+              <span className="computer-notice" id="computer-challenge-notice">
+                {turn.challenge?.unclaimedPrize > 0 ? '상금 수령' : '초대장 도착'}
+              </span>
+            )}
           </button>
 
           {/* 오늘의 핵심 뉴스 패널은 디자인 원본(Main Screen.html)에서 display:none 처리 —

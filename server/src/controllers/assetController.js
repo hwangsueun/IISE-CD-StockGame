@@ -1,15 +1,11 @@
 const { badRequest } = require('../utils/errors');
 const pricingService = require('../services/pricingService');
 
-/**
- * GET /api/assets?type=&sort=&date=&sessionId=
- * sessionId 전달 시 코인은 해당 세션의 10종 유니버스로 제한된다(migration 005). 미전달 시
- * 코인은 목록에서 제외된다 — 근거는 pricingService.listAssets 상단 주석 참조.
- */
+/** GET /api/assets?type=stock&sort=&date= — 주식 목록 */
 exports.list = async (req, res) => {
   const { type, sort, date, sessionId } = req.query;
-  if (type && !['stock', 'bond', 'coin'].includes(type)) {
-    throw badRequest('type은 stock|bond|coin 중 하나입니다');
+  if (type && type !== 'stock') {
+    throw badRequest('이 게임에서는 주식만 조회할 수 있습니다');
   }
   res.json(await pricingService.listAssets({ type, sort, date, sessionId }));
 };

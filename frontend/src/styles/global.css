@@ -398,7 +398,7 @@ button { cursor: pointer; font: inherit; }
   filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6));
   z-index: 5;
 }
-.pbtn:hover {
+.pbtn:hover, .b-computer:focus-visible {
   transform: translateY(-3px) scale(1.04);
   filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 8px rgba(245, 197, 66, 0.7));
 }
@@ -415,8 +415,20 @@ button { cursor: pointer; font: inherit; }
 .b-calendar { left: 100px; top: 100px; width: 130px; height: 130px; }
 .b-news { left: 100px; top: 280px; width: 130px; height: 130px; }
 .b-portfolio { left: 100px; top: 450px; width: 130px; height: 130px; }
-.b-market { left: 1050px; top: 300px; width: 130px; height: 130px; }
-.b-game { left: 1050px; top: 150px; width: 130px; height: 100px; }
+.b-market { left: 1050px; top: 360px; width: 130px; height: 130px; }
+.b-game { left: 1050px; top: 210px; width: 130px; height: 100px; }
+/* 1268×716 stage의 center/cover 배경에서 원본 (1396, 712, 390, 436) 영역. */
+.b-computer { left: 737.55px; top: 260.79px; width: 206.05px; height: 230.35px; }
+.b-computer .lbl { bottom: calc(100% + 10px); }
+.b-computer:focus-visible { outline: 2px dashed var(--px-gold); outline-offset: 6px; }
+.computer-art { display: block; width: 100%; height: 100%; overflow: visible; image-rendering: pixelated; }
+.computer-notice {
+  position: absolute; bottom: calc(100% + 42px); left: 50%; transform: translateX(-50%);
+  background: var(--px-gold); color: #1a0f0a; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #fff5cc, 2px 2px 0 #000;
+  padding: 3px 8px; white-space: nowrap; pointer-events: none;
+  font-family: 'Galmuri11', monospace; font-size: 12px; font-weight: bold;
+}
 
 /* --- HUD 날짜판/배지 (우상단) --- */
 .hud-clock {
@@ -1367,34 +1379,9 @@ textarea { min-height: 80px; resize: vertical; }
 .dash-h small { color: var(--px-ink-dim); font-size: 11px; margin-left: 8px; letter-spacing: 0; }
 .dash-empty { color: var(--px-ink-dim); font-family: 'Galmuri11', monospace; font-size: 13px; margin: 8px 0; }
 
-/* 대시보드 탭 내부: 자산군 사이드바 + 도넛차트/집계단위 탭 */
-.pf-dashboard-layout {
-  display: grid; grid-template-columns: 132px minmax(0, 1fr);
-  min-height: 620px; margin: 0 -18px -18px;
-}
-.pf-scope-side {
-  background: #0c0704; border-right: 3px solid #000;
-  box-shadow: inset -2px 0 0 #2a1a10;
-  display: flex; flex-direction: column; gap: 5px; padding: 12px 8px;
-}
-.pf-scope-title {
-  color: var(--px-ink-faint, #7c6248); font-size: 11px; letter-spacing: 1px;
-  padding: 2px 10px 8px; border-bottom: 1px dashed #3d2418; margin-bottom: 3px;
-}
-.pf-scope-side button {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  background: transparent; border: 2px solid transparent; color: var(--px-ink-dim);
-  padding: 10px 9px; cursor: pointer; text-align: left;
-  font-family: 'Galmuri11', monospace; font-size: 14px; letter-spacing: 1px;
-}
-.pf-scope-side button i { width: 15px; color: #5a3624; font-style: normal; text-align: center; }
-.pf-scope-side button:hover { color: var(--px-ink); background: #1a0f0a; }
-.pf-scope-side button.active {
-  background: #2a1a10; border-color: var(--px-gold); color: var(--px-gold);
-  box-shadow: inset 0 -2px 0 #5a3624, 2px 2px 0 #000;
-}
-.pf-scope-side button.active i { color: var(--px-gold); }
-.pf-dashboard-main { min-width: 0; padding: 0 18px 22px; }
+/* 현금과 개별 종목 구성 */
+.pf-dashboard-main { min-width: 0; padding-bottom: 16px; }
+.data-table tbody tr.pf-cash-row { cursor: default; background: #21170f; }
 
 .dash-pie-card, .dash-performance { display: flex; flex-direction: column; gap: 10px; }
 .dash-pie-grid {
@@ -1947,3 +1934,31 @@ textarea { min-height: 80px; resize: vertical; }
 .tut-prev:hover { color: #fff; background: #3d2418; }
 .tut-prev:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #3d2418, 1px 1px 0 #000; }
 .tut-next:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #5a3624, 1px 1px 0 #000; }
+
+/* 차트 지표 설정: 설명과 기간을 함께 표시 */
+.indicator-settings { max-height: 440px; overflow-y: auto; scrollbar-width: thin; }
+.indicator-settings-note { margin: 3px 0 12px; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.indicator-group { min-width: 0; margin: 0 0 12px; padding: 0; border: 0; }
+.indicator-group legend { color: var(--px-gold); margin-bottom: 9px; font-size: 12px; }
+.indicator-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.indicator-option { padding: 10px; border: 1px solid #3d2418; background: #130b07; }
+.indicator-option.selected { border-color: #a0793a; }
+.indicator-toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; line-height: 1.6; cursor: pointer; }
+.indicator-toggle input { accent-color: var(--px-gold); flex-shrink: 0; }
+.indicator-option p { font-size: 11px; color: var(--px-ink-dim); line-height: 1.65; margin: 5px 0 8px; }
+.indicator-fields { display: flex; flex-wrap: wrap; gap: 7px 12px; }
+.indicator-number { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; color: var(--px-ink-dim); }
+.indicator-number input { width: 61px; padding: 5px; border: 1px solid #5a3624; background: #0c0704; color: var(--px-ink); font: inherit; }
+.indicator-number input:disabled { opacity: 0.45; }
+.indicator-number input:focus-visible { outline: 1px solid var(--px-gold); }
+.indicator-number small { flex-basis: 100%; color: #ff9b8d; }
+.chart-indicator-panel { margin-top: 12px; }
+.chart-indicator-head { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 14px; margin-bottom: 5px; font-size: 11px; color: var(--px-ink); }
+.indicator-chart { display: block; background: #0c0704; border: 2px solid #000; }
+.chart-indicator-description, .indicator-unavailable { margin: 5px 0; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.indicator-unavailable { color: #cbb58c; }
+@media (max-width: 720px) {
+  .indicator-option-grid { grid-template-columns: 1fr; }
+  .dash-pie-grid { grid-template-columns: 1fr; padding: 12px; }
+  .dash-pie-legend li { grid-template-columns: 12px minmax(70px, 1fr) 55px minmax(80px, auto); gap: 6px; }
+}

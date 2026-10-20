@@ -5,7 +5,8 @@ dist/
 .DS_Store
 pgdata/
 quant/.venv/
-quant/__pycache__/
+__pycache__/
+*.py[cod]
 quant/.pytest_cache/
 data/
 # 위 data/ 규칙은 DATA_DIR(외부 data-pipeline 체크아웃)을 실수로 server/ 밑에 복사했을 때를

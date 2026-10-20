@@ -14,7 +14,7 @@ function validateArtifact(artifact) {
   const open = artifact.schema_version === 3 && artifact.execution === 'next_market_open' && artifact.label_price === 'open' &&
     artifact.strategy === 'topk_dropout' && artifact.rebalance_turns === 1 && artifact.label_horizon?.unit === 'market_sessions' &&
     artifact.label_horizon?.value === 1 && Number.isInteger(artifact.n_drop) && artifact.n_drop>0 && artifact.n_drop<=artifact.top_k;
-  if (!common || (!legacy && !daily && !open)) throw new Error('퀀트 모델 파일 형식·학습 기간·운용 주기가 올바르지 않습니다');
+  if (!common || (!legacy && !daily && !open)) throw new Error('alpha158 파일 형식·학습 기간·운용 주기가 올바르지 않습니다');
 }
 
 function replayQuant(input) {
@@ -63,13 +63,13 @@ function replayQuant(input) {
       } else {
         const model = modelMap.get(signal.model_id);
         if (!model || signal.signal_date >= date || model.trained_through >= signal.signal_date ||
-            model.available_from > signal.signal_date) throw new Error('퀀트 모델의 학습·예측 날짜가 올바르지 않습니다');
+            model.available_from > signal.signal_date) throw new Error('alpha158의 학습·예측 날짜가 올바르지 않습니다');
         const previous = byDate.get(signal.signal_date);
         // An artifact for a different price history must never silently trade in this game.
         for (const [id, , sourceClose] of signal.ranking) {
           const dbClose = previous?.get(id);
           if (assetMap.has(id) && (!dbClose || Math.abs(dbClose - sourceClose) > .01)) {
-            throw new Error('퀀트 데이터와 게임 시세가 일치하지 않습니다');
+            throw new Error('alpha158 데이터와 게임 시세가 일치하지 않습니다');
           }
         }
         const eligible = signal.ranking.filter(([id, score]) => {

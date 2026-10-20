@@ -26,13 +26,13 @@ test.after(() => {
 test('daily price series keeps the requested bounds and returns numeric closes', async () => {
   const calls = [];
   const service = loadService([
-    { trade_date: '2024-01-02', close_price: '100', change_rate: null, bucket: '2024-01-02' },
+    { trade_date: '2024-01-02', close_price: '100', change_rate: null, bucket: '2024-01-02', volume: '1500' },
     { trade_date: '2024-01-03', close_price: '110', change_rate: '0.1', bucket: '2024-01-03' },
   ], calls);
 
   assert.deepEqual(await service.getPriceSeries('STOCK_1', '2024-01-01', '2024-01-31', 'day'), [
-    { date: '2024-01-02', price: 100, changeRate: null },
-    { date: '2024-01-03', price: 110, changeRate: 0.1 },
+    { date: '2024-01-02', price: 100, changeRate: null, volume: 1500 },
+    { date: '2024-01-03', price: 110, changeRate: 0.1, volume: null },
   ]);
   assert.deepEqual(calls[0].params, ['STOCK_1', '2024-01-01', '2024-01-31']);
 });
@@ -48,13 +48,27 @@ test('weekly bars follow calendar buckets and chain each open from the prior clo
   assert.deepEqual(await service.getPriceSeries('STOCK_1', '2024-01-01', '2024-01-31', 'week'), [
     {
       date: '2024-01-05', from: '2024-01-02', days: 2, unit: 'week',
-      open: 100, high: 110, low: 100, close: 110, price: 110, changeRate: 0.1,
+      open: 100, high: 110, low: 100, close: 110, price: 110, changeRate: 0.1, volume: null,
     },
     {
       date: '2024-01-12', from: '2024-01-08', days: 2, unit: 'week',
-      open: 110, high: 120, low: 105, close: 120, price: 120, changeRate: 10 / 110,
+      open: 110, high: 120, low: 105, close: 120, price: 120, changeRate: 10 / 110, volume: null,
     },
   ]);
+});
+
+test('volume aggregates only complete calendar buckets and preserves actual zero volume', async () => {
+  const service = loadService([
+    { trade_date: '2024-01-02', close_price: '100', bucket: '2024-01-01', volume: '120' },
+    { trade_date: '2024-01-05', close_price: '110', bucket: '2024-01-01', volume: '0' },
+    { trade_date: '2024-01-08', close_price: '105', bucket: '2024-01-08', volume: '90' },
+    { trade_date: '2024-01-12', close_price: '120', bucket: '2024-01-08', volume: null },
+  ]);
+  for (const unit of ['week', 'month']) {
+    const bars = await service.getPriceSeries('STOCK_1', '2024-01-01', '2024-01-31', unit);
+    assert.equal(bars[0].volume, 120);
+    assert.equal(bars[1].volume, null);
+  }
 });
 
 test('decline ranking sorts ascending with missing prices last and excludes out-of-period listings', async () => {

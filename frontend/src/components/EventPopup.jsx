@@ -426,7 +426,7 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
               <span className="nar-tag">옆자리 · 동료</span>
             </div>
             <div className="nar-body">
-              오늘도 하나 배웠다. 사무실 불이 꺼지기 전에, 김대리가 씩 웃었다.
+              오늘도 하나 배웠다. 김대리와 인사를 나누고 사무실을 나섰다.
               {!!stressDelta && (
                 <div className="study-stress-badge study-stress-badge--dark">
                   🧘 스트레스 {stressDelta}
@@ -482,7 +482,7 @@ export function TravelEvent({ event, onResolve, onDismiss }) {
   const couldNotAfford = result?.chosen === 'go' && result.cashDelta === undefined;
   const resultText = result && (
     result.chosen === 'skip'
-      ? '돈은 아꼈지만, 답답한 하루가 계속됩니다.'
+      ? '돈은 아꼈지만 여전히 답답합니다.'
       : couldNotAfford
         ? (result.detail?.message || '여행 갈 돈이 없다...')
         : '잠시 일상에서 벗어나 숨을 돌렸습니다. 스트레스가 낮아졌습니다.'

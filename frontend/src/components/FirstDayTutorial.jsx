@@ -159,7 +159,7 @@ export const STEPS = {
           note: () => (
             <>
               <span className="big">📈 마켓</span>
-              주식·채권·코인 주문을 예약하는 곳<br />
+              주식 주문을 예약하는 곳<br />
               <b>눌러서 열어 보자!</b>
             </>
           ),
