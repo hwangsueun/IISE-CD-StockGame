@@ -124,10 +124,13 @@ export const useGameStore = create((set, get) => ({
 
   // --- 첫날 체험형 튜토리얼 (FirstDayTutorial) ---
   // 실제 게임 1일차 위에서 직접 눌러 보며 진행한다. 끝내거나 건너뛰면 '게임 시작' 안내를 본 것으로 기록한다.
-  firstDayStep: null,      // 1~9 | null(비활성)
+  firstDayStep: null,      // 1~10 | null(비활성)
   startFirstDay: (step = 1) => set({ firstDayStep: step, activeModal: null, modalProps: {},
     tutorialCategory: null, tutorialStep: null }),
-  nextFirstDayStep: () => set((s) => ({ firstDayStep: s.firstDayStep + 1 })),
+  // from: 호출한 쪽이 보고 있던 단계. 턴 전환처럼 한 단계 완료가 연달아 두 번 감지돼도 한 칸만 넘어가게 한다
+  nextFirstDayStep: (from) => set((s) => (
+    from == null || s.firstDayStep === from ? { firstDayStep: s.firstDayStep + 1 } : {}
+  )),
   // 이전 단계로: 열려 있던 창은 닫고 그 단계를 처음부터 다시 보여준다
   prevFirstDayStep: () => set((s) => ({ firstDayStep: Math.max(1, s.firstDayStep - 1), activeModal: null, modalProps: {} })),
   endFirstDay() {

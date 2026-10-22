@@ -271,7 +271,7 @@ export default function AssetDetailModal({ assetId }) {
     >
       <div className="filter-bar">
         {['chart', 'news', 'community', 'info'].map((t) => (
-          <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
+          <button key={t} data-tutorial={`asset-tab-${t}`} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
             {{ chart: '차트', news: '뉴스', community: '종토방', info: '정보' }[t]}
           </button>
         ))}

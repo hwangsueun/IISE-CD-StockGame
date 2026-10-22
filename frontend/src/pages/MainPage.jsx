@@ -18,7 +18,7 @@ import FaintOverlay from '../components/FaintOverlay';
 import GuideModal from '../components/GuideModal';
 import QuantModal from '../components/QuantModal';
 import TutorialOverlay from '../components/TutorialOverlay';
-import FirstDayTutorial from '../components/FirstDayTutorial';
+import FirstDayTutorial, { NEXT_DAY_STEP } from '../components/FirstDayTutorial';
 
 const MODALS = {
   market: MarketModal,
@@ -200,7 +200,8 @@ export default function MainPage() {
             <button
               className="nextturn-btn"
               disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
-                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null || firstDayStep !== null}
+                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null ||
+                (firstDayStep !== null && firstDayStep !== NEXT_DAY_STEP)}
               onClick={advanceTurn}
               title="다음 턴"
             >
