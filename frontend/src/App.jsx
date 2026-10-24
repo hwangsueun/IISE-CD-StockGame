@@ -3,7 +3,10 @@ import { useEffect } from 'react';
 import { useGameStore } from './state/gameStore';
 import IntroPage from './pages/IntroPage';
 import MainPage from './pages/MainPage';
-import ResultPage from './pages/ResultPage';
+import ResultPage, { DevEndingPreview } from './pages/ResultPage';
+
+// 개발용: ?ending=happy | bad 로 엔딩 컷신만 미리 본다 (세션·서버 불필요)
+const DEV_ENDING = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('ending') : null;
 
 export default function App() {
   const { sessionId, status, resumeGame, loadProfile } = useGameStore();
@@ -14,6 +17,7 @@ export default function App() {
     if (sessionId && !status) resumeGame();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (DEV_ENDING) return <DevEndingPreview kind={DEV_ENDING} />;
   if (!sessionId) return <IntroPage />;
   if (status === 'success' || status === 'failed') return <ResultPage />;
   return <MainPage />;

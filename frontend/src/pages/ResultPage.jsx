@@ -2,7 +2,25 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
-import { won, pct } from '../utils/format';
+import Ending from '../components/Ending';
+
+// [개발용] ?ending=happy | bad 로 게임을 끝내지 않고 엔딩 컷신을 확인한다 (App.jsx)
+const DEV_MOCK_BASE = {
+  difficulty: 'normal', challenge: { enrolled: true, rounds: [{ outcome: 'win' }, { outcome: 'loss' }, { outcome: 'win' }], totalClaimed: 1_240_000 },
+  initialCash: 50_000_000, debtInitial: 100_000_000, tradeCount: 57,
+};
+const DEV_MOCKS = {
+  happy: { kind: 'happy', result: { ...DEV_MOCK_BASE, status: 'success', turnsPlayed: 240, debtRemaining: 0,
+    finalCash: 12_300_000, finalTotalAsset: 18_750_000, stress: 42, trust: 88, realizedPnlSum: 31_480_000 }, report: { totalReturn: 0.6295 } },
+  bad: { kind: 'bad', result: { ...DEV_MOCK_BASE, status: 'failed', turnsPlayed: 240, debtRemaining: 35_000_000,
+    finalCash: 2_100_000, finalTotalAsset: 4_800_000, stress: 81, trust: 30, realizedPnlSum: -18_200_000 }, report: { totalReturn: -0.4120 } },
+};
+
+export function DevEndingPreview({ kind }) {
+  const mock = DEV_MOCKS[kind];
+  if (!mock) return <div className="loading-screen">알 수 없는 엔딩: {kind} (happy · bad)</div>;
+  return <Ending kind={mock.kind} result={mock.result} report={mock.report} onRestart={() => window.location.assign('/?reset')} />;
+}
 
 export default function ResultPage() {
   const { sessionId, status, resetGame } = useGameStore();
@@ -16,33 +34,5 @@ export default function ResultPage() {
 
   if (!result) return <div className="loading-screen">결산 중...</div>;
 
-  return (
-    <div className="result-page">
-      <h1>{status === 'success' ? '🎉 상환 성공!' : '💀 파산...'}</h1>
-      <p className="result-sub">
-        {status === 'success'
-          ? `${result.turnsPlayed}턴 만에 빚을 모두 갚았다.`
-          : '빚을 갚지 못한 채 1년이 끝났다.'}
-      </p>
-
-      <dl className="result-stats">
-        <div><dt>최종 총자산</dt><dd>{won(result.finalTotalAsset)}</dd></div>
-        <div><dt>남은 부채</dt><dd>{won(result.debtRemaining)}</dd></div>
-        <div><dt>총 거래 횟수</dt><dd>{result.tradeCount}회</dd></div>
-        <div><dt>실현손익 합계</dt><dd>{won(result.realizedPnlSum)}</dd></div>
-        {report && <div><dt>총 수익률</dt><dd>{pct(report.totalReturn)}</dd></div>}
-      </dl>
-
-      {result.challenge?.enrolled && <section className="challenge-card">
-        <h2>투자 챌린지</h2>
-        <p>{result.challenge.rounds.filter(r => r.outcome === 'win').length}승 · {result.challenge.rounds.length}회 결산</p>
-        <p>누적 수령 상금 {won(result.challenge.totalClaimed)}</p>
-        {result.challenge.unclaimedPrize > 0 && <p>미수령 상금 {won(result.challenge.unclaimedPrize)} · 게임 종료로 수령 마감</p>}
-      </section>}
-
-      {/* TODO(frontend): 월별 자산 추이 차트 (report.monthlyTrend), AI 투자성향 분석 (report.aiAnalysis) */}
-
-      <button className="btn-primary" onClick={resetGame}>다시 하기</button>
-    </div>
-  );
+  return <Ending kind={status === 'success' ? 'happy' : 'bad'} result={result} report={report} onRestart={resetGame} />;
 }
