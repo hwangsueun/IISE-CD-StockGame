@@ -5,6 +5,7 @@ import { won, pct, relativeYearDate } from '../utils/format';
 import './QuantWorkshop.css';
 import { TargetControls, ReductionControls, RiskControls, ResearchResult } from './QuantResearch';
 import { strategySignature as signature, restoreStrategyDraft } from '../utils/userStrategy';
+import ModelGuide, { guidePosition, guideStepFor } from './ModelGuide';
 
 const number = value => value == null || !Number.isFinite(value) ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const modelOptions = [
@@ -130,6 +131,21 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
   const [error, setError] = useState(''), [message, setMessage] = useState(''), [autoBusy,setAutoBusy]=useState(false);
   const [comparisonIds, setComparisonIds] = useState([]), [comparisonPeriod, setComparisonPeriod] = useState('practice');
   const alive = useRef(true), saveKey = useRef(null), pending = useRef(false);
+  // '너무 어려워요' 설명서 ↔ 편집 화면 코너(data-guide)를 서로 연결한다.
+  // guide = 열린 설명 단계 id, spot = 설명서에서 돌아온 { 단계 id, 코너 }
+  const [guide, setGuide] = useState(null), [spot, setSpot] = useState(null), root = useRef(null);
+  const openGuide = id => { setSpot(null); setGuide(id); };
+  useEffect(() => { // 설명서를 열면 그 자리(창 위쪽)로 올라간다
+    if (guide) root.current?.querySelector('.mg')?.scrollIntoView({ block: 'start' });
+  }, [guide]);
+  useEffect(() => { // 설명서에서 돌아오면 그 단계의 코너로 이동해 강조한다
+    const el = spot && !guide && view === 'build' ? root.current?.querySelector(`[data-guide="${spot.key}"]`) : null;
+    if (!el) return undefined;
+    el.classList.add('guide-focus');
+    // 설명서가 닫히며 편집 화면이 다시 그려진 직후라 잠깐 뒤에 이동한다
+    const timer = setTimeout(() => el.scrollIntoView({ block: 'start' }), 30);
+    return () => { clearTimeout(timer); el.classList.remove('guide-focus'); };
+  }, [spot, guide, view]);
   const openModal = useGameStore(s => s.openModal);
   const draftKey = `antsurvival_strategy_draft_v1:${sessionId}`;
   useEffect(() => {
@@ -186,10 +202,25 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
   const currentRef = workspace.references.find(r => r.id === config.referenceId);
   const changeTerm = (i, patch) => update({ terms: config.terms.map((t, j) => i === j ? { ...t, ...patch } : t) });
   const changeRule = (i, patch) => update({ conditions: config.conditions.map((t, j) => i === j ? { ...t, ...patch } : t) });
-  return <div className="workshop" aria-busy={busy}>
+  // 코너의 '이게 뭐예요?' → 그 코너를 설명하는 단계 (방금 설명서에서 온 코너라면 보던 단계)
+  const ask = key => <button type="button" className="mg-ask" onClick={() => openGuide(spot?.key === key ? spot.id : guideStepFor(key, learn))}>이게 뭐예요?</button>;
+  // 설명서에서 돌아온 코너 안에만 '설명 이어 가기' 줄을 보여 준다
+  const resume = key => {
+    if (spot?.key !== key) return null;
+    const { index, total, next } = guidePosition(spot.id, learn);
+    return <div className="mg-resume" role="status"><span>설명서 {index}/{total} · 이 코너에서 확인해 보세요</span>
+      {next && <button type="button" className="btn-primary" onClick={() => openGuide(next)}>다음 설명 계속 ▶</button>}
+      <button type="button" onClick={() => openGuide(spot.id)}>이 설명 다시 보기</button>
+      <button type="button" onClick={() => setSpot(null)}>그만하기</button></div>;
+  };
+  return <div className="workshop" aria-busy={busy} ref={root}>
     <div className="workshop-intro"><span className="workshop-kicker">내 아이디어로 종목을 고르는 도구</span><h3>나만의 투자 모델 만들기</h3>
       <p>모델은 종목을 고르고 투자 금액을 정하는 방법입니다. 예시 아이디어에서 시작해도 좋아요. 과거 자료로 연습한 뒤 저장하면 게임을 진행하며 성과를 확인할 수 있습니다.</p>
-      <div className="workshop-flow"><span>01 참고하기</span><span>02 판단 방법 정하기</span><span>03 연습하기</span><span>04 저장하고 지켜보기</span></div></div>
+      <div className="workshop-flow"><span>01 참고하기</span><span>02 판단 방법 정하기</span><span>03 연습하기</span><span>04 저장하고 지켜보기</span></div>
+      {!guide && <button type="button" className="mg-open" onClick={() => openGuide('overview')}>너무 어려워요 · 설정을 하나씩 설명해 주세요</button>}</div>
+    {guide && <ModelGuide key={guide} config={config} learn={learn} startId={guide}
+      onLeave={(step, patch) => { if (patch) update(patch); setGuide(null); if (step.jump) { setView('build'); setSpot({ id: step.id, key: step.jump }); } }} />}
+    {!guide && <>
     <section className="workshop-automation" aria-label="모델 자동 투자">
       <div><strong>모델로 자동 투자 · {workspace.automation?.enabled ? workspace.automation.paused ? '일시정지' : '켜짐' : '꺼짐'}</strong>
         <p>{workspace.automation?.enabled ? `${workspace.automation.name} · 내 주식과 사용 가능한 현금으로 운용합니다.` : '저장한 모델에서 자동 투자를 켤 수 있습니다. 내 주식과 사용 가능한 현금으로 운용합니다.'}</p>
@@ -240,7 +271,7 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
       </article>)}</div>
     </>}
     {view === 'build' && <>
-      <section className="workshop-section" aria-labelledby="workshop-model-title"><h4 id="workshop-model-title">어떤 방법으로 종목을 고를까요?</h4>
+      <section className="workshop-section" data-guide="method" aria-labelledby="workshop-model-title"><h4 id="workshop-model-title">어떤 방법으로 종목을 고를까요? {ask('method')}</h4>{resume('method')}
         <p>과거 사례에서 판단 방법을 배우게 하거나 내가 규칙을 직접 정할 수 있어요. 아래의 모델 중 하나를 선택하세요.</p>
         <div className="workshop-models" role="radiogroup" aria-labelledby="workshop-model-title">
           {modelOptions.map(model => <label className={`workshop-model${config.method === model.id ? ' is-selected' : ''}`} key={model.id}>
@@ -268,12 +299,12 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
         </details>
         <p>{learn ? '연습 시작 전까지 확인할 수 있었던 과거 사례로만 배웁니다. 저장하면 배운 모델을 고정해 이후 게임에서 성과를 지켜봅니다.' : '직접 만든 규칙은 별도 학습 없이 실행합니다. 같은 지표를 사용하는 학습 모델과도 비교할 수 있어요.'}</p>
       </section>
-      <TargetControls config={config} update={update} learn={learn} />
-      <section className="workshop-section"><h4>어떤 생각으로 투자하나요?</h4><Field label="전략 이름"><input maxLength={60} value={config.name} onChange={e => update({ name: e.target.value })} /></Field>
+      <TargetControls config={config} update={update} learn={learn} ask={ask} resume={resume} />
+      <section className="workshop-section" data-guide="memo"><h4>어떤 생각으로 투자하나요? {ask('memo')}</h4>{resume('memo')}<Field label="전략 이름"><input maxLength={60} value={config.name} onChange={e => update({ name: e.target.value })} /></Field>
         <Field label="어떤 종목을 고르면 좋을까요?"><textarea rows={2} maxLength={500} value={config.hypothesis} placeholder="예: 꾸준히 오른 종목이 잠깐 조정받았을 때 매수한다." onChange={e => update({ hypothesis: e.target.value })} /></Field>
         {currentRef && <p>참고한 아이디어: <a href={currentRef.url} target="_blank" rel="noreferrer">{currentRef.title} ↗</a> · 각 요소는 아래에서 바꿀 수 있어요.</p>}
       </section>
-      <section className="workshop-section"><h4>어떤 종목만 살까요? <small>선택 사항 · 최대 8개</small></h4>
+      <section className="workshop-section" data-guide="conditions"><h4>어떤 종목만 살까요? <small>선택 사항 · 최대 8개</small> {ask('conditions')}</h4>{resume('conditions')}
         <p>예: 최근 60일 수익률이 0% 이상인 종목만 남길 수 있어요. 조건이 없으면 모델이 살펴보는 모든 종목을 후보로 둡니다.</p>
         <Choice label="조건을 통과하는 방법" value={config.conditionMode} options={[[ 'all', '모든 조건 충족'], ['any', '하나 이상의 조건 충족']]} onChange={conditionMode => update({ conditionMode })} />
         {config.conditions.map((r, i) => <div className="workshop-rule" key={i}>
@@ -285,15 +316,15 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
         </div>)}
         <button type="button" disabled={config.conditions.length >= 8} onClick={() => update({ conditions: [...config.conditions, { feature: 'return60', measure: 'raw', op: 'gte', value: 0 }] })}>+ 조건 추가</button>
       </section>
-      <section className="workshop-section"><h4>{config.method === 'conditions' ? '학습 모델 비교에 넣을 지표' : learn ? '어떤 정보를 참고할까요?' : '점수를 매길 때 참고할 정보'} <small>최대 12개</small></h4>
+      <section className="workshop-section" data-guide="terms"><h4>{config.method === 'conditions' ? '학습 모델 비교에 넣을 지표' : learn ? '어떤 정보를 참고할까요?' : '점수를 매길 때 참고할 정보'} <small>최대 12개</small> {ask('terms')}</h4>{resume('terms')}
         <p>{config.method === 'conditions' ? '조건 필터만 실행할 때는 사용하지 않습니다. 아래 지표는 학습 모델을 비교할 때 입력합니다.' : learn ? '지표는 가격이나 거래량의 특징을 숫자로 나타낸 정보입니다. 모델이 이 정보를 보고 이후 수익률과의 관계를 배웁니다.' : '각 지표에서 다른 종목보다 얼마나 높은 위치인지 점수를 매깁니다. 가중치가 양수면 높은 값을 선호하고 음수면 낮은 값을 선호해요. 절댓값이 클수록 더 중요하게 봅니다.'}</p>
         {config.terms.map((t, i) => <div className="workshop-term" key={i}><Choice label={`지표 ${i + 1}`} value={t.feature} options={options.filter(([id]) => id === t.feature || !config.terms.some(x => x.feature === id))} onChange={feature => changeTerm(i, { feature })} note={featureHelp(t.feature)} />
           {(config.method === 'score' || config.reduction === 'anchoredPca') && <Numeric label={config.method === 'score' ? '가중치 (−5 ~ 5, 0 제외)' : '첫 요약값에 반영할 가중치 (0 제외)'} value={t.weight} min={-5} max={5} step={.5} onChange={weight => changeTerm(i, { weight })} />}
           <button type="button" aria-label={`지표 ${i + 1} 삭제`} onClick={() => update({ terms: config.terms.filter((_, j) => j !== i) })}>삭제</button></div>)}
         <button type="button" disabled={config.terms.length >= 12} onClick={() => update({ terms: [...config.terms, { feature: workspace.features.find(f => !config.terms.some(t => t.feature === f.id)).id, weight: 1 }] })}>+ 지표 추가</button>
       </section>
-      <ReductionControls config={config} update={update} learn={learn} />
-      <section className="workshop-section"><h4>얼마를 투자하고 얼마를 남길까요?</h4><div className="workshop-grid">
+      <ReductionControls config={config} update={update} learn={learn} ask={ask} resume={resume} />
+      <section className="workshop-section" data-guide="money"><h4>얼마를 투자하고 얼마를 남길까요? {ask('money')}</h4>{resume('money')}<div className="workshop-grid">
         <Numeric label="최대 몇 종목을 보유할까요?" value={config.topK} min={1} max={30} onChange={topK => update({ topK })} />
         <Numeric label="전체 자금 중 주식에 쓸 최대 비율 (%)" value={config.exposure} min={0} max={100} onChange={exposure => update({ exposure })} />
         <Numeric label="전체 자금 중 한 종목에 쓸 최대 비율 (%)" value={config.maxWeight} min={1} max={100} onChange={maxWeight => update({ maxWeight })} />
@@ -301,8 +332,8 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
         <Choice label="코스피가 이 평균 가격보다 높을 때만 투자" numeric value={config.marketMA} options={[[0, '시장 조건 사용 안 함'], [20, '코스피 20거래일 평균'], [60, '코스피 60거래일 평균'], [120, '코스피 120거래일 평균'], [200, '코스피 200거래일 평균']]} onChange={marketMA => update({ marketMA })} />
         <Numeric label="시장 전체의 흔들림에도 맞춰 줄이기 (%/년)" value={config.targetVol} min={0} max={100} onChange={targetVol => update({ targetVol })} note="0이면 사용하지 않습니다. 낮게 정할수록 시장이 불안할 때 투자 금액을 더 줄입니다. 손실 한도가 아닙니다." />
       </div><p>예: 총 투자 비율이 80%라면 자금 100만 원 중 최대 80만 원을 주식에 씁니다. 한 종목의 비율을 20%로 정하면 그 종목에는 최대 20만 원을 씁니다. 남는 돈은 현금으로 둡니다. 코스피 조건을 사용하면 조건을 벗어날 때 다음 점검일 전에도 매도를 예약합니다.</p></section>
-      <RiskControls config={config} update={update} workspace={workspace} />
-      <section className="workshop-section"><h4>언제 다시 살펴보고 거래할까요?</h4><div className="workshop-grid">
+      <RiskControls config={config} update={update} workspace={workspace} ask={ask} resume={resume} />
+      <section className="workshop-section" data-guide="rebalance"><h4>언제 다시 살펴보고 거래할까요? {ask('rebalance')}</h4>{resume('rebalance')}<div className="workshop-grid">
         <Choice label="종목과 투자 금액을 다시 정할 간격" numeric value={config.rebalanceTurns} options={[[1, '매 턴'], [5, '5턴마다'], [20, '20턴마다']]} onChange={rebalanceTurns => update({ rebalanceTurns })} />
         <Numeric label="보유 종목의 순위가 몇 등 떨어져도 유지할까요?" value={config.rankBuffer} min={0} max={30} onChange={rankBuffer => update({ rankBuffer })} note="10종목·여유 5등이면 기존 종목은 15위까지 유지할 수 있어요. 선정 조건은 계속 충족해야 해요." />
         <Choice label="단기 급등 종목 신규 매수" value={config.entryCeiling == null ? 'off' : 'on'} options={[['off', '추가 조건 없음'], ['on', '5일 상승률이 기준 이하면 매수']]} onChange={value => update({ entryCeiling: value === 'off' ? null : 10 })} />
@@ -310,8 +341,8 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
       </div><p>오늘 장이 끝난 가격으로 판단해 다음에 주식시장이 열리는 날의 시작 가격에 거래합니다. 동점이면 이미 보유한 종목을 먼저 고릅니다.</p></section>
       <details className="workshop-details"><summary>모든 지표의 뜻과 계산법 · {workspace.features.length}개</summary><dl>{workspace.features.map(f => <div key={f.id}><dt>{f.name}</dt><dd>{featureHelp(f.id)}<br />계산: {f.formula} · 최소 {f.lookback}개 가격 자료</dd></div>)}</dl><p>이 제작 도구의 지표 정의입니다. 공식 Alpha158 지표의 정의는 ‘What is Alpha158?’에서 확인할 수 있습니다.</p></details>
       <Choice label="무엇을 바꿔서 비교할까" value={config.comparison} options={[['models', '학습 모델만 변경'], ['labels', '모델이 맞혀 볼 결과 변경'], ['risk', '불안할 때 투자 금액 줄이기 켜기·끄기'], ['reduction', '지표를 그대로 쓰기·묶어서 쓰기']]} onChange={comparison => update({ comparison })} />
-      <div className="workshop-actions"><Choice label="살 때와 팔 때 각각 적용할 거래비용" numeric value={feeBps} options={[[0, '0% · 현재 게임 규칙'], [10, '0.1% · 비용 가정'], [20, '0.2% · 비용 가정']]} onChange={setFeeBps} />
-        <button className="btn-primary" type="button" disabled={unavailable(config.method)} onClick={practice}>과거 최대 240턴 연습</button>
+      {resume('actions')}<div className="workshop-actions" data-guide="actions"><Choice label="살 때와 팔 때 각각 적용할 거래비용" numeric value={feeBps} options={[[0, '0% · 현재 게임 규칙'], [10, '0.1% · 비용 가정'], [20, '0.2% · 비용 가정']]} onChange={setFeeBps} />
+        <button className="btn-primary" type="button" disabled={unavailable(config.method)} onClick={practice}>과거 최대 240턴 연습</button>{ask('actions')}
         <button type="button" disabled={!config.terms.length || (config.comparison === 'models' && (unavailable('randomForest') || unavailable('lightgbm') || unavailable('xgboost')))} onClick={compare}>같은 조건으로 비교</button>
         <button type="button" disabled={workspace.ended || workspace.turn >= 240 || unavailable(config.method)} onClick={save}>전략 저장 · 오늘부터 관찰</button></div>
       <p>‘같은 조건으로 비교’를 누르면 선택한 설정만 바꾼 결과를 나란히 볼 수 있어요. 초기 자금과 기간을 맞춰 비교합니다.</p>
@@ -328,5 +359,6 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
       <section className="workshop-section"><h4>연습·비교 기록 · 최근 12개</h4><p>잘된 결과와 실패한 결과를 함께 남깁니다. 반복해서 확인한 기간은 새로운 검증 기간이 아닙니다.</p>
       {!workspace.runs.length && <p>아직 실행한 연습이 없습니다.</p>}{workspace.runs.map(r => <article className="workshop-record" key={r.id}><div><strong>{r.config.name}</strong><p>{r.comparison === 'custom' ? r.comparison_period === 'observe' ? '저장 모델 관찰 비교' : '저장 모델 과거 비교' : r.kind === 'compare' ? '학습 모델 비교' : `수익률 ${pct(r.performance?.returnRate)}`} · 편도 비용 {Number(r.fee_bps) / 100}%</p></div><button type="button" onClick={() => oldReport(r.id)}>결과 보기</button></article>)}</section></>}
     </fieldset>
+    </>}
   </div>;
 }

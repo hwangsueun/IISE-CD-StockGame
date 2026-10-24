@@ -20,11 +20,11 @@ const riskHelp = {
   dcc: '각 종목의 흔들림뿐 아니라 종목들이 함께 오르내리는 관계도 새 가격에 맞춰 갱신합니다.',
 };
 const reductionNames = { none: '지표를 각각 사용', pca: '데이터에서 조합 찾기 · PCA', anchoredPca: '내 기준도 반영해 조합 찾기 · 가설 PCA' };
-export function ReductionControls({ config: c, update, learn }) {
+export function ReductionControls({ config: c, update, learn, ask = () => null, resume = () => null }) {
   if (!learn) return null;
   const active = c.reduction && c.reduction !== 'none';
-  return <section className="workshop-section">
-    <span className="workshop-effect">선택 사항 · 모델이 지표를 읽는 방식</span><h4>여러 지표를 몇 개의 숫자로 묶어 볼까요?</h4>
+  return <section className="workshop-section" data-guide="reduction">
+    <span className="workshop-effect">선택 사항 · 모델이 지표를 읽는 방식</span><h4>여러 지표를 몇 개의 숫자로 묶어 볼까요? {ask('reduction')}</h4>{resume('reduction')}
     <p>20일 수익률과 60일 수익률처럼 비슷한 흐름을 담은 지표가 있을 수 있어요. 여러 지표를 조합한 새 숫자를 만들어 모델에 넣는 기능입니다.</p>
     <div className="workshop-example"><strong>예를 들면</strong><p>수익률 2개와 변동성 1개를 골랐다면 3개 값을 그대로 쓰거나 2개 요약값으로 바꿔 볼 수 있어요. 어떤 방식이 더 나은지는 같은 기간의 연습 결과로 비교하세요.</p></div>
     <Select label="지표를 모델에 전달하는 방법" value={c.reduction || 'none'} values={Object.entries(reductionNames)} onChange={reduction => update({ reduction })} />
@@ -35,11 +35,11 @@ export function ReductionControls({ config: c, update, learn }) {
     <details className="workshop-details"><summary>PCA의 원리와 계산 방법</summary><p>PCA는 여러 지표에 가중치를 곱해 더한 ‘축’을 학습합니다. 지표 변화의 큰 부분을 적은 축으로 표현합니다. 정보를 줄이는 과정에서 유용한 정보도 빠질 수 있습니다.</p><p>학습 자료에서만 평균·표준편차와 축을 정합니다. 평가 중에는 고정합니다. 가설 PCA는 사용자의 가중치로 첫 축을 정하고 나머지 축은 첫 축과 겹치지 않는 방향에서 학습합니다.</p></details>
   </section>;
 }
-export function TargetControls({ config: c, update, learn }) {
+export function TargetControls({ config: c, update, learn, ask = () => null, resume = () => null }) {
   if (!learn) return null;
   const classification = ['randomForest', 'lightgbm', 'xgboost'].includes(c.method);
   const inputNames = { rank: '다른 종목과 비교한 위치', raw: '지표의 원래 숫자', zscore: '이 종목의 평소와 다른 정도' };
-  return <section className="workshop-section"><h4>모델에게 무엇을 맞혀 보게 할까요?</h4>
+  return <section className="workshop-section" data-guide="target"><h4>모델에게 무엇을 맞혀 보게 할까요? {ask('target')}</h4>{resume('target')}
     <p>과거 지표를 본 뒤 실제로 어떤 일이 일어났는지 알려 주며 학습합니다. 어떤 결과를 맞힐지 직접 정할 수 있어요.</p>
     <Select label="예측할 결과" value={c.target} values={classification ? [['return', '얼마나 오르거나 내릴까?'], ['binary', '정한 기준보다 오를까?'], ['threeClass', '오를까 · 큰 변화 없을까 · 내릴까?'], ['tails', '크게 움직인 사례만 보고 오름·내림 구분']] : [['return', '얼마나 오르거나 내릴까?']]} onChange={target => update({ target, tradePolicy: target === 'return' ? 'rank' : c.tradePolicy })} />
     <p>기간은 위에서 정한 {c.horizon}거래일입니다. 거래일은 주식시장이 열리는 날을 뜻합니다.</p>
@@ -62,13 +62,13 @@ export function TargetControls({ config: c, update, learn }) {
     </details>
   </section>;
 }
-export function RiskControls({ config: c, update, workspace }) {
+export function RiskControls({ config: c, update, workspace, ask = () => null, resume = () => null }) {
   const fitted = ['garch','har','vhar','sparseVhar','ewma','ccc','dcc'].includes(c.riskModel);
   const joint = ['ewma','ccc','dcc'].includes(c.riskModel);
   const lagged = ['har','vhar','sparseVhar'].includes(c.riskModel);
   const assets = workspace.assets || [];
   return <>
-    <section className="workshop-section"><span className="workshop-effect">투자 금액을 조절하는 설정</span><h4>가격이 크게 흔들릴 때 덜 투자할까요?</h4>
+    <section className="workshop-section" data-guide="risk"><span className="workshop-effect">투자 금액을 조절하는 설정</span><h4>가격이 크게 흔들릴 때 덜 투자할까요? {ask('risk')}</h4>{resume('risk')}
       <p>고른 종목의 가격이 얼마나 크게 오르내릴지 계산합니다. 정한 수준보다 크게 흔들릴 것으로 보면 주식에 넣는 돈을 줄이고 현금을 남겨요.</p>
       <Select label="가격의 흔들림을 살펴보는 방법" value={c.riskModel} values={Object.entries(riskNames)} onChange={riskModel => update({ riskModel })} />
       {c.riskModel !== 'none' && <>
@@ -85,7 +85,7 @@ export function RiskControls({ config: c, update, workspace }) {
         </details>
       </>}
     </section>
-    <section className="workshop-section"><span className="workshop-effect">결과를 살펴보는 기능</span><h4>여러 종목이 함께 급락하면 얼마나 잃을까요?</h4>
+    <section className="workshop-section" data-guide="stress"><span className="workshop-effect">결과를 살펴보는 기능</span><h4>여러 종목이 함께 급락하면 얼마나 잃을까요? {ask('stress')}</h4>{resume('stress')}
       <p>모델이 고른 종목을 보유한다고 가정하고 가상의 가격 변화를 여러 번 만들어 봅니다. 큰 급락이 드문 경우와 큰 움직임이 더 자주 나타날 수 있는 경우의 손실을 비교해요.</p>
       <div className="workshop-grid"><Select label="함께 급락하는 상황도 살펴볼까요?" value={c.stressTest ? 'on' : 'off'} values={[[ 'off', '살펴보지 않기'], ['on', '두 가지 상황의 손실 비교하기']]} onChange={v => update({ stressTest: v === 'on' })} />
         {c.stressTest && <Select label="며칠 동안 보유한다고 가정할까요?" numeric value={c.stressHorizon} values={[[1, '1거래일'], [5, '5거래일'], [20, '20거래일']]} onChange={stressHorizon => update({ stressHorizon })} />}
