@@ -398,7 +398,7 @@ button { cursor: pointer; font: inherit; }
   filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6));
   z-index: 5;
 }
-.pbtn:hover {
+.pbtn:hover, .b-computer:focus-visible {
   transform: translateY(-3px) scale(1.04);
   filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 8px rgba(245, 197, 66, 0.7));
 }
@@ -415,8 +415,20 @@ button { cursor: pointer; font: inherit; }
 .b-calendar { left: 100px; top: 100px; width: 130px; height: 130px; }
 .b-news { left: 100px; top: 280px; width: 130px; height: 130px; }
 .b-portfolio { left: 100px; top: 450px; width: 130px; height: 130px; }
-.b-market { left: 1050px; top: 300px; width: 130px; height: 130px; }
-.b-game { left: 1050px; top: 150px; width: 130px; height: 100px; }
+.b-market { left: 1050px; top: 360px; width: 130px; height: 130px; }
+.b-game { left: 1050px; top: 210px; width: 130px; height: 100px; }
+/* 1268×716 stage의 center/cover 배경에서 원본 (1396, 712, 390, 436) 영역. */
+.b-computer { left: 737.55px; top: 260.79px; width: 206.05px; height: 230.35px; }
+.b-computer .lbl { bottom: calc(100% + 10px); }
+.b-computer:focus-visible { outline: 2px dashed var(--px-gold); outline-offset: 6px; }
+.computer-art { display: block; width: 100%; height: 100%; overflow: visible; image-rendering: pixelated; }
+.computer-notice {
+  position: absolute; bottom: calc(100% + 42px); left: 50%; transform: translateX(-50%);
+  background: var(--px-gold); color: #1a0f0a; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #fff5cc, 2px 2px 0 #000;
+  padding: 3px 8px; white-space: nowrap; pointer-events: none;
+  font-family: 'Galmuri11', monospace; font-size: 12px; font-weight: bold;
+}
 
 /* --- HUD 날짜판/배지 (우상단) --- */
 .hud-clock {
@@ -687,6 +699,42 @@ button { cursor: pointer; font: inherit; }
   border: 2px solid #7f1d1d; background: #2a1010; color: #ff8a7d;
   box-shadow: inset 0 0 0 1px #3d2418;
   font-family: 'Galmuri11', monospace; font-size: 13px; line-height: 1.5;
+}
+.mk-sectors { padding: 14px 18px; overflow-y: auto; height: 100%; }
+.mk-sectors h3 { margin: 0 0 10px; color: var(--px-gold); font-size: 17px; }
+.mk-sectors p { font-size: 13px; line-height: 1.7; color: var(--px-ink-dim); margin: 6px 0 12px; }
+.mk-sectors .mk-sector-date { color: var(--px-ink); font-size: 12px; }
+.mk-sector-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mk-sector-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; text-align: left;
+  background: #1c130e; color: var(--px-ink); border: 1px solid #6d5038; box-shadow: 3px 3px #080402;
+  font-family: 'Galmuri11', monospace; }
+.mk-sector-card.up { background: #281516; border-color: #8e4c49; }
+.mk-sector-card.down { background: #121c2a; border-color: #45668e; }
+.mk-sector-title { display: flex; justify-content: space-between; gap: 6px; color: var(--px-ink); }
+.mk-sector-card small { font-size: 10px; color: var(--px-ink-dim); }
+.mk-sector-card strong { font-size: 24px; }
+.mk-sector-card.up strong { color: #ff7b73; }
+.mk-sector-card.down strong { color: #80b8eb; }
+.mk-sector-breadth { font-size: 12px; color: var(--px-ink); }
+.market-performance-badge { position: absolute; top: 104px; left: 48%; transform: translateX(-50%); display: flex; align-items: center;
+  gap: 12px; padding: 10px 14px; background: #160f0a; border: 1px solid #c6ac78; box-shadow: 3px 3px #000;
+  color: var(--px-ink); font-family: 'Galmuri11', monospace; font-size: 12px; cursor: pointer; }
+.market-performance-badge:hover, .market-performance-badge:focus-visible { outline: 1px solid var(--px-gold); background: #302012; }
+.market-performance-badge .up { color: #ff8d80; }
+.market-performance-badge .down { color: #80b8eb; }
+.comparison-period { margin: 0; font-size: 12px; color: var(--px-ink-dim); }
+.comparison-chart { background: #0c0704; padding: 10px; border: 1px solid #493223; }
+.comparison-chart svg { width: 100%; height: auto; display: block; }
+.comparison-chart text { fill: #bbaa92; font-size: 10px; font-family: 'Galmuri11', monospace; }
+.comparison-legend { display: flex; gap: 18px; font-size: 12px; color: #f5c542; }
+.comparison-legend span:nth-child(2) { color: #80b8eb; }
+.comparison-legend small { margin-left: auto; color: var(--px-ink-dim); }
+.comparison-help { color: var(--px-ink-dim); font-size: 12px; line-height: 1.7; }
+.comparison-help summary { color: var(--px-gold); cursor: pointer; }
+@media (max-width: 720px) {
+  .mk-sector-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mk-sector-title { flex-direction: column; }
+  .market-performance-badge { gap: 8px; }
 }
 .mk-strip { display: flex; gap: 10px; padding: 4px 0 12px; flex-wrap: wrap; border-bottom: 2px dashed #3d2418; margin-bottom: 10px; }
 .mk-idx { display: flex; gap: 8px; align-items: baseline; background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #5a3624; padding: 6px 10px; }
@@ -1382,34 +1430,9 @@ textarea { min-height: 80px; resize: vertical; }
 .dash-h small { color: var(--px-ink-dim); font-size: 11px; margin-left: 8px; letter-spacing: 0; }
 .dash-empty { color: var(--px-ink-dim); font-family: 'Galmuri11', monospace; font-size: 13px; margin: 8px 0; }
 
-/* 대시보드 탭 내부: 자산군 사이드바 + 도넛차트/집계단위 탭 */
-.pf-dashboard-layout {
-  display: grid; grid-template-columns: 132px minmax(0, 1fr);
-  min-height: 620px; margin: 0 -18px -18px;
-}
-.pf-scope-side {
-  background: #0c0704; border-right: 3px solid #000;
-  box-shadow: inset -2px 0 0 #2a1a10;
-  display: flex; flex-direction: column; gap: 5px; padding: 12px 8px;
-}
-.pf-scope-title {
-  color: var(--px-ink-faint, #7c6248); font-size: 11px; letter-spacing: 1px;
-  padding: 2px 10px 8px; border-bottom: 1px dashed #3d2418; margin-bottom: 3px;
-}
-.pf-scope-side button {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  background: transparent; border: 2px solid transparent; color: var(--px-ink-dim);
-  padding: 10px 9px; cursor: pointer; text-align: left;
-  font-family: 'Galmuri11', monospace; font-size: 14px; letter-spacing: 1px;
-}
-.pf-scope-side button i { width: 15px; color: #5a3624; font-style: normal; text-align: center; }
-.pf-scope-side button:hover { color: var(--px-ink); background: #1a0f0a; }
-.pf-scope-side button.active {
-  background: #2a1a10; border-color: var(--px-gold); color: var(--px-gold);
-  box-shadow: inset 0 -2px 0 #5a3624, 2px 2px 0 #000;
-}
-.pf-scope-side button.active i { color: var(--px-gold); }
-.pf-dashboard-main { min-width: 0; padding: 0 18px 22px; }
+/* 현금과 개별 종목 구성 */
+.pf-dashboard-main { min-width: 0; padding-bottom: 16px; }
+.data-table tbody tr.pf-cash-row { cursor: default; background: #21170f; }
 
 .dash-pie-card, .dash-performance { display: flex; flex-direction: column; gap: 10px; }
 .dash-pie-grid {
@@ -1921,13 +1944,13 @@ textarea { min-height: 80px; resize: vertical; }
   font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--px-gold);
 }
 .tut-note.modal-left::after { content: '▶'; right: 0; }
+.tut-note.modal-right::before { content: '◀'; left: 0; }
 .tut-note.modal-left .big, .tut-note.modal-right .big { font-size: 20px; }
 /* 창 안 내용 위에 놓이는 설명: 어두운 상자를 깔아 뒤 글자와 섞이지 않게 한다 */
 .tut-note.boxed {
   background: rgba(12, 7, 4, 0.94); border: 2px solid var(--px-gold-dark);
   box-shadow: 4px 4px 0 #000; padding: 10px 14px; max-width: 440px;
 }
-.tut-note.modal-right::before { content: '◀'; left: 0; }
 .tut-note .big { display: block; font-size: 24px; font-weight: bold; color: var(--px-gold); letter-spacing: 1px; }
 .tut-note b { color: var(--px-gold); }
 .tut-note .dim { color: #d6d3d1; font-size: 13px; }
@@ -2101,3 +2124,30 @@ textarea { min-height: 80px; resize: vertical; }
 .wed-narration .nar-body { font-size: 20px; }
 .wed-narration .nar-body .rose { color: var(--wed-rose); }
 .wed-narration .nar-body .green { color: var(--px-green); }
+/* 차트 지표 설정: 설명과 기간을 함께 표시 */
+.indicator-settings { max-height: 440px; overflow-y: auto; scrollbar-width: thin; }
+.indicator-settings-note { margin: 3px 0 12px; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.indicator-group { min-width: 0; margin: 0 0 12px; padding: 0; border: 0; }
+.indicator-group legend { color: var(--px-gold); margin-bottom: 9px; font-size: 12px; }
+.indicator-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.indicator-option { padding: 10px; border: 1px solid #3d2418; background: #130b07; }
+.indicator-option.selected { border-color: #a0793a; }
+.indicator-toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; line-height: 1.6; cursor: pointer; }
+.indicator-toggle input { accent-color: var(--px-gold); flex-shrink: 0; }
+.indicator-option p { font-size: 11px; color: var(--px-ink-dim); line-height: 1.65; margin: 5px 0 8px; }
+.indicator-fields { display: flex; flex-wrap: wrap; gap: 7px 12px; }
+.indicator-number { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; color: var(--px-ink-dim); }
+.indicator-number input { width: 61px; padding: 5px; border: 1px solid #5a3624; background: #0c0704; color: var(--px-ink); font: inherit; }
+.indicator-number input:disabled { opacity: 0.45; }
+.indicator-number input:focus-visible { outline: 1px solid var(--px-gold); }
+.indicator-number small { flex-basis: 100%; color: #ff9b8d; }
+.chart-indicator-panel { margin-top: 12px; }
+.chart-indicator-head { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 14px; margin-bottom: 5px; font-size: 11px; color: var(--px-ink); }
+.indicator-chart { display: block; background: #0c0704; border: 2px solid #000; }
+.chart-indicator-description, .indicator-unavailable { margin: 5px 0; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.indicator-unavailable { color: #cbb58c; }
+@media (max-width: 720px) {
+  .indicator-option-grid { grid-template-columns: 1fr; }
+  .dash-pie-grid { grid-template-columns: 1fr; padding: 12px; }
+  .dash-pie-legend li { grid-template-columns: 12px minmax(70px, 1fr) 55px minmax(80px, auto); gap: 6px; }
+}

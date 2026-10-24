@@ -109,7 +109,8 @@ export const useGameStore = create((set, get) => ({
       set({ activeModal: name, modalProps: props, tutorialCategory: null, tutorialStep: null });
       return;
     }
-    const showTutorial = Object.hasOwn(TUTORIALS, name) && !get().tutorialProgress[name];
+    // Quant's first visit opens the story invitation. Its guide remains available manually.
+    const showTutorial = name !== 'quant' && Object.hasOwn(TUTORIALS, name) && !get().tutorialProgress[name];
     set({ activeModal: name, modalProps: props,
       tutorialCategory: showTutorial ? name : null, tutorialStep: showTutorial ? 1 : null });
   },

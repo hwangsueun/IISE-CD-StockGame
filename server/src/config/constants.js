@@ -210,7 +210,6 @@ module.exports = {
 
   // 게임 시작일이 뽑히는 구간 (turnSelector.selectTurnDates).
   // DATA_RANGE보다 1년 늦게 시작한다 = 2013년 룩백 버퍼를 시작일 후보에서 제외한다.
-  // 코인 후보 수 측면에서도 2013년은 유니버스에 2종밖에 없어 게임이 성립하지 않는다.
   // 환경변수 GAME_START_RANGE가 있으면 그쪽이 우선한다(.env.example 참고).
   START_RANGE: { from: '2014-01-02', to: '2023-12-31' },
 };

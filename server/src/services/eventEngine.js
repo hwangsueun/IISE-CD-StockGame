@@ -216,7 +216,7 @@ const EVENT_DEFS = {
 function buildInsight() {
   return pick([
     '분산 투자는 개별 종목 리스크를 줄여준다.',
-    '금리가 오르면 일반적으로 채권 가격은 내려간다.',
+    '금리가 오르면 기업의 이자 부담이 커질 수 있다.',
     '거래량이 실리지 않은 급등은 오래가지 못하는 경우가 많다.',
     'PER이 낮다고 무조건 저평가는 아니다. 업종 평균과 비교하라.',
   ]);
@@ -291,6 +291,7 @@ async function applyEffect(client, session, eventType, eff) {
     ? session.current_turn + eff.lockDays
     : session.action_locked_until_turn;
 
+  await require('./challengeService').externalFlow(client, session, cashDelta);
   await client.query(
     `UPDATE game_sessions
      SET cash = cash + $2, debt = debt + $3, stress = $4, trust = $5,
@@ -309,6 +310,8 @@ async function applyEffect(client, session, eventType, eff) {
   session.stress = newStress;
   session.trust = newTrust;
   session.action_locked_until_turn = lockUntil;
+  const blocked = await require('./investmentPolicy').enforce(client, session);
+  if (blocked) eff.investmentRestriction = blocked;
 }
 
 /** 미해결 선택형 이벤트 */
@@ -344,10 +347,12 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     const debtDelta = eff.debtDelta || 0;
     const newStress = clamp100(row.stress + (eff.stressDelta || 0));
     const newTrust = clamp100(row.trust + (eff.trustDelta || 0));
+    await require('./challengeService').externalFlow(client, session, cashDelta);
     session.cash = Number(row.cash) + cashDelta;
     session.debt = Number(row.debt) + debtDelta;
     session.stress = newStress;
     session.trust = newTrust;
+    await require('./investmentPolicy').enforce(client, session);
 
     await client.query(
       `UPDATE game_sessions
@@ -358,10 +363,10 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     await client.query(
       `UPDATE event_log
        SET resolved = TRUE, cash_delta = $2, stress_delta = $3, trust_delta = $4,
-           detail = detail || $5
+           detail = detail || $5::jsonb || jsonb_build_object('appliedAt', NOW(), 'appliedTurn', $6::int)
        WHERE id = $1`,
       [eventLogId, cashDelta, eff.stressDelta || 0, eff.trustDelta || 0,
-       JSON.stringify({ chosen: choiceKey, ...(eff.detail || {}) })]
+       JSON.stringify({ chosen: choiceKey, ...(eff.detail || {}) }), session.current_turn]
     );
 
     // 선택 효과(예: 독촉 전화에서 마지막 부채 상환)까지 적용한 상태로 즉시 종료를 판정한다.

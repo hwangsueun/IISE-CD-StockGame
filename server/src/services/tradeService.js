@@ -1,4 +1,4 @@
-// Orders settle later: stock opens, or the next turn's bond/coin daily price.
+// 주식 주문은 다음 개장일 시가로 체결한다.
 const { quoteTradeAmount } = require('./executionService');
 const pricingService = require('./pricingService');
 

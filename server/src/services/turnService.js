@@ -43,17 +43,9 @@ async function getTurnData(sessionId, turnNumber) {
 
   const [prices, assets, newsResult, totalAsset, marketOpen] = await Promise.all([
     pricingService.getPricesAt(iso),
-    // 코인은 세션 유니버스 10종으로 제한한다 (migration 005). 주식/채권은 asset_type <> 'coin'로
-    // 그대로 통과한다(전역, is_active만 적용) — pricingService.listAssets와 동일한 필터 형태.
     query(
       `SELECT a.asset_id, a.asset_type, a.masked_name AS name, a.sector
-       FROM assets a
-       WHERE a.is_active = TRUE
-         AND (a.asset_type <> 'coin' OR EXISTS (
-           SELECT 1 FROM session_coin_universe scu
-           WHERE scu.session_id = $1 AND scu.asset_id = a.asset_id
-         ))`,
-      [sessionId]
+       FROM assets a WHERE a.is_active = TRUE AND a.asset_type = 'stock'`
     ),
     newsService.getNewsByDate(iso, { sessionId }),
     valuationService.computeTotalAsset(sessionId),
@@ -72,13 +64,14 @@ async function getTurnData(sessionId, turnNumber) {
     .filter((a) => a.price !== null); // 해당일 시세 없는 자산(상장 전/폐지)은 목록 제외
 
   return {
+    challenge: session.quant_challenge_enabled ? await require('./challengeService').overview(sessionId) : { enrolled: false },
     turnNumber,
     date: iso,
     monthIndex: repaymentService.monthIndexOf(turnNumber),
     isRepaymentTurn: repaymentService.isRepaymentTurn(turnNumber),
     isMonthStart: turnNumber % C.TURNS_PER_MONTH === 1,
     marketOpen,
-    executionRule: 'by_asset_type',
+    executionRule: 'next_market_open',
     executionRules: EXECUTION_RULES,
     state: {
       cash: Number(session.cash),
@@ -92,6 +85,7 @@ async function getTurnData(sessionId, turnNumber) {
     newsLimit: newsResult.newsLimit,
     actionLocked: session.current_turn <= session.action_locked_until_turn,
     sideJobDoneToday: session.side_job_turn === session.current_turn, // 부업한 날 = 투자 불가
+    investmentRestriction: require('./investmentPolicy').restriction(session),
   };
 }
 
@@ -155,6 +149,8 @@ async function advanceTurn(sessionId) {
     }
 
     const nextTurn = session.current_turn + 1;
+    await require('./challengeService').captureOpeningCapital(client, session);
+    const modelAutomation = await require('./strategyAutomation').sync(client,session);
     // Persist the close-t quant decision before the next open is processed.
     await require('./quantService').syncQuantOrders(client,session);
     const prevDate = await getTurnDate(sessionId, session.current_turn, client);
@@ -166,10 +162,9 @@ async function advanceTurn(sessionId) {
     // 다음 턴 가격 조회(위 nextDate) 직후 / 보유자산 평가(아래 totalAssetBefore) 이전에 실행해야 한다.
     // 이 순서가 어긋나면 (a) 청산 대상 보유자산이 이번 턴 평가에 그대로 남거나,
     // (b) daily 스냅샷이 청산 이전 상태로 기록되어 다음 턴 dailyReturn 계산이 틀어진다.
-    // assets.listed_from/listed_to 단일 기준만 본다 (coin_info 조인 없음).
+    // assets.listed_from/listed_to 단일 기준만 본다.
     const forcedLiquidations = await tradeService.liquidateDelisted(client, session, nextDate);
-    // Stock opens settle first, then bond/coin daily prices. Salary, events,
-    // and portfolio valuation happen afterwards under the game's turn rules.
+    // 주식 주문은 다음 개장일 시가로 매도 후 매수한다. 이후 월급·이벤트·평가를 처리한다.
     const orderResults = await orderService.settlePendingOrders(client, session, nextDate, marketOpen);
 
     // --- 월초 처리: 월급 지급 + 생활비 차감 (기획서 §7 Monthly turn) ---
@@ -178,6 +173,7 @@ async function advanceTurn(sessionId) {
       const livingCost = Number(session.monthly_living_cost) || C.LIVING_COST_DEFAULT;
       const livingStress = stressPolicy.livingCostStressDelta(livingCost);
       const cashDelta = C.MONTHLY_SALARY - livingCost;
+      await require('./challengeService').externalFlow(client, session, cashDelta, { openingFunding: true });
       session.cash = Number(session.cash) + cashDelta;
       session.stress = clamp100(session.stress + livingStress);
       monthly = { salary: C.MONTHLY_SALARY, livingCost, stressDelta: livingStress };
@@ -246,7 +242,8 @@ async function advanceTurn(sessionId) {
       [sessionId, nextTurn, Math.round(Number(session.cash)), Math.round(Number(session.debt)),
        session.stress, session.trust]
     );
-    await require('./quantService').syncQuantOrders(client,{...session,status});
+    const quantReplay = await require('./quantService').syncQuantOrders(client,{...session,status});
+    await require('./challengeService').settleMonth(client, session, totalAssetAfter, quantReplay);
 
     // --- 주간/일간 스냅샷 (리포트·차트용) ---
     await reportService.writeSnapshot(client, sessionId, nextTurn, 'daily', {
@@ -271,6 +268,7 @@ async function advanceTurn(sessionId) {
       missedRepayment, // 직전 상환 턴을 지나쳐 자동 미납 처리된 경우 (팝업 연출용)
       forcedLiquidations: forcedLiquidations.length > 0 ? forcedLiquidations : null, // 상장폐지 강제청산 결과 (팝업 연출용)
       orderResults,
+      modelAutomation,
       events,
       surgeResults, // 전 턴 급등주 정산 결과 (팝업 연출용)
       dailyReturn,

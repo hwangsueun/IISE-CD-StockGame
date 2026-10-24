@@ -63,6 +63,22 @@ test('getActive exposes event price and the server-calculated maximum integer qu
   });
 });
 
+test('stress limit blocks surge purchases before the hospitalization event is rolled', async () => {
+  const calls = [];
+  const query = async (sql) => {
+    calls.push(sql);
+    return { rows: [{
+      id: 7, spawn_turn: 4, current_turn: 4, buy_price: '3000', quantity: '0',
+      invested_amount: '0', cash: '10000', status: 'active', action_locked_until_turn: 0,
+      side_job_turn: 0, stress: 100, market_open: true, has_future_market_open: true, resolved: false,
+    }] };
+  };
+  const service = loadService(query);
+  assert.equal((await service.getActive('session-1')).canBuy, false);
+  await assert.rejects(service.buy('session-1', 7, 1, { query }), /스트레스/);
+  assert.ok(calls.every(sql => !/^\s*(UPDATE|INSERT|DELETE)\b/i.test(sql)));
+});
+
 test('buy locks stock and session rows, calculates total on the server, and debits once', async () => {
   const service = loadService(async () => {
     throw new Error('global query must not be used inside a supplied transaction');

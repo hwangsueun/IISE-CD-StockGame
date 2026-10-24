@@ -53,7 +53,7 @@ export default function TutorialOverlay() {
       <section className="tutorial-card" ref={dialogRef} role="dialog" aria-modal="true"
         aria-labelledby="tutorial-title" aria-describedby="tutorial-body tutorial-tip">
         <header className="tutorial-header">
-          <span className="tutorial-eyebrow">{replay ? '사용법 다시 보기' : '처음이라면, 잠깐!'} · {tutorial.label}</span>
+          <span className="tutorial-eyebrow">{replay ? '사용법 다시 보기' : '사용법 안내'} · {tutorial.label}</span>
           <span className="tutorial-count" aria-label={`${tutorial.steps.length}단계 중 ${tutorialStep}단계`}>
             {String(tutorialStep).padStart(2, '0')} / {String(tutorial.steps.length).padStart(2, '0')}
           </span>

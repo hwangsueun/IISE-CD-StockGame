@@ -131,12 +131,12 @@ const DEBT_OPTIONS = [
   {
     key: 'normal', num: '02', cls: 'warn', label: '1억 원이요.', debt: 100_000_000,
     reply: '<span class="em">1억이지.</span> 숫자는 정확하네.',
-    pressure: '못 맞추면, 데리러 갈게.',
+    pressure: '못 맞추면 데리러 갈게.',
   },
   {
     key: 'hard', num: '03', cls: 'danger', label: '1억 5천만 원이요.', debt: 150_000_000,
     reply: '<span class="red">1억 5천.</span> 입으로 말은 잘하네.',
-    pressure: '<span class="red">내가 아는 데가 있어.</span> 조용하고, 사람도 별로 안 다녀. 같이 가는 일 만들지 마.',
+    pressure: '<span class="red">내가 아는 데가 있어.</span> 조용해. 사람도 별로 안 다녀. 같이 가는 일 만들지 마.',
   },
 ];
 

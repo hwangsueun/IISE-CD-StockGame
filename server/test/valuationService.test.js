@@ -17,6 +17,30 @@ test.after(() => {
   realDb.pool.end();
 });
 
+test('allocation shows cash and every held stock without an aggregate stock slice', () => {
+  const { buildAllocation } = loadService(() => { throw new Error('no database needed'); });
+  const holdings = Array.from({ length: 12 }, (_, i) => ({
+    assetId: `STOCK_${i}`, name: `종목${i}`, assetType: 'stock', value: (i + 1) * 100,
+  }));
+  const rows = buildAllocation({ cash: 2200, holdings }, 'all');
+  assert.equal(rows.length, 13);
+  assert.deepEqual(rows[0], { key: 'cash', label: '현금', value: 2200, weight: 0.22 });
+  assert.equal(rows[1].key, 'STOCK_11');
+  assert.equal(rows.reduce((total, row) => total + row.value, 0), 10000);
+  assert.ok(Math.abs(rows.reduce((total, row) => total + row.weight, 0) - 1) < 1e-12);
+  assert.equal(rows.some((row) => row.key === 'stock'), false);
+  assert.deepEqual(new Set(rows.slice(1).map((row) => row.label)), new Set(holdings.map((holding) => holding.name)));
+});
+
+test('zero cash remains visible and an empty portfolio has finite zero weights', () => {
+  const { buildAllocation } = loadService(() => { throw new Error('no database needed'); });
+  assert.deepEqual(buildAllocation({ cash: 0, holdings: [] }, 'all'),
+    [{ key: 'cash', label: '현금', value: 0, weight: 0 }]);
+  assert.deepEqual(buildAllocation({ cash: 0, holdings: [
+    { assetId: 'STOCK_1', name: '종목1', assetType: 'stock', value: 1000 },
+  ] }, 'all').map((row) => row.weight), [0, 1]);
+});
+
 test('getPortfolioHistory returns exact total/net assets and initial-capital returns', async () => {
   const service = loadService(async (sql) => {
     if (sql.includes('SELECT initial_cash, debt_initial')) {

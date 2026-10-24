@@ -19,7 +19,6 @@ import GuideModal from '../components/GuideModal';
 import QuantModal from '../components/QuantModal';
 import TutorialOverlay from '../components/TutorialOverlay';
 import FirstDayTutorial, { NEXT_DAY_STEP } from '../components/FirstDayTutorial';
-import QuantTutorial, { QUANT_TOUR_TURN } from '../components/QuantTutorial';
 
 const MODALS = {
   market: MarketModal,
@@ -45,49 +44,46 @@ function dateParts(dateStr) {
 }
 
 export default function MainPage() {
-  const { turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
+  const { sessionId, turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
     retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial,
-    firstDayStep, startFirstDay, quantTourStep, startQuantTour } = useGameStore();
+    firstDayStep, startFirstDay } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
 
-  // 개발용: ?tutorial=market 등으로 카테고리 안내를, ?tutorial(=7)로 첫날 체험형 튜토리얼(7단계부터)을,
-  // ?tutorial=quanttour로 퀀트 모델 튜토리얼을 다시 확인한다.
+  // 개발용: ?tutorial=market 등으로 카테고리 안내를, ?tutorial(=7)로 첫날 체험형 튜토리얼(7단계부터)을 다시 확인한다.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (!import.meta.env.DEV || !q.has('tutorial')) return;
     const value = q.get('tutorial');
-    if (value === 'quanttour') startQuantTour();
-    else if (!value || Number(value)) startFirstDay(Number(value) || 1);
+    if (!value || Number(value)) startFirstDay(Number(value) || 1);
     else startTutorial(value);
-  }, [startTutorial, startFirstDay, startQuantTour]);
+  }, [startTutorial, startFirstDay]);
 
   // 처음 하는 게임이면 첫날 체험형 튜토리얼을 띄운다. 새로고침·첫 턴 로드 재시도에도 동일하게 적용된다.
   useEffect(() => {
     if (turn && !activeModal && tutorialStep === null && firstDayStep === null && !tutorialProgress.welcome) startFirstDay();
   }, [turn, activeModal, tutorialStep, firstDayStep, tutorialProgress.welcome, startFirstDay]);
 
-  // 10일이 지나면 퀀트 모델 튜토리얼을 한 번 띄운다. 다른 안내·이벤트·창이 모두 닫혀 있을 때만 시작한다.
-  useEffect(() => {
-    if (!turn || turn.turnNumber < QUANT_TOUR_TURN || tutorialProgress.quantTour || !tutorialProgress.welcome) return;
-    if (tutorialStep !== null || firstDayStep !== null || quantTourStep !== null || activeModal) return;
-    if (pendingTurnNumber !== null || pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent) return;
-    startQuantTour();
-  }, [turn, tutorialProgress.quantTour, tutorialProgress.welcome, tutorialStep, firstDayStep, quantTourStep, activeModal,
-    pendingTurnNumber, pendingEvents, surgeResults, surgePromptPending, faintEvent, startQuantTour]);
-
   // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
   // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
   const autoOpenedRepayTurnRef = useRef(null);
+  const autoOpenedChallengeRef = useRef(null);
   useEffect(() => {
-    if (!turn || !turn.isRepaymentTurn || turn.actionLocked) return;
-    if (tutorialStep !== null || firstDayStep !== null || quantTourStep !== null || !tutorialProgress.welcome) return;
+    if (!turn || !turn.isRepaymentTurn) return;
+    if (tutorialStep !== null || firstDayStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
+    const key = `${sessionId}:${turn.turnNumber}`;
+    if (turn.challenge?.rounds?.some(r => r.endTurn === turn.turnNumber) && autoOpenedChallengeRef.current !== key) {
+      autoOpenedChallengeRef.current = key;
+      openModal('quant');
+      return;
+    }
+    if (turn.actionLocked) return;
     if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
     autoOpenedRepayTurnRef.current = turn.turnNumber;
     openModal('repay');
-  }, [turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, quantTourStep, tutorialProgress.welcome]);
+  }, [sessionId, turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, tutorialProgress.welcome]);
 
   if (!turn) {
     return (
@@ -131,27 +127,20 @@ export default function MainPage() {
             <div className="row"><span className="k">날짜</span><span className="v">{md}</span></div>
             <div className="row"><span className="k">요일</span><span className="v">{dow}</span></div>
             <div className="row"><span className="k">주식 주문</span><span className="v">다음 개장일 시가</span></div>
-            <div className="row"><span className="k">채권·코인 주문</span><span className="v">다음 턴 가격</span></div>
             <div className="row"><span className="k">남은 일수</span><span className="v">{240 - turn.turnNumber}일</span></div>
             <div className="row"><span className="k">상환까지</span><span className="v">{turn.isRepaymentTurn ? '오늘!' : `D-${repayDday}`}</span></div>
           </div>
 
-          {/* 상태 배지 + HUD 액션 (날짜판 아래) */}
+          {/* 상태 배지 (날짜판 아래) */}
           <div className="hud-side">
-            <button className={`hud-btn quant-open-btn${quantTourStep !== null && activeModal !== 'quant' ? ' is-spotlit' : ''}`}
-              onClick={() => openModal('quant')}>
-              퀀트 모델
-            </button>
             {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
             {turn.marketOpen === false && <span className="px-badge lock">주식 휴장일</span>}
             {turn.actionLocked && <span className="px-badge lock">입원 중</span>}
             {turn.sideJobDoneToday && <span className="px-badge lock">부업으로 투자 불가</span>}
-            <button className="hud-btn" onClick={() => openModal('report', { monthIndex: turn.monthIndex })}>
-              📊 리포트
-            </button>
+            {turn.investmentRestriction?.code === 'stress_limit' && <span className="px-badge lock">스트레스 한계 · 투자 일시정지</span>}
           </div>
 
-          {/* 오브젝트 버튼 (좌표: 디자인 Main Screen.html LAYOUT 그대로) */}
+          {/* 방 안의 오브젝트 버튼 */}
           <button className="pbtn b-calendar" title="캘린더" onClick={() => openModal('calendar')}>
             <img src="/game/assets/btn_calendar.png" alt="캘린더" />
             <span className="lbl">캘린더</span>
@@ -172,6 +161,36 @@ export default function MainPage() {
             <img src="/game/assets/btn_game.png" alt="부업" />
             <span className="lbl">부업</span>
           </button>
+          <button
+            type="button"
+            className="pbtn b-computer"
+            title="alpha158 투자 챌린지"
+            aria-label="alpha158 투자 챌린지"
+            aria-describedby={turn.challenge?.unclaimedPrize > 0 || !turn.challenge?.enrolled ? 'computer-challenge-notice' : undefined}
+            aria-haspopup="dialog"
+            onClick={() => openModal('quant')}
+          >
+            {/* 배경의 모니터·키보드를 같은 좌표로 겹쳐 호버할 때 함께 움직인다. */}
+            <svg className="computer-art" viewBox="1396 712 390 436" aria-hidden="true" focusable="false">
+              <defs>
+                <g id="room-computer-shape">
+                  <path d="M1447 712H1738V720H1747V728H1763V996H1755V1003H1681V1017H1688V1048H1500V1017H1524V1003H1426V728H1441V720H1447Z" />
+                  <path d="M1396 1117H1403V1102H1410V1086H1418V1065H1763V1072H1771V1086H1778V1102H1786V1147H1396Z" />
+                </g>
+                <clipPath id="room-computer-clip">
+                  <use href="#room-computer-shape" />
+                </clipPath>
+              </defs>
+              <use href="#room-computer-shape" fill="none" stroke="#fff" strokeWidth="7" strokeLinejoin="miter" />
+              <image href="/game/assets/bg_room.png" width="2400" height="1792" clipPath="url(#room-computer-clip)" />
+            </svg>
+            <span className="lbl">alpha158 투자 챌린지</span>
+            {(turn.challenge?.unclaimedPrize > 0 || !turn.challenge?.enrolled) && (
+              <span className="computer-notice" id="computer-challenge-notice">
+                {turn.challenge?.unclaimedPrize > 0 ? '상금 수령' : '초대장 도착'}
+              </span>
+            )}
+          </button>
 
           {/* 오늘의 핵심 뉴스 패널은 디자인 원본(Main Screen.html)에서 display:none 처리 —
               뉴스는 좌측 '뉴스' 오브젝트 버튼(NewsModal)으로만 접근한다. */}
@@ -182,7 +201,7 @@ export default function MainPage() {
               className="nextturn-btn"
               disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
                 surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null ||
-                (firstDayStep !== null && firstDayStep !== NEXT_DAY_STEP) || quantTourStep !== null}
+                (firstDayStep !== null && firstDayStep !== NEXT_DAY_STEP)}
               onClick={advanceTurn}
               title="다음 턴"
             >
@@ -242,8 +261,6 @@ export default function MainPage() {
       {tutorialVisible && <TutorialOverlay />}
       {/* 첫날 체험형 튜토리얼: 실제 화면을 직접 눌러야 하므로 뒤쪽 화면을 막지 않는다. */}
       {firstDayStep !== null && overlaysClear && <FirstDayTutorial />}
-      {/* 퀀트 모델 튜토리얼 (10일 경과 후 1회) */}
-      {quantTourStep !== null && overlaysClear && <QuantTutorial />}
     </div>
   );
 }

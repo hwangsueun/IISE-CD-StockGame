@@ -1,0 +1,6 @@
+# Independent training runtime for the user strategy workshop.
+numpy==2.2.6
+scikit-learn==1.9.1
+lightgbm==4.6.0
+xgboost==3.1.3
+scipy==1.17.1

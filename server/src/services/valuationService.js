@@ -4,7 +4,7 @@ const { notFound } = require('../utils/errors');
 const C = require('../config/constants');
 
 const DASHBOARD_UNITS = ['day', 'week', 'month', 'all'];
-const DASHBOARD_ASSET_TYPES = ['all', 'stock', 'bond', 'coin'];
+const DASHBOARD_ASSET_TYPES = ['all', 'stock'];
 const DASHBOARD_BUCKET_SIZE = {
   day: 1,
   week: C.TURNS_PER_WEEK,
@@ -134,13 +134,11 @@ async function getPortfolio(sessionId) {
   const holdingsValue = holdings.reduce((s, h) => s + h.value, 0);
   const totalAsset = cash + holdingsValue;
 
-  const byType = { stock: 0, bond: 0, coin: 0 };
+  const byType = { stock: 0 };
   for (const h of holdings) byType[h.assetType] += h.value;
   const weights = {
     cash: totalAsset > 0 ? cash / totalAsset : 1,
     stock: totalAsset > 0 ? byType.stock / totalAsset : 0,
-    bond: totalAsset > 0 ? byType.bond / totalAsset : 0,
-    coin: totalAsset > 0 ? byType.coin / totalAsset : 0,
   };
 
   return {
@@ -157,7 +155,7 @@ async function getPortfolio(sessionId) {
 /**
  * 기간별/자산군별/종목별 실현손익 (기능명세서 §자산 포트폴리오)
  * @param {'daily'|'weekly'|'monthly'|'yearly'|'all'} period 현재 턴 기준 조회 구간
- * @param {'stock'|'bond'|'coin'|undefined} assetType 자산군 필터
+ * @param {'stock'|undefined} assetType 자산군 필터
  * @returns { period, totalPnl, tradeCount, byAsset: [{assetId, name, assetType, pnl, tradeCount}] }
  */
 async function getRealizedPnl(sessionId, period = 'all', assetType) {
@@ -173,7 +171,7 @@ async function getRealizedPnl(sessionId, period = 'all', assetType) {
   const fromTurn = Math.max(1, currentTurn - span + 1);
 
   const params = [sessionId, fromTurn];
-  let typeFilter = '';
+  let typeFilter = `AND a.asset_type = 'stock'`;
   if (assetType) {
     params.push(assetType);
     typeFilter = `AND a.asset_type = $${params.length}`;
@@ -340,37 +338,27 @@ function buildDashboardPeriods(points, trades, unit, assetType, currentPoint) {
 }
 
 function buildAllocation(portfolio, assetType) {
-  const byType = { stock: 0, bond: 0, coin: 0 };
-  for (const holding of portfolio.holdings) byType[holding.assetType] += holding.value;
-
-  let rows;
-  if (assetType === 'all') {
-    rows = [
-      { key: 'cash', label: '현금', value: portfolio.cash },
-      { key: 'stock', label: '주식', value: byType.stock },
-      { key: 'bond', label: '채권', value: byType.bond },
-      { key: 'coin', label: '코인', value: byType.coin },
-    ];
-  } else {
-    rows = portfolio.holdings
-      .filter((holding) => holding.assetType === assetType)
-      .map((holding) => ({
-        key: holding.assetId,
-        label: holding.name,
-        value: holding.value,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }
+  const stocks = portfolio.holdings
+    .filter((holding) => holding.assetType === 'stock')
+    .map((holding) => ({
+      key: holding.assetId,
+      label: holding.name,
+      value: holding.value,
+    }))
+    .sort((a, b) => b.value - a.value);
+  const rows = assetType === 'all'
+    ? [{ key: 'cash', label: '현금', value: portfolio.cash }, ...stocks]
+    : stocks;
 
   const total = rows.reduce((sum, row) => sum + Math.max(0, row.value), 0);
   return rows
-    .filter((row) => row.value > 0)
+    .filter((row) => row.key === 'cash' || row.value > 0)
     .map((row) => ({ ...row, value: Math.round(row.value), weight: total > 0 ? row.value / total : 0 }));
 }
 
 /**
  * 자산 포트폴리오 대시보드.
- * - assetType: all | stock | bond | coin
+ * - assetType: all | stock
  * - unit: day(1턴) | week(5턴) | month(20턴) | all
  */
 async function getPortfolioDashboard(sessionId, unit = 'day', assetType = 'all') {
@@ -444,7 +432,8 @@ async function getPortfolioDashboard(sessionId, unit = 'day', assetType = 'all')
   const byTurn = new Map();
   for (const row of positionRows) {
     const turn = Number(row.turn_number);
-    if (!byTurn.has(turn)) byTurn.set(turn, { stock: 0, bond: 0, coin: 0 });
+    if (row.asset_type !== 'stock') continue;
+    if (!byTurn.has(turn)) byTurn.set(turn, { stock: 0 });
     if (row.close_price !== null) {
       byTurn.get(turn)[row.asset_type] += Number(row.quantity) * Number(row.close_price);
     }
@@ -458,7 +447,7 @@ async function getPortfolioDashboard(sessionId, unit = 'day', assetType = 'all')
     totalAsset: Number(row.total_asset),
     cash: Number(row.cash),
     debt: Number(row.debt),
-    byType: byTurn.get(Number(row.turn_number)) || { stock: 0, bond: 0, coin: 0 },
+    byType: byTurn.get(Number(row.turn_number)) || { stock: 0 },
   }));
   if (!points.length || points[0].turn > 1) {
     points.unshift({
@@ -467,11 +456,11 @@ async function getPortfolioDashboard(sessionId, unit = 'day', assetType = 'all')
       totalAsset: initialCapital,
       cash: initialCapital,
       debt: initialDebt,
-      byType: { stock: 0, bond: 0, coin: 0 },
+      byType: { stock: 0 },
     });
   }
 
-  const currentByType = { stock: 0, bond: 0, coin: 0 };
+  const currentByType = { stock: 0 };
   for (const holding of portfolio.holdings) currentByType[holding.assetType] += holding.value;
   const currentPoint = {
     turn: Number(session.current_turn),
@@ -520,4 +509,5 @@ module.exports = {
   DASHBOARD_UNITS,
   DASHBOARD_ASSET_TYPES,
   buildDashboardPeriods,
+  buildAllocation,
 };

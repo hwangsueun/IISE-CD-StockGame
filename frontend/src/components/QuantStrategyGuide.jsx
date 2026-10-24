@@ -18,7 +18,7 @@ export default function QuantStrategyGuide({ data, onLearn }) {
           </li>
         ))}
       </ol>
-      <button className="quant-guide-link" onClick={onLearn}>AI는 어떻게 배우고 예측하나요? →</button>
+      {onLearn && <button className="quant-guide-link" onClick={onLearn}>AI는 어떻게 배우고 예측하나요? →</button>}
       <p className="quant-execution-note"><b>언제 거래하나요?</b> {explanation.execution}</p>
       <details className="quant-strategy-details">
         <summary>투자 금액·교체 기준 자세히 보기</summary>

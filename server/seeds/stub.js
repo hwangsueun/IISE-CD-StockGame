@@ -1,6 +1,6 @@
 // 스텁 데이터 생성기 (ARCHITECTURE.md §3: 데이터 미완성 시에도 개발 가능해야 한다)
 // 실데이터 없이 프론트/백엔드 개발용 최소 데이터를 합성 적재한다.
-// - 주식 20 + 코인 5 (채권 4는 migration 시드) = 29자산
+// - 주식 20종
 // - 2013-01-02부터 평일 300일 시세 (랜덤워크)
 // - 하루 3~8건 뉴스, 종목당 게시글/댓글, 거시지표 4종
 const { bulkInsert, pool } = require('./lib/db');
@@ -32,25 +32,11 @@ async function seedStub() {
     const code = String(100000 + i).slice(1);
     return { assetId: `STOCK_${code}`, code, name: `스텁종목${i + 1}`, masked: `종목${String(i + 1).padStart(3, '0')}`, sector: pick(['반도체', '자동차', '화학', '금융', '바이오']) };
   });
-  const coins = ['BITCOIN', 'ETHEREUM', 'RIPPLE', 'DOGECOIN', 'SOLANA'].map((c) => ({
-    assetId: `COIN_${c}`, code: c.toLowerCase(), name: c, masked: c,
-  }));
+  await bulkInsert('assets', ['asset_id', 'asset_type', 'code', 'name', 'masked_name', 'sector', 'currency'],
+    stocks.map((s) => [s.assetId, 'stock', s.code, s.name, s.masked, s.sector, 'KRW']));
 
-  await bulkInsert('assets', ['asset_id', 'asset_type', 'code', 'name', 'masked_name', 'sector', 'currency'], [
-    ...stocks.map((s) => [s.assetId, 'stock', s.code, s.name, s.masked, s.sector, 'KRW']),
-    ...coins.map((c) => [c.assetId, 'coin', c.code, c.name, c.masked, null, 'KRW']),
-  ]);
-  await bulkInsert('coin_info', ['asset_id', 'symbol', 'survived_to_2023'], coins.map((c) => [c.assetId, c.code.slice(0, 3), true]));
-
-  // --- 시세 (랜덤워크) + 채권 포함 ---
-  const allIds = [
-    ...stocks.map((s) => ({ id: s.assetId, p0: rand(5000, 200000), vol: 0.03 })),
-    ...coins.map((c) => ({ id: c.assetId, p0: rand(100000, 50000000), vol: 0.07 })),
-    { id: 'BOND_KTB3Y', p0: 10000, vol: 0.002 },
-    { id: 'BOND_KTB10Y', p0: 10000, vol: 0.004 },
-    { id: 'BOND_CORPAA', p0: 10000, vol: 0.003 },
-    { id: 'BOND_CORPBBB', p0: 10000, vol: 0.006 },
-  ];
+  // --- 주식 시세 (랜덤워크) ---
+  const allIds = stocks.map((s) => ({ id: s.assetId, p0: rand(5000, 200000), vol: 0.03 }));
   for (const a of allIds) {
     let price = a.p0;
     const rows = [];

@@ -31,8 +31,8 @@ const RESEARCH_TABS = [
 
 // 단계 정의
 //  title: 가운데 큰 제목 (없으면 생략)
-//  spots: 비출 실제 화면 요소 [{ sel, place: 'below' | 'below-right' | 'above-right' | 'left' | 'right', note(st) }]
-//         note는 그 요소 옆에 붙는 설명 (st = 현재 게임 상태)
+//  spots: 비출 실제 화면 요소 [{ sel, place: 'below' | 'below-right' | 'above-right' | 'left' | 'right', note(st), noteFrom }]
+//         note는 그 요소 옆에 붙는 설명 (st = 현재 게임 상태). noteFrom이 있으면 설명을 그 요소 기준으로 붙인다
 //  interact: 직접 눌러 봐야 하는 요소. 이 요소만 클릭되고 '다음' 버튼은 숨긴다
 //  hint: 하단에 띄우는 한 줄 안내
 //  view(ctx): 모달·거래 상태에 따라 화면이 바뀌는 단계는 위 필드를 함수로 돌려준다
@@ -69,7 +69,7 @@ export const STEPS = {
     title: '내 상태 확인하기',
     spots: [
       {
-        sel: '.px-statusbar > :nth-child(1)',
+        sel: '[data-tutorial="stat-trust"]',
         place: 'below',
         note: () => (
           <>
@@ -80,7 +80,7 @@ export const STEPS = {
         ),
       },
       {
-        sel: '.px-statusbar > :nth-child(2)',
+        sel: '[data-tutorial="stat-stress"]',
         place: 'below',
         note: () => (
           <>
@@ -92,11 +92,24 @@ export const STEPS = {
       },
       {
         sel: '.px-money',
+        // 총자산 바로 아래에 시장 대비 수익률 배지가 있어 설명은 배지 밑에 붙인다.
+        noteFrom: '.market-performance-badge',
         place: 'below',
         note: () => (
           <>
             <span className="big">₩ 총자산</span>
             현금 + 투자한 자산<br />이게 최종 성적!
+          </>
+        ),
+      },
+      {
+        sel: '.market-performance-badge',
+        place: 'right',
+        note: () => (
+          <>
+            <span className="big">↗ 내 투자 성적</span>
+            코스피와 비교한 내 수익률<br />
+            <span className="dim">누르면 포트폴리오에서 자세히</span>
           </>
         ),
       },
@@ -197,7 +210,7 @@ export const STEPS = {
           note: () => (
             <>
               <span className="big">📈 마켓</span>
-              주식·채권·코인 주문을 예약하는 곳<br />
+              주식 주문을 예약하는 곳<br />
               <b>눌러서 열어 보자!</b>
             </>
           ),
@@ -606,10 +619,11 @@ export function SpotlightTour({ steps, total, step, onNext, onPrev, onEnd, tag =
 
   const view = raw ? (raw.view ? raw.view(ctx) : raw) : null;
   const spots = view?.spots || [];
-  const sels = [...spots.map((s) => s.sel), view?.interact];
+  const sels = [...spots.map((s) => s.sel), view?.interact, ...spots.map((s) => s.noteFrom)];
   const rects = useRects(sels, [step, activeModal, ctx.bought, ctx.sold, flagKey]);
   const spotRects = rects.slice(0, spots.length);
   const holeRect = view?.interact ? rects[spots.length] : null;
+  const noteRects = rects.slice(spots.length + 1);
 
   // 다음 단계가 아직 정의되지 않았으면(단계별 제작 중) 여기서 튜토리얼을 마친다
   const isLast = step >= total;
@@ -649,7 +663,7 @@ export function SpotlightTour({ steps, total, step, onNext, onPrev, onEnd, tag =
         const { place, maxWidth } = resolved;
         return (
           <div key={`n${i}`} className={`tut-note ${place}${spots[i].boxed ? ' boxed' : ''}`}
-            style={{ ...notePos(r, place), ...(maxWidth ? { maxWidth: Math.min(340, maxWidth) } : {}) }}>
+            style={{ ...notePos(noteRects[i] || r, place), ...(maxWidth ? { maxWidth: Math.min(340, maxWidth) } : {}) }}>
             {spots[i].note(st)}
           </div>
         );

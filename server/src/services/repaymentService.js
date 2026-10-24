@@ -60,6 +60,7 @@ async function repay(sessionId, amount) {
     const newTrust = clamp100(session.trust + trustDelta);
     const newStress = clamp100(session.stress + stressDelta);
 
+    await require('./challengeService').externalFlow(client, session, -paid);
     await client.query(
       `UPDATE game_sessions
        SET cash = cash - $2, debt = $3, trust = $4, stress = $5, updated_at = NOW()

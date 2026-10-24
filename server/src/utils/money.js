@@ -1,6 +1,6 @@
 // 체결 금액(KRW) 반올림 규칙 (tradeService 매수/매도, turnService 강제청산 공용)
 //
-// 코인은 소수 수량 거래를 허용하므로 price * quantity가 정수 원이 아닐 수 있다.
+// 수정주가는 소수 가격을 포함하므로 price * quantity가 정수 원이 아닐 수 있다.
 // game_sessions.cash는 정수 KRW(BIGINT, Math.round 저장)인데 trades.amount를 반올림 없이
 // 그대로 쌓으면 두 값이 서서히 어긋난다(누적 드리프트). 체결 시점에 딱 한 번만 반올림하고,
 // 그 반올림된 amount를 cash 증감과 trades.amount에 동일하게 써야 항상 정합이 유지된다.

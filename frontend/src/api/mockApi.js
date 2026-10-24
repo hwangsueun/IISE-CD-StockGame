@@ -20,10 +20,6 @@ const ASSET_DEFS = [
   { assetId: 'STOCK_005', assetType: 'stock', name: 'E화학', sector: '화학', base: 42000 },
   { assetId: 'STOCK_006', assetType: 'stock', name: 'F금융지주', sector: '금융', base: 58000 },
   { assetId: 'STOCK_007', assetType: 'stock', name: 'G게임즈', sector: 'IT', base: 39000 },
-  { assetId: 'BOND_KTB3Y', assetType: 'bond', name: '국채 단기', sector: '채권', base: 10200 },
-  { assetId: 'BOND_CORPBBB', assetType: 'bond', name: '투기 회사채', sector: '채권', base: 9800 },
-  { assetId: 'COIN_BTC', assetType: 'coin', name: '오렌지코인', sector: '코인', base: 48000000 },
-  { assetId: 'COIN_ETH', assetType: 'coin', name: '실버체인', sector: '코인', base: 3200000 },
 ];
 
 const NEWS_POOL = [

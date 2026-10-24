@@ -1,8 +1,9 @@
 const crypto = require('node:crypto');
 const { query, withTransaction } = require('../db');
 const { badRequest, conflict, notFound } = require('../utils/errors');
-const { quoteTradeAmount, fillOpenOrder, fillPriceOrder, validQuantity, EXECUTION_RULES, COIN_SCALE } = require('./executionService');
+const { quoteTradeAmount, fillOpenOrder, validQuantity, EXECUTION_RULES } = require('./executionService');
 const turnSelector = require('./turnSelector');
+const investmentPolicy = require('./investmentPolicy');
 
 function dto(row) {
   return { orderId: row.id, assetId: row.asset_id, name: row.masked_name, tradeType: row.side,
@@ -11,12 +12,13 @@ function dto(row) {
     status: row.status, decisionTurn: row.decision_turn, decisionDate: row.decision_date,
     executionTurn: row.execution_turn, executionDate: row.execution_date,
     filledQuantity: Number(row.filled_quantity), price: row.execution_price == null ? null : Number(row.execution_price),
-    amount: row.amount == null ? null : Number(row.amount), reason: row.reason };
+    amount: row.amount == null ? null : Number(row.amount), reason: row.reason,
+    strategyVersionId:row.strategy_version_id||null };
 }
 
 async function listOrders(sessionId, client) {
   const { rows } = await (client || { query }).query(`SELECT o.*,a.masked_name,a.asset_type FROM market_orders o
-    JOIN assets a USING(asset_id) WHERE o.session_id=$1 AND o.owner='player' ORDER BY o.id DESC LIMIT 100`, [sessionId]);
+    JOIN assets a USING(asset_id) WHERE o.session_id=$1 AND o.owner='player' AND a.asset_type='stock' ORDER BY o.id DESC LIMIT 100`, [sessionId]);
   return rows.map(dto);
 }
 
@@ -29,12 +31,13 @@ async function submitOrder(sessionId, { assetId, tradeType, quantity, orderKey =
     const { rows: [existing] } = await client.query(`SELECT o.*,a.asset_type,a.masked_name FROM market_orders o JOIN assets a USING(asset_id)
       WHERE session_id=$1 AND owner='player' AND order_key=$2`, [sessionId, orderKey]);
     if (existing) {
+      if (existing.asset_type !== 'stock') throw badRequest('이 게임에서는 주식만 거래할 수 있습니다');
       if (existing.asset_id !== assetId || existing.side !== tradeType || Number(existing.quantity) !== quantity) throw conflict('같은 주문 식별자로 다른 주문을 보낼 수 없습니다');
       return { ...dto(existing), cash: Number(session.cash), replayed: true };
     }
     if (session.status !== 'active') throw conflict('종료된 게임입니다');
-    if (session.current_turn <= session.action_locked_until_turn) throw conflict('현재는 투자 행동을 할 수 없습니다');
-    if (session.side_job_turn === session.current_turn) throw conflict('부업을 한 턴에는 주문할 수 없습니다');
+    const blocked = investmentPolicy.restriction(session);
+    if (blocked) throw conflict(blocked.message);
     const { rows: [turn] } = await client.query('SELECT trade_date FROM game_turns WHERE session_id=$1 AND turn_number=$2', [sessionId, session.current_turn]);
     if (!turn) throw conflict('현재 턴 정보가 없습니다');
     const { rows: [asset] } = await client.query(`SELECT a.*,p.close_price,d.open_price FROM assets a
@@ -42,31 +45,21 @@ async function submitOrder(sessionId, { assetId, tradeType, quantity, orderKey =
       LEFT JOIN stock_price_detail d ON d.asset_id=a.asset_id AND d.trade_date=$2
       WHERE a.asset_id=$1 AND a.is_active=TRUE`, [assetId, turn.trade_date]);
     if (!asset) throw badRequest('유효하지 않은 자산입니다');
-    if (!EXECUTION_RULES[asset.asset_type]) throw badRequest('주문을 지원하지 않는 자산입니다');
-    if (!validQuantity(quantity, asset.asset_type)) throw badRequest(asset.asset_type === 'coin'
-      ? '코인 수량은 소수점 8자리 이내의 양수여야 합니다' : '주식·채권 수량은 양의 정수여야 합니다');
-    if (asset.asset_type === 'stock') {
-      if (!await turnSelector.isMarketOpen(turn.trade_date, client)) throw conflict('휴장일에는 주식 주문을 예약할 수 없습니다');
-      if (!await turnSelector.hasFutureMarketOpen(sessionId, session.current_turn, client)) throw conflict('게임 종료 전 체결 가능한 다음 개장일이 없습니다');
-      if (!(Number(asset.open_price) > 0)) throw conflict('현재 거래 가능한 시가 데이터가 없습니다');
-    } else {
-      const { rows: [next] } = await client.query('SELECT trade_date FROM game_turns WHERE session_id=$1 AND turn_number=$2', [sessionId, session.current_turn + 1]);
-      if (!next) throw conflict('게임 종료 전 체결 가능한 다음 턴이 없습니다');
-    }
+    if (asset.asset_type !== 'stock') throw badRequest('이 게임에서는 주식만 거래할 수 있습니다');
+    if (!validQuantity(quantity, asset.asset_type)) throw badRequest('주식 수량은 양의 정수여야 합니다');
+    if (!await turnSelector.isMarketOpen(turn.trade_date, client)) throw conflict('휴장일에는 주식 주문을 예약할 수 없습니다');
+    if (!await turnSelector.hasFutureMarketOpen(sessionId, session.current_turn, client)) throw conflict('게임 종료 전 체결 가능한 다음 개장일이 없습니다');
+    if (!(Number(asset.open_price) > 0)) throw conflict('현재 거래 가능한 시가 데이터가 없습니다');
     if (!(Number(asset.close_price) > 0)) throw conflict('현재 거래 가능한 가격 데이터가 없습니다');
     if ((asset.listed_from && turn.trade_date < asset.listed_from) || (asset.listed_to && turn.trade_date > asset.listed_to)) throw conflict('상장 기간 밖의 종목입니다');
-    if (asset.asset_type === 'coin' && tradeType === 'buy') {
-      const { rows } = await client.query('SELECT 1 FROM session_coin_universe WHERE session_id=$1 AND asset_id=$2', [sessionId, assetId]);
-      if (!rows.length) throw conflict('이번 게임에서 거래 가능한 코인이 아닙니다');
-    }
     const { rows: pending } = await client.query(`SELECT o.*,a.asset_type FROM market_orders o JOIN assets a USING(asset_id)
-      WHERE session_id=$1 AND owner='player' AND status='pending'`, [sessionId]);
+      WHERE session_id=$1 AND owner='player' AND status='pending' AND a.asset_type='stock'`, [sessionId]);
     if (pending.some(o => o.asset_id === assetId)) throw conflict('이 종목의 대기 주문을 먼저 취소해 주세요');
     const { rows: [held] } = await client.query('SELECT quantity FROM holdings WHERE session_id=$1 AND asset_id=$2', [sessionId, assetId]);
     const referencePrice = Number(asset.close_price);
     const budget = tradeType === 'buy' ? quoteTradeAmount('buy', referencePrice, quantity) : 0;
     const buyingPower = Number(session.cash) - pending.filter(o => o.side === 'buy').reduce((sum,o) => sum+Number(o.cash_budget),0)
-      + pending.filter(o => o.side === 'sell' && (asset.asset_type !== 'stock' || o.asset_type === 'stock'))
+      + pending.filter(o => o.side === 'sell')
         .reduce((sum,o) => sum+quoteTradeAmount('sell',Number(o.reference_price),Number(o.quantity)),0);
     if (tradeType === 'buy' && budget > buyingPower) throw conflict('예약 가능한 예산이 부족합니다', { availableBudget: Math.max(0,buyingPower) });
     if (tradeType === 'sell' && quantity > Number(held?.quantity || 0)) throw conflict('보유수량이 부족합니다');
@@ -92,34 +85,33 @@ async function cancelOrder(sessionId, orderId) {
 async function cancelAtEnd(client, sessionId) {
   await client.query(`UPDATE market_orders SET status='cancelled',reason='game_ended',updated_at=NOW()
     WHERE session_id=$1 AND status='pending'`, [sessionId]);
+  await client.query(`UPDATE user_strategy_automation SET enabled=FALSE,updated_at=NOW() WHERE session_id=$1`,[sessionId]);
 }
 
 async function settlePendingOrders(client, session, date, marketOpen) {
+  // 예약 이후 입원/부업 제한이 생겼거나 오래된 대기 주문이 남아도 체결을 우회하지 못한다.
+  if (await investmentPolicy.enforce(client, session)) return [];
+  // 이전 버전의 대기 주문도 주식 전용 규칙을 우회해 체결되지 않는다.
+  await client.query(`UPDATE market_orders o SET status='cancelled',reason='stock_only',updated_at=NOW()
+    FROM assets a WHERE a.asset_id=o.asset_id AND o.session_id=$1 AND o.status='pending' AND a.asset_type<>'stock'`, [session.id]);
   const { rows: orders } = await client.query(`SELECT o.*,a.asset_type,a.masked_name,a.listed_from,a.listed_to,d.open_price,p.close_price FROM market_orders o
     JOIN assets a USING(asset_id) LEFT JOIN stock_price_detail d ON d.asset_id=o.asset_id AND d.trade_date=$2
     LEFT JOIN asset_prices p ON p.asset_id=o.asset_id AND p.trade_date=$2
-    WHERE o.session_id=$1 AND o.owner='player' AND o.status='pending' AND o.decision_turn<$3
-    ORDER BY CASE a.asset_type WHEN 'stock' THEN 0 ELSE 1 END,
-      CASE o.side WHEN 'sell' THEN 0 ELSE 1 END,o.asset_id,o.id FOR UPDATE OF o`, [session.id,date,session.current_turn]);
+    WHERE o.session_id=$1 AND o.owner='player' AND o.status='pending' AND o.decision_turn<$3 AND a.asset_type='stock'
+    ORDER BY CASE o.side WHEN 'sell' THEN 0 ELSE 1 END,o.asset_id,o.id FOR UPDATE OF o`, [session.id,date,session.current_turn]);
   const results=[];
   for (const order of orders) {
-    // Stock opens settle before any daily bond/coin price. Later sale proceeds
-    // cannot finance a stock purchase at an earlier open on the same date.
-    if (order.asset_type === 'stock' && !marketOpen) continue;
+    if (!marketOpen) continue;
     const { rows: [held] } = await client.query('SELECT quantity,avg_price FROM holdings WHERE session_id=$1 AND asset_id=$2 FOR UPDATE', [session.id,order.asset_id]);
     const listed = (!order.listed_from || date >= order.listed_from) && (!order.listed_to || date <= order.listed_to);
     const request = { side: order.side, quantity: Number(order.quantity), cashBudget: Number(order.cash_budget) };
     const balances = { cash: Number(session.cash), heldQuantity: Number(held?.quantity || 0), avgPrice: Number(held?.avg_price || 0) };
-    const fill = order.asset_type === 'stock'
-      ? fillOpenOrder(request, { ...balances, openPrice: listed ? Number(order.open_price) : NaN })
-      : fillPriceOrder(request, { ...balances, assetType: order.asset_type, price: listed ? Number(order.close_price) : NaN });
+    const fill = fillOpenOrder(request, { ...balances, openPrice: listed ? Number(order.open_price) : NaN });
     if (fill.filledQuantity > 0) {
       const oldQuantity=Number(held?.quantity || 0);
       const oldAverage=Number(held?.avg_price || 0);
       const change=order.side === 'buy' ? fill.filledQuantity : -fill.filledQuantity;
-      const nextQuantity=order.asset_type === 'coin'
-        ? (Math.round(oldQuantity * COIN_SCALE) + Math.round(change * COIN_SCALE)) / COIN_SCALE
-        : oldQuantity + change;
+      const nextQuantity=oldQuantity + change;
       if (nextQuantity === 0) await client.query('DELETE FROM holdings WHERE session_id=$1 AND asset_id=$2', [session.id,order.asset_id]);
       else await client.query(`INSERT INTO holdings(session_id,asset_id,quantity,avg_price) VALUES($1,$2,$3,$4)
         ON CONFLICT(session_id,asset_id) DO UPDATE SET quantity=$3,avg_price=$4`,

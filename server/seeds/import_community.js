@@ -71,8 +71,9 @@ async function importCommunity(threadsJsonl) {
 
   await iterateJsonl(threadsJsonl, async (batch) => {
     for (const t of batch) {
+      if (t.target_kind !== 'stock') continue;
       threadCount++;
-      const maskScope = t.target_kind === 'coin' ? 'coin_board' : 'stock_board';
+      const maskScope = 'stock_board';
       const assetId = assetOf(t.target_kind, t.target_id);
       if (!assetId && t.target_id) {
         const key = `${t.target_kind}:${t.target_id}`;

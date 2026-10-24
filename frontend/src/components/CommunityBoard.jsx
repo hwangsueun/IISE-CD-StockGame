@@ -15,7 +15,7 @@ export default function CommunityBoard({ assetId, date }) {
   const togglePost = async (post) => {
     if (openPost?.id === post.id) return setOpenPost(null);
     setOpenPost(post);
-    setComments(await api.getPostComments(post.id));
+    setComments(await api.getPostComments(post.id, date));
   };
 
   return (
