@@ -8,6 +8,7 @@ test('market comparison: real fills, external flows, late choices and historical
   assert.equal(new URL(process.env.DATABASE_URL).pathname, '/antsurvival_challenge_20261019');
   const db = require('../src/db');
   const { getPerformance } = require('../src/services/marketComparisonService');
+  const { getFinalReport } = require('../src/services/reportService');
   const orders = require('../src/services/orderService');
   const calendar = require('../src/services/turnSelector');
   const dates = calendar.buildWeekdayCalendar('2014-09-05', '2014-10-03');
@@ -33,6 +34,7 @@ test('market comparison: real fills, external flows, late choices and historical
   assert.equal((await read(`/assets/sectors?sessionId=${sid}&date=2014-10-03`)).status,409);
   assert.equal((await read(`/assets/sectors?sessionId=${sid}&date=2014-02-30`)).status,400);
   assert.equal((await getPerformance(sid)).summary.playerReturn,0);
+  assert.equal((await getFinalReport(sid)).totalReturn,0);
   const { rows: [asset] } = await db.query(`SELECT a.asset_id,p.close_price FROM assets a
     JOIN asset_prices p USING(asset_id) JOIN stock_price_detail d USING(asset_id,trade_date)
     WHERE a.asset_type='stock' AND a.is_active AND p.trade_date=$1 AND d.open_price>0
@@ -84,4 +86,7 @@ test('market comparison: real fills, external flows, late choices and historical
   assert.equal(response.body.available,true);
   approx(response.body.summary.playerReturn,paid.summary.playerReturn);
   assert.ok(response.body.points.every(p=>p.turn<=openTurn));
+  const finalReport = await getFinalReport(sid);
+  approx(finalReport.totalReturn, paid.summary.playerReturn);
+  assert.equal(finalReport.finalTotalAsset, paid.currentValue);
 });

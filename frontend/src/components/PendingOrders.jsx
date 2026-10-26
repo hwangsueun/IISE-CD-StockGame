@@ -1,9 +1,9 @@
 import { useEffect,useState } from 'react';
 import { api } from '../api/client';
 import { won } from '../utils/format';
+import { ORDER_REASONS } from '../utils/orderPresentation';
 
 const STATUS={pending:'체결 대기',filled:'체결',partial:'일부 체결',cancelled:'취소',rejected:'미체결'};
-const REASON={investment_locked_hospital:'입원으로 투자 중단',investment_locked_side_job:'부업으로 당일 투자 중단',investment_locked_stress:'스트레스 한계로 투자 중단',model_automation_stopped:'모델 자동 투자 해제',no_open_price:'시가 없음',stock_only:'주식 전용으로 변경',invalid_quantity:'잘못된 수량',insufficient_cash:'현금 부족',insufficient_holdings:'보유 부족',user_cancelled:'직접 취소',game_ended:'게임 종료',unfilled_remainder_cancelled:'남은 수량 취소'};
 export default function PendingOrders({sessionId}){
  const [orders,setOrders]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(null);
  useEffect(()=>{api.getOrders(sessionId).then(setOrders).catch(e=>setError(e.message));},[sessionId]);
@@ -13,7 +13,7 @@ export default function PendingOrders({sessionId}){
   {error&&<p role="alert">{error}</p>}
   <table className="data-table" data-tutorial="order-history"><thead><tr><th>주문 턴</th><th>종목</th><th>주문</th><th>수량 / 체결</th><th>상태</th><th>체결가</th><th></th></tr></thead>
    <tbody>{(orders||[]).map(o=><tr key={o.orderId}><td>{o.decisionTurn}턴</td><td>{o.name||o.assetId}</td><td>{o.tradeType==='buy'?'매수':'매도'}{o.strategyVersionId && <small> · 모델 자동 투자</small>}</td><td>{o.quantity} / {o.filledQuantity}</td>
-    <td>{STATUS[o.status]}{o.status==='pending'&&<small> · 다음 개장일 시가</small>}{o.reason&&<small> · {REASON[o.reason]||o.reason}</small>}</td><td>{o.price==null?'—':won(o.price)}</td>
+    <td>{STATUS[o.status]}{o.status==='pending'&&<small> · 다음 개장일 시가</small>}{o.reason&&<small> · {ORDER_REASONS[o.reason]||o.reason}</small>}</td><td>{o.price==null?'—':won(o.price)}</td>
     <td>{o.status==='pending'&&<button disabled={busy!==null} onClick={()=>cancel(o.orderId)}>취소</button>}</td></tr>)}
     {orders?.length===0&&<tr><td colSpan="7">예약한 주문이 없습니다.</td></tr>}
    </tbody></table></>;

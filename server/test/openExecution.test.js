@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {fillOpenOrder,validQuantity,EXECUTION_RULES}=require('../src/services/executionService');
+const {fillOpenOrder,quoteTradeAmount,validQuantity,EXECUTION_RULES}=require('../src/services/executionService');
 const {replayQuant,validateArtifact}=require('../src/services/quantReplay');
 
 function fixture(){
@@ -28,6 +28,27 @@ test('both actors use identical open fill; gap up clips quantity within prior ca
  const player=fillOpenOrder({side:'buy',quantity:10,cashBudget:1000},{openPrice:125,cash:1000});
  assert.equal(r.trades[0].quantity,player.filledQuantity);assert.equal(r.trades[0].price,125);
  assert.equal(r.holdings[0].avgPrice,125);assert.equal(r.totalAsset,1600);assert.equal(r.orders[0].status,'partial');
+});
+test('a one-share price gap reports the order budget limit even when the account has ample cash',()=>{
+ const order={side:'buy',quantity:1,cashBudget:quoteTradeAmount('buy',40950,1)};
+ const fill=fillOpenOrder(order,{openPrice:41000,cash:50000000});
+ assert.equal(fill.status,'rejected');
+ assert.equal(fill.reason,'order_budget_exceeded');
+ assert.equal(fill.filledQuantity,0);assert.equal(fill.amount,0);
+ // An equal or lower opening price may fill, but never more than the reserved quantity or budget.
+ const exact=fillOpenOrder(order,{openPrice:40950,cash:50000000});
+ assert.equal(exact.status,'filled');assert.equal(exact.filledQuantity,1);
+ assert.ok(exact.amount<=order.cashBudget);
+});
+test('actual cash shortage remains distinct from the reserved order budget limit',()=>{
+ const order={side:'buy',quantity:1,cashBudget:quoteTradeAmount('buy',200,1)};
+ const cost=quoteTradeAmount('buy',100,1);
+ for(const cash of [0,cost-1]) {
+  const fill=fillOpenOrder(order,{openPrice:100,cash});
+  assert.equal(fill.status,'rejected');assert.equal(fill.reason,'insufficient_cash');
+  assert.equal(fill.amount,0);
+ }
+ assert.equal(fillOpenOrder(order,{openPrice:100,cash:cost}).status,'filled');
 });
 test('future prices cannot alter a pending decision; execution-day close cannot alter its open fill',()=>{
  const x=fixture(),prefix={...x,turns:x.turns.slice(0,1)};

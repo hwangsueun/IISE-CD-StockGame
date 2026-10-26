@@ -41,7 +41,7 @@ async function getTurnData(sessionId, turnNumber) {
   const date = await getTurnDate(sessionId, turnNumber);
   const iso = toIso(date);
 
-  const [prices, assets, newsResult, totalAsset, marketOpen] = await Promise.all([
+  const [prices, assets, newsResult, totalAsset, marketOpen, repaymentStatus] = await Promise.all([
     pricingService.getPricesAt(iso),
     query(
       `SELECT a.asset_id, a.asset_type, a.masked_name AS name, a.sector
@@ -50,6 +50,7 @@ async function getTurnData(sessionId, turnNumber) {
     newsService.getNewsByDate(iso, { sessionId }),
     valuationService.computeTotalAsset(sessionId),
     turnSelector.isMarketOpen(iso),
+    repaymentService.getMonthStatus(session, turnNumber),
   ]);
 
   const assetRows = assets.rows
@@ -69,6 +70,7 @@ async function getTurnData(sessionId, turnNumber) {
     date: iso,
     monthIndex: repaymentService.monthIndexOf(turnNumber),
     isRepaymentTurn: repaymentService.isRepaymentTurn(turnNumber),
+    ...repaymentStatus,
     isMonthStart: turnNumber % C.TURNS_PER_MONTH === 1,
     marketOpen,
     executionRule: 'next_market_open',

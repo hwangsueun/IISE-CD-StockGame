@@ -32,7 +32,12 @@ function fillOpenOrder(order, { openPrice, cash, heldQuantity = 0, avgPrice = 0 
   const quantity = order.side === 'buy'
     ? Math.min(Number(order.quantity), affordableShares(budget, price))
     : Math.min(Number(order.quantity), Math.floor(heldQuantity));
-  if (!(quantity > 0)) return rejected(order.side === 'buy' ? 'insufficient_cash' : 'insufficient_holdings');
+  if (!(quantity > 0)) {
+    if (order.side !== 'buy') return rejected('insufficient_holdings');
+    // A price gap can exceed this order's budget even when the account has ample cash.
+    // Report the actual constraint without spending beyond the amount reserved at submission.
+    return rejected(affordableShares(cash, price) > 0 ? 'order_budget_exceeded' : 'insufficient_cash');
+  }
   return { status: quantity < Number(order.quantity) ? 'partial' : 'filled',
     reason: quantity < Number(order.quantity) ? 'unfilled_remainder_cancelled' : null,
     filledQuantity: quantity, price, amount: quoteTradeAmount(order.side, price, quantity),

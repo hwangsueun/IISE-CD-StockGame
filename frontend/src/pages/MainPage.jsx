@@ -19,6 +19,8 @@ import GuideModal from '../components/GuideModal';
 import QuantModal from '../components/QuantModal';
 import TutorialOverlay from '../components/TutorialOverlay';
 import FirstDayTutorial, { NEXT_DAY_STEP } from '../components/FirstDayTutorial';
+import QuantTutorial from '../components/QuantTutorial';
+import { shouldStartQuantTour } from '../utils/quantTutorial';
 
 const MODALS = {
   market: MarketModal,
@@ -47,7 +49,7 @@ export default function MainPage() {
   const { sessionId, turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
     retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial,
-    firstDayStep, startFirstDay } = useGameStore();
+    firstDayStep, startFirstDay, quantTourStep, startQuantTour } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
 
@@ -65,13 +67,20 @@ export default function MainPage() {
     if (turn && !activeModal && tutorialStep === null && firstDayStep === null && !tutorialProgress.welcome) startFirstDay();
   }, [turn, activeModal, tutorialStep, firstDayStep, tutorialProgress.welcome, startFirstDay]);
 
-  // 상환일(20턴 주기)엔 버튼 없이 자동으로 상환 컷신을 띄운다 (기획서 §7).
-  // 입원(actionLocked) 중이면 띄우지 않는다 — 서버가 다음 턴 진행 시 자동 미상환 처리한다.
-  const autoOpenedRepayTurnRef = useRef(null);
+  // 11일차부터 한 번 안내한다. 이벤트·상환·이미 열린 화면을 마친 다음 시작한다.
+  useEffect(() => {
+    if (shouldStartQuantTour({ turn, loading, pendingTurnNumber, pendingEvents, surgeResults,
+      surgePromptPending, faintEvent, activeModal, tutorialStep, firstDayStep, quantTourStep, tutorialProgress })) {
+      startQuantTour();
+    }
+  }, [turn, loading, pendingTurnNumber, pendingEvents, surgeResults, surgePromptPending, faintEvent,
+    activeModal, tutorialStep, firstDayStep, quantTourStep, tutorialProgress, startQuantTour]);
+
+  // 월간 챌린지 결과를 안내한다. 상환 컷신은 하루를 마치는 advanceTurn에서 연다.
   const autoOpenedChallengeRef = useRef(null);
   useEffect(() => {
     if (!turn || !turn.isRepaymentTurn) return;
-    if (tutorialStep !== null || firstDayStep !== null || !tutorialProgress.welcome) return;
+    if (tutorialStep !== null || firstDayStep !== null || quantTourStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
     const key = `${sessionId}:${turn.turnNumber}`;
     if (turn.challenge?.rounds?.some(r => r.endTurn === turn.turnNumber) && autoOpenedChallengeRef.current !== key) {
@@ -79,11 +88,7 @@ export default function MainPage() {
       openModal('quant');
       return;
     }
-    if (turn.actionLocked) return;
-    if (autoOpenedRepayTurnRef.current === turn.turnNumber) return;
-    autoOpenedRepayTurnRef.current = turn.turnNumber;
-    openModal('repay');
-  }, [sessionId, turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, tutorialProgress.welcome]);
+  }, [sessionId, turn, pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal, openModal, tutorialStep, firstDayStep, quantTourStep, tutorialProgress.welcome]);
 
   if (!turn) {
     return (
@@ -128,12 +133,12 @@ export default function MainPage() {
             <div className="row"><span className="k">요일</span><span className="v">{dow}</span></div>
             <div className="row"><span className="k">주식 주문</span><span className="v">다음 개장일 시가</span></div>
             <div className="row"><span className="k">남은 일수</span><span className="v">{240 - turn.turnNumber}일</span></div>
-            <div className="row"><span className="k">상환까지</span><span className="v">{turn.isRepaymentTurn ? '오늘!' : `D-${repayDday}`}</span></div>
+            <div className="row"><span className="k">{turn.repaymentCompleted ? '이번 달 상환' : '상환까지'}</span><span className="v">{turn.repaymentCompleted ? '처리 완료' : turn.isRepaymentTurn ? '다음 날 시작 전' : `D-${repayDday}`}</span></div>
           </div>
 
           {/* 상태 배지 (날짜판 아래) */}
           <div className="hud-side">
-            {turn.isRepaymentTurn && <span className="px-badge repay">★ 상환일</span>}
+            {turn.isRepaymentTurn && <span className="px-badge repay">{turn.repaymentCompleted ? '★ 상환 처리 완료' : '★ 하루를 마친 뒤 상환'}</span>}
             {turn.marketOpen === false && <span className="px-badge lock">주식 휴장일</span>}
             {turn.actionLocked && <span className="px-badge lock">입원 중</span>}
             {turn.sideJobDoneToday && <span className="px-badge lock">부업으로 투자 불가</span>}
@@ -199,8 +204,8 @@ export default function MainPage() {
           <div className="nextturn-wrap">
             <button
               className="nextturn-btn"
-              disabled={loading || pendingEvents.length > 0 || surgeResults.length > 0 ||
-                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null ||
+              disabled={loading || Boolean(activeModal) || pendingEvents.length > 0 || surgeResults.length > 0 ||
+                surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null || quantTourStep !== null ||
                 (firstDayStep !== null && firstDayStep !== NEXT_DAY_STEP)}
               onClick={advanceTurn}
               title="다음 턴"
@@ -261,6 +266,7 @@ export default function MainPage() {
       {tutorialVisible && <TutorialOverlay />}
       {/* 첫날 체험형 튜토리얼: 실제 화면을 직접 눌러야 하므로 뒤쪽 화면을 막지 않는다. */}
       {firstDayStep !== null && overlaysClear && <FirstDayTutorial />}
+      {quantTourStep !== null && overlaysClear && <QuantTutorial />}
     </div>
   );
 }

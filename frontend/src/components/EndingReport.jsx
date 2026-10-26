@@ -1,15 +1,16 @@
 // 엔딩 중간의 최종 리포트 패널 (해피/배드 엔딩 공용)
 // 임시 구현: GET /result + /report/final 값을 그대로 보여준다. 최종 리포트 모듈이 완성되면 이 파일을 교체한다.
 import { won, pct } from '../utils/format';
+import { gameDuration } from '../utils/ending';
 
 export default function EndingReport({ result, report, onNext }) {
-  const months = Math.max(1, Math.ceil(result.turnsPlayed / 20));
+  const duration = gameDuration(result.turnsPlayed);
   const rows = [
     ['갚은 빚', won(result.debtInitial - result.debtRemaining)],
     ['남은 빚', won(result.debtRemaining)],
-    [result.status === 'success' ? '걸린 기간' : '버틴 기간', `${months}개월 (${result.turnsPlayed}일)`],
+    [result.status === 'success' ? '걸린 기간' : '버틴 기간', result.turnsPlayed < 20 ? duration : `${duration} (${result.turnsPlayed}일)`],
     ['최종 총자산', won(result.finalTotalAsset)],
-    ['총 수익률', report ? pct(report.totalReturn) : '-'],
+    ['투자 수익률', report ? (report.totalReturn === null ? '계산 불가' : pct(report.totalReturn)) : '-'],
     ['실현손익 합계', won(result.realizedPnlSum)],
     ['총 거래 횟수', `${result.tradeCount}회`],
     ['마지막 신뢰도 · 스트레스', `${result.trust} · ${result.stress}`],

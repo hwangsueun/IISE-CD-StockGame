@@ -278,7 +278,16 @@ export const useGameStore = create((set, get) => ({
 
   /** 다음 턴 진행 */
   async advanceTurn() {
-    const sid = get().sessionId;
+    const current = get();
+    // 연속 클릭이나 턴 조회 재시도 중에는 이미 확정한 턴을 한 번 더 진행하지 않는다.
+    if (current.loading || current.pendingTurnNumber !== null) return;
+    if (!current.sessionId || !current.turn || current.status !== 'active') return;
+    // 20턴을 마칠 때 방문 컷신을 먼저 진행한다. 입원 중에는 서버가 미납 처리한다.
+    if (current.turn.isRepaymentTurn && !current.turn.repaymentCompleted && !current.turn.actionLocked) {
+      current.openModal('repay', { advanceAfterRepayment: true });
+      return;
+    }
+    const sid = current.sessionId;
     const generation = sessionRequestGeneration;
     set({ loading: true, error: null, turnLoadError: null });
     try {
@@ -342,10 +351,48 @@ export const useGameStore = create((set, get) => ({
   async repay(amount) {
     const sid = get().sessionId;
     const generation = sessionRequestGeneration;
+    const repaymentTurn = get().turn?.turnNumber;
     const r = await api.repay(sid, amount);
     if (!isCurrentSessionRequest(get, sid, generation)) return r;
-    set({ status: r.status });
-    if (r.status === 'active') await get().loadTurn(get().turn.turnNumber, generation);
+    const current = get();
+    const targetTurn = current.pendingTurnNumber ?? current.turn?.turnNumber;
+    // 응답을 기다리는 동안 다른 턴으로 이동했다면 과거 잔액을 덮어쓰지 않는다.
+    if (targetTurn === repaymentTurn) {
+      const applyResult = (previous) => previous ? {
+        ...previous,
+        cash: Number(r.cash),
+        debt: Number(r.debtRemaining),
+        trust: r.trust === undefined
+          ? Math.max(0, Math.min(100, Number(previous.trust) + Number(r.trustDelta || 0)))
+          : Number(r.trust),
+        stress: r.stress === undefined
+          ? Math.max(0, Math.min(100, Number(previous.stress) + Number(r.stressDelta || 0)))
+          : Number(r.stress),
+        ...(r.totalAsset !== undefined ? { totalAsset: Number(r.totalAsset) }
+          : previous.totalAsset == null ? {}
+          : { totalAsset: Number(previous.totalAsset) + Number(r.cash) - Number(r.cashBefore ?? previous.cash) }),
+      } : previous;
+      // 상환 전에 시작된 조회가 늦게 도착해 완료 상태를 되돌리지 못하게 한다.
+      turnRequestSequence += 1;
+      set({
+        status: r.status,
+        state: applyResult(current.state),
+        turn: current.turn ? {
+          ...current.turn,
+          repaymentCompleted: true,
+          repaymentDueAmount: r.dueAmount,
+          state: applyResult(current.turn.state),
+        } : current.turn,
+      });
+    }
+    if (r.status === 'active' && targetTurn) {
+      try {
+        await get().loadTurn(targetTurn, generation);
+      } catch (refreshError) {
+        // POST 성공은 확정됐다. 조회 실패를 상환 실패로 알려 재송금을 유도하지 않는다.
+        console.error('[repay] 상환 후 상태 새로고침 실패', refreshError);
+      }
+    }
     return r;
   },
 

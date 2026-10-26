@@ -20,9 +20,27 @@ function monthIndexOf(turnNumber) {
   return Math.ceil(turnNumber / C.TURNS_PER_MONTH);
 }
 
-/** 월 상환 요구액 */
-function dueAmountOf(debtInitial) {
-  return Math.ceil(Number(debtInitial) / C.REPAYMENT_MONTHS);
+/** 월 상환 요구액. 반올림 잔액이나 앞선 초과 상환으로 남은 부채보다 클 수 없다. */
+function dueAmountOf(debtInitial, debtRemaining = debtInitial) {
+  return Math.max(0, Math.min(
+    Math.ceil(Number(debtInitial) / C.REPAYMENT_MONTHS),
+    Number(debtRemaining)
+  ));
+}
+
+/** 저장된 월별 처리 여부를 반환하여 새로고침 후에도 상환 화면을 중복 표시하지 않는다. */
+async function getMonthStatus(session, turnNumber, client) {
+  const q = client || { query };
+  const { rows } = await q.query(
+    `SELECT due_amount FROM repayments WHERE session_id = $1 AND month_index = $2`,
+    [session.id, monthIndexOf(turnNumber)]
+  );
+  return {
+    repaymentCompleted: Boolean(rows[0]),
+    repaymentDueAmount: rows[0]
+      ? Number(rows[0].due_amount)
+      : dueAmountOf(session.debt_initial, session.debt),
+  };
 }
 
 /**
@@ -52,7 +70,7 @@ async function repay(sessionId, amount) {
     if (amount > cash) throw conflict('현금이 부족합니다', { cash });
     const paid = Math.min(amount, Number(session.debt)); // 초과 상환 방지
 
-    const due = dueAmountOf(session.debt_initial);
+    const due = dueAmountOf(session.debt_initial, session.debt);
     const ratio = due > 0 ? paid / due : 1;
     const { trustDelta, stressDelta } = trustPolicy.repaymentEffect(ratio);
 
@@ -113,6 +131,10 @@ async function repay(sessionId, amount) {
       ratio,
       trustDelta,
       stressDelta,
+      trust: newTrust,
+      stress: newStress,
+      cashBefore: cash,
+      debtBefore: Number(session.debt),
       debtRemaining: newDebt,
       cash: Number(evaluatedSession.cash),
       status,
@@ -139,7 +161,7 @@ async function recordMissedIfUnpaid(client, session) {
   );
   if (dup[0]) return null;
 
-  const due = dueAmountOf(session.debt_initial);
+  const due = dueAmountOf(session.debt_initial, session.debt);
   const { trustDelta, stressDelta, label } = trustPolicy.repaymentEffect(0);
   session.trust = clamp100(session.trust + trustDelta);
   session.stress = clamp100(session.stress + stressDelta);
@@ -168,4 +190,4 @@ async function getHistory(sessionId) {
   return rows;
 }
 
-module.exports = { isRepaymentTurn, monthIndexOf, dueAmountOf, repay, recordMissedIfUnpaid, getHistory };
+module.exports = { isRepaymentTurn, monthIndexOf, dueAmountOf, getMonthStatus, repay, recordMissedIfUnpaid, getHistory };

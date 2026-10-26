@@ -7,6 +7,9 @@ const repaymentServicePath = require.resolve('../src/services/repaymentService')
 const surgeServicePath = require.resolve('../src/services/surgeStockService');
 const valuationServicePath = require.resolve('../src/services/valuationService');
 const reportServicePath = require.resolve('../src/services/reportService');
+const pricingServicePath = require.resolve('../src/services/pricingService');
+const newsServicePath = require.resolve('../src/services/newsService');
+const turnSelectorPath = require.resolve('../src/services/turnSelector');
 const turnServicePath = require.resolve('../src/services/turnService');
 const realDb = require(dbPath);
 const realGameService = require(gameServicePath);
@@ -14,6 +17,9 @@ const realRepaymentService = require(repaymentServicePath);
 const realSurgeService = require(surgeServicePath);
 const realValuationService = require(valuationServicePath);
 const realReportService = require(reportServicePath);
+const realPricingService = require(pricingServicePath);
+const realNewsService = require(newsServicePath);
+const realTurnSelector = require(turnSelectorPath);
 
 function loadTurnService({ client, evaluateEndCondition, recordMissedIfUnpaid }) {
   let valuationCash;
@@ -66,6 +72,9 @@ test.after(() => {
   require.cache[surgeServicePath].exports = realSurgeService;
   require.cache[valuationServicePath].exports = realValuationService;
   require.cache[reportServicePath].exports = realReportService;
+  require.cache[pricingServicePath].exports = realPricingService;
+  require.cache[newsServicePath].exports = realNewsService;
+  require.cache[turnSelectorPath].exports = realTurnSelector;
   delete require.cache[turnServicePath];
   realDb.pool.end();
 });
@@ -124,4 +133,46 @@ test('turn-240 termination snapshots surge refund after turn-limit evaluation', 
   assert.equal(loaded.getValuationCash(), 10000);
   assert.equal(loaded.getSnapshot().turnNumber, 240);
   assert.equal(loaded.getSnapshot().session.cash, 10000);
+});
+
+test('loading a paid repayment turn returns persisted completion and its original due amount', async () => {
+  const session = {
+    id: 'paid-session', status: 'active', current_turn: 20,
+    cash: '1772681', debt: '91666666', debt_initial: '100000000',
+    stress: 28, trust: 100, action_locked_until_turn: 0,
+  };
+  require.cache[dbPath].exports = {
+    ...realDb,
+    query: async (sql) => sql.includes('FROM game_turns')
+      ? { rows: [{ trade_date: '2020-01-31' }] }
+      : { rows: [] },
+  };
+  require.cache[gameServicePath].exports = {
+    ...realGameService,
+    getSession: async () => session,
+  };
+  require.cache[repaymentServicePath].exports = {
+    ...realRepaymentService,
+    getMonthStatus: async (receivedSession, turn) => {
+      assert.equal(receivedSession.id, session.id);
+      assert.equal(turn, 20);
+      return { repaymentCompleted: true, repaymentDueAmount: 8333334 };
+    },
+  };
+  require.cache[pricingServicePath].exports = { ...realPricingService, getPricesAt: async () => ({}) };
+  require.cache[newsServicePath].exports = {
+    ...realNewsService, getNewsByDate: async () => ({ news: [], newsLimit: 5 }),
+  };
+  require.cache[valuationServicePath].exports = {
+    ...realValuationService, computeTotalAsset: async () => 1772681,
+  };
+  require.cache[turnSelectorPath].exports = { ...realTurnSelector, isMarketOpen: async () => true };
+  delete require.cache[turnServicePath];
+
+  const data = await require(turnServicePath).getTurnData(session.id, 20);
+
+  assert.equal(data.isRepaymentTurn, true);
+  assert.equal(data.repaymentCompleted, true);
+  assert.equal(data.repaymentDueAmount, 8333334);
+  assert.equal(data.state.cash, 1772681);
 });

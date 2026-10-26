@@ -4,6 +4,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { won } from '../utils/format';
+import { api } from '../api/client';
+import { latestManualBuy, tutorialBuySummary } from '../utils/orderPresentation';
 
 const TOTAL_STEPS = 10;
 const SPOT_PAD = 6;
@@ -192,7 +194,7 @@ export const STEPS = {
         return {
           spots: [{ sel: '.modal-shell' }, { sel: '.modal .btn-primary' }],
           interact: '.modal-shell',
-          hint: <>예약했다! 다음 개장일 시가에 체결된다 · <b>[확인]</b>을 눌러 닫자</>,
+          hint: <>예약했다! 다음 개장일 시가로 주문 예산 안에서 매수한다 · <b>[확인]</b>을 눌러 닫자</>,
         };
       }
       if (activeModal === 'trade') {
@@ -269,7 +271,7 @@ export const STEPS = {
     },
   },
   6: {
-    // 튜토리얼 안에서 '다음 날'을 직접 눌러 1일차 매수 예약이 2일차 시가에 체결되게 한다.
+    // 튜토리얼 안에서 '다음 날'을 직접 눌러 예약 주문이 처리되는 과정을 확인한다.
     // 턴이 넘어가면(ctx.turnNumber가 이 단계 시작 턴보다 커지면) 다음 단계로.
     title: '다음 날로 넘어가기',
     spots: [{
@@ -278,26 +280,26 @@ export const STEPS = {
       note: () => (
         <>
           <span className="big">▶ 다음 날</span>
-          하루가 지나면 예약한 매수가<br />
-          <b>개장 시가</b>에 체결된다<br />
+          예약한 매수는 다음 개장일에<br />
+          <b>주문 예산 안에서</b> 체결한다<br />
           <b>눌러 보자!</b>
         </>
       ),
     }],
     interact: '.nextturn-btn',
-    hint: <>실제 체결가는 주문할 때 본 가격과 다를 수 있다 · 이벤트가 뜨면 먼저 처리하자</>,
+    hint: <>시가가 주문 예산을 넘으면 매수하지 못할 수 있다 · 이벤트가 뜨면 먼저 처리하자</>,
     onModal: (activeModal, mem, { turnNumber }) => (
       nextDayBaseTurn !== null && turnNumber > nextDayBaseTurn ? 'next' : undefined
     ),
   },
   7: {
     // 2일차: 포트폴리오 → 보유자산 → 체결된 종목 → 매도 예약 → 수량 1 → 매도 예약 → 확인.
-    // 휴장일이었거나 주문을 취소해 보유 종목이 없으면, 매도 위치만 알려 주고 창을 닫으면 넘어간다.
+    // 미체결·대기·취소 등으로 보유 종목이 없어도 처리 결과를 확인하고 계속할 수 있다.
     watch: {
       holdingsTab: '[data-tutorial="holdings-tab"].active',
       holding: '[data-tutorial="holding-row"]',
     },
-    view: ({ activeModal, sold, flags }) => {
+    view: ({ activeModal, sold, flags, buyOrder }) => {
       if (activeModal === 'trade' && sold) {
         return {
           spots: [{ sel: '.modal-shell' }, { sel: '.modal .btn-primary' }],
@@ -323,7 +325,7 @@ export const STEPS = {
         return {
           spots: [
             { sel: '.modal-shell' },
-            { sel: '[data-tutorial="holding-row"]', place: 'modal-side', note: () => <>어제 예약한 매수가 <b>체결됐다!</b><br />종목을 눌러 보자</> },
+            { sel: '[data-tutorial="holding-row"]', place: 'modal-side', note: () => <>보유한 주식이 있다<br /><b>종목을 눌러 보자!</b></> },
           ],
           interact: '.modal-shell',
           hint: <>체결된 종목은 <b>보유자산</b>에 들어온다 · 수익률도 여기서 본다</>,
@@ -336,7 +338,7 @@ export const STEPS = {
             { sel: '.modal-close', place: 'right', note: () => <>확인했으면 <b>✕</b>로 닫기</> },
           ],
           interact: '.modal-shell',
-          hint: <>아직 체결된 종목이 없다 (휴장일이었거나 주문을 취소했다) · 보유 종목이 생기면 여기서 <b>종목 → [매도 예약]</b></>,
+          hint: <>{tutorialBuySummary(buyOrder)}<br />지금은 보유한 주식이 없다 · 자세한 내용은 <b>[주문 내역]</b> · 확인했으면 <b>✕</b>로 닫자</>,
         };
       }
       if (activeModal === 'portfolio') {
@@ -354,7 +356,7 @@ export const STEPS = {
           note: () => (
             <>
               <span className="big">📊 포트폴리오</span>
-              어제 예약한 매수가<br />오늘 시가에 체결됐다<br />
+              예약한 매수가<br />체결됐는지 살펴보자<br />
               <b>눌러서 확인하자!</b>
             </>
           ),
@@ -573,6 +575,21 @@ export default function FirstDayTutorial() {
   const nextFirstDayStep = useGameStore((s) => s.nextFirstDayStep);
   const prevFirstDayStep = useGameStore((s) => s.prevFirstDayStep);
   const endFirstDay = useGameStore((s) => s.endFirstDay);
+  const sessionId = useGameStore((s) => s.sessionId);
+  const activeModal = useGameStore((s) => s.activeModal);
+  const [buyOrder, setBuyOrder] = useState(null);
+  const orderReviewFlags = useDomFlags(step === 7 ? STEPS[7].watch : undefined);
+
+  useEffect(() => {
+    let current = true;
+    setBuyOrder(null);
+    if (step === 7 && sessionId) {
+      api.getOrders(sessionId)
+        .then((orders) => { if (current) setBuyOrder(latestManualBuy(orders)); })
+        .catch(() => { /* The order tab has its own error message; keep this guide neutral. */ });
+    }
+    return () => { current = false; };
+  }, [step, sessionId, turnNumber, activeModal, orderReviewFlags.holdingsTab]);
 
   if (step !== NEXT_DAY_STEP) nextDayBaseTurn = null;
   else if (nextDayBaseTurn === null && turnNumber) nextDayBaseTurn = turnNumber;
@@ -581,6 +598,7 @@ export default function FirstDayTutorial() {
     <SpotlightTour
       steps={STEPS} total={TOTAL_STEPS} step={step}
       onNext={nextFirstDayStep} onPrev={prevFirstDayStep} onEnd={endFirstDay}
+      context={{ buyOrder }}
     />
   );
 }
@@ -590,7 +608,7 @@ export default function FirstDayTutorial() {
  * steps: 단계 정의(위 STEPS 형식), step: 현재 단계(1부터), onNext(from)/onPrev/onEnd: 단계 이동
  * endLabel: 마지막 단계 버튼 문구
  */
-export function SpotlightTour({ steps, total, step, onNext, onPrev, onEnd, tag = 'TUTORIAL', endLabel = '시작하기 ▶' }) {
+export function SpotlightTour({ steps, total, step, onNext, onPrev, onEnd, context, tag = 'TUTORIAL', endLabel = '시작하기 ▶' }) {
   const sessionState = useGameStore((s) => s.state);
   const turnState = useGameStore((s) => s.turn?.state);
   const activeModal = useGameStore((s) => s.activeModal);
@@ -607,6 +625,7 @@ export function SpotlightTour({ steps, total, step, onNext, onPrev, onEnd, tag =
   const seen = useSeenFlags(flags, step);
 
   const ctx = {
+    ...context,
     activeModal,
     marketOpen,
     turnNumber,

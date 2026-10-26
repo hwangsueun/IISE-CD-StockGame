@@ -1,106 +1,118 @@
-// 퀀트 모델 튜토리얼: 10일이 지나면(QUANT_TOUR_TURN) [퀀트 모델] 버튼을 강조하며 한 번 띄운다.
-// 퀀트 화면의 기능을 짧게 짚는 소개용이라, 첫날 튜토리얼과 같은 스포트라이트 엔진(SpotlightTour)을 쓴다.
-// 상태는 gameStore.quantTourStep. 진행 중엔 '다음 날' 버튼이 잠긴다(MainPage).
-// 창 전체가 아니라 설명하는 부분만 밝혀서, 설명 글이 어두운 영역 위에 겹치지 않고 읽히게 한다.
+// 11일차부터 컴퓨터와 alpha158의 네 가지 화면을 한 번 소개한다.
+import { useEffect } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { SpotlightTour } from './FirstDayTutorial';
 
-export const QUANT_TOUR_TURN = 11; // 10일을 넘긴 뒤 시작하는 턴
-
 const QUANT_STEPS = {
   1: {
-    view: ({ activeModal }) => (activeModal === 'quant'
-      ? { spots: [], hint: <>퀀트 화면을 불러오는 중…</> }
+    watch: { tabs: '#quant-tab-challenge', invitation: '.challenge-invitation' },
+    view: ({ activeModal, flags }) => (activeModal === 'quant'
+      ? {
+        spots: [{ sel: '.modal-shell' }],
+        interact: '.modal-shell',
+        hint: flags.invitation
+          ? <>초대장을 읽거나 <b>[alpha158 먼저 살펴보기]</b>를 눌러 보자 · 참가는 나중에 정해도 된다</>
+          : <>alpha158 화면을 불러오는 중… 문제가 있으면 다시 불러오거나 창을 닫을 수 있다</>,
+      }
       : {
-        title: '퀀트 AI가 지켜보고 있었다',
+        title: 'alpha158의 투자도 살펴보자',
         spots: [{
-          sel: '.quant-open-btn',
+          sel: '.pbtn.b-computer',
           place: 'left',
           note: () => (
             <>
-              <span className="big">🤖 퀀트 모델</span>
-              지난 10일 동안 AI도 <b>같은 5천만원</b>으로<br />
-              따로 투자하고 있었다<br />
-              <b>눌러서 성적을 확인하자!</b>
+              <span className="big">💻 alpha158 투자 챌린지</span>
+              alpha158도 나와 같은 초기 투자금으로<br />
+              주식을 운용하고 있다<br />
+              <b>컴퓨터를 눌러 확인하자!</b>
             </>
           ),
         }],
-        interact: '.quant-open-btn',
+        interact: '.pbtn.b-computer',
       }),
-    onModal: (activeModal) => (activeModal === 'quant' ? 'next' : undefined),
+    onModal: (activeModal, mem, { flags }) => {
+      if (activeModal === 'quant') mem.opened = true;
+      // The first visit may show the invitation, or an API error, before any tabs exist.
+      if (activeModal === 'quant' && flags.tabs) return 'next';
+      if (mem.opened && !activeModal) return 'next';
+      return undefined;
+    },
   },
   2: {
     spots: [{
-      sel: '.quant-stats',
+      sel: ['#quant-tab-challenge', '#quant-tab-workshop'],
       place: 'below',
       boxed: true,
       note: () => (
         <>
-          <span className="big">📊 성적 비교</span>
-          <b>퀀트 총자산·누적 수익률</b>과 <b>내 총자산</b>을 나란히 본다<br />
-          <span className="dim">퀀트는 투자금만 굴리고, 나는 월급·생활비·상환까지 반영된다</span>
+          <span className="big">📊 경쟁하고 직접 만들기</span>
+          <b>투자 챌린지</b> · 20턴마다 투자수익률을 비교한다<br />
+          alpha158보다 앞서면 상금을 받을 수 있다<br />
+          <b>나만의 투자 모델 만들기</b> · 모델을 만들고 결과를 비교한다<br />
+          자동 투자는 원할 때 켜거나 끌 수 있다
         </>
       ),
     }],
-    hint: <>목표는 단순하다 · <b>AI보다 잘 굴려 보자!</b></>,
+    hint: <>챌린지는 월급·부업비·상환금 같은 <b>투자 외 입출금을 제외</b>하고 비교한다</>,
   },
   3: {
-    spots: [
-      {
-        sel: ['#quant-tab-holdings', '#quant-tab-history'],
-        place: 'below',
-        boxed: true,
-        note: () => (
-          <>
-            <span className="big">🗂 AI의 투자 내역</span>
-            <b>보유 포트폴리오</b> 지금 들고 있는 종목·비중<br />
-            <b>종목 선택</b> 오늘 매긴 점수 순위<br />
-            <b>예약 주문</b> 다음 개장일 시가에 사고팔 주문<br />
-            <b>운용 기록</b> 날짜별 총자산·수익률
-          </>
-        ),
-      },
-    ],
-    hint: <>AI가 <b>무엇을 샀는지</b> 보고 내 투자에 참고해도 된다</>,
+    spots: [{
+      sel: '#quant-tab-portfolio',
+      place: 'below',
+      boxed: true,
+      note: () => (
+        <>
+          <span className="big">🗂 alpha158의 포트폴리오</span>
+          <b>보유 종목</b> · 지금 들고 있는 주식과 비중<br />
+          <b>종목 선택</b> · 오늘 평가한 종목의 점수<br />
+          <b>예약 주문</b> · 다음 개장일에 처리할 주문<br />
+          <b>운용 기록</b> · 날짜별 자산과 수익률
+        </>
+      ),
+    }],
+    hint: <>종목의 <b>[지표 분석]</b>에서 어떤 지표가 점수에 영향을 줬는지도 볼 수 있다</>,
   },
   4: {
-    spots: [
-      {
-        sel: ['#quant-tab-learning', '#quant-tab-indicators'],
-        place: 'below',
-        boxed: true,
-        note: () => (
-          <>
-            <span className="big">🧠 AI는 어떻게 고를까</span>
-            <b>AI 학습·예측</b> 과거 주가·거래량으로 배우는 과정<br />
-            <b>지표 계산법</b> 점수에 쓰인 지표의 계산식과 예시
-          </>
-        ),
-      },
-    ],
-    hint: <>점수는 코스피 대비 성과 <b>예측</b>일 뿐 · 수익을 보장하지 않는다</>,
+    spots: [{
+      sel: '#quant-tab-about',
+      place: 'below',
+      boxed: true,
+      note: () => (
+        <>
+          <span className="big">What is Alpha158?</span>
+          alpha158이 참고하는 지표와<br />
+          주식을 사고파는 규칙을 알아보는 곳이다
+        </>
+      ),
+    }],
+    hint: <>궁금한 지표의 뜻과 계산 예시를 여기서 찾아볼 수 있다</>,
   },
   5: {
-    spots: [
-      { sel: '.modal .modal-help-btn', place: 'below', note: () => <>규칙이 헷갈리면 <b>?</b></> },
-      { sel: '.modal-close', place: 'right', note: () => <>다 봤으면 <b>✕</b>로 닫기</> },
-    ],
+    spots: [{ sel: '.modal-close', place: 'left', note: () => <>다 봤으면 <b>✕</b>로 닫기</> }],
     interact: '.modal-close',
-    hint: <>상단 <b>[퀀트 모델]</b> 버튼으로 언제든 다시 볼 수 있다</>,
+    hint: <>방 안의 <b>컴퓨터</b>를 누르면 언제든 다시 볼 수 있다</>,
     onModal: (activeModal) => (activeModal ? undefined : 'next'),
   },
 };
 
 export default function QuantTutorial() {
   const step = useGameStore((s) => s.quantTourStep);
+  const activeModal = useGameStore((s) => s.activeModal);
   const nextQuantTourStep = useGameStore((s) => s.nextQuantTourStep);
   const prevQuantTourStep = useGameStore((s) => s.prevQuantTourStep);
   const endQuantTour = useGameStore((s) => s.endQuantTour);
+
+  // Closing the invitation with '나중에' must also release the turn button.
+  useEffect(() => {
+    if (step > 1 && activeModal !== 'quant') endQuantTour();
+  }, [step, activeModal, endQuantTour]);
+
+  if (step > 1 && activeModal !== 'quant') return null;
   return (
     <SpotlightTour
       steps={QUANT_STEPS} total={Object.keys(QUANT_STEPS).length} step={step}
       onNext={nextQuantTourStep} onPrev={prevQuantTourStep} onEnd={endQuantTour}
-      tag="QUANT" endLabel="확인 ▶"
+      tag="ALPHA158" endLabel="확인 ▶"
     />
   );
 }

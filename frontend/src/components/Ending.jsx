@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTypewriter } from '../hooks/useTypewriter';
 import EndingReport from './EndingReport';
+import { gameDuration, hasReachedEndingDeadline } from '../utils/ending';
 
 const SHARK = { portrait: '☠', name: '사채업자 김씨' };
 const ME = { portrait: '나', name: '나' };
@@ -25,7 +26,7 @@ function happyScenes(result) {
     { type: 'title', bg: 'dark', small: '★ HAPPY ENDING ★', big: '상환 완료', sub: '…전화벨이 울린다.' },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DIALOG', html: '<span class="em">박 사장.</span> 나야. …방금 통장 확인했다.' },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DIALOG', html: `<span class="em">${debtLabel(result.debtInitial)}.</span> 한 푼도 안 빠지고 다 들어왔더라.` },
-    { type: 'line', bg: 'dim', who: SHARK, tag: 'DIALOG', html: '1년 만에… 솔직히 데리러 갈 날짜까지 잡아놨었는데.' },
+    { type: 'line', bg: 'dim', who: SHARK, tag: 'DIALOG', html: `${gameDuration(result.turnsPlayed)} 만에… 솔직히 데리러 갈 날짜까지 잡아놨었는데.` },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'CLEAR', html: '<span class="grn">상환 완료.</span> 이제 너랑 나는 아무 사이도 아니야.' },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DIALOG', html: '다음에 또 돈 모자라면 <span class="em">언제든 찾아와.</span>' },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'END', html: '끊는다.', stage: { small: 'CALL ENDED', big: '…뚜─' } },
@@ -41,12 +42,14 @@ function happyScenes(result) {
 }
 
 function badScenes(result) {
-  // 신뢰도 0 / 기한 내 미상환 구분 없이 같은 엔딩
+  const reason = hasReachedEndingDeadline(result.turnsPlayed)
+    ? '1년 줬다. 약속한 날짜가 지났어.'
+    : '약속을 계속 어기더군. 더는 못 기다려.';
   return [
     { type: 'title', bg: 'dark', small: '★ BAD ENDING ★', big: '상환 실패', sub: '…빗소리만 들리는 밤.' },
     { type: 'knock', bg: 'dim', shake: true },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DOOR', html: '<span class="red">박 사장.</span> 문 열어. 안에 있는 거 다 알아.' },
-    { type: 'line', bg: 'dim', who: SHARK, tag: 'DOOR', html: `1년 줬다. 아직 <span class="em">${debtLabel(result.debtRemaining)}</span> 남았고, 날짜는 지났어.` },
+    { type: 'line', bg: 'dim', who: SHARK, tag: 'DOOR', html: `${reason} 아직 <span class="em">${debtLabel(result.debtRemaining)}</span> 남았어.` },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DOOR', html: '빚 다 못 갚으면 <span class="red">내가 찾아간다고 했지?</span>' },
     { type: 'line', bg: 'dim', shake: true, who: SHARK, tag: 'DOOR', html: '<span class="red">좋은 말로 할 때 나오세요, 형님.</span>' },
     { type: 'report', bg: 'dark' },
