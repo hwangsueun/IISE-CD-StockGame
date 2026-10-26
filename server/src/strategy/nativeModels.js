@@ -9,20 +9,39 @@ function environment() {
   return { ...process.env, OMP_NUM_THREADS: '1', OPENBLAS_NUM_THREADS: '1', MKL_NUM_THREADS: '1', PYTHONDONTWRITEBYTECODE: '1' };
 }
 let cached;
+const probeTimeoutMs = 60000, successfulCacheMs = 10 * 60000, failedCacheMs = 15000;
 async function capabilities() {
   const executable = python();
-  if (!cached || cached.executable !== executable || (Date.now() - cached.at > 60000 && !isModelWorkBusy())) {
-    const promise = withModelWork(() => new Promise(resolve => execFile(executable, [path.join(root, 'quant/check_runtime.py')], { timeout: 20000, env: environment() }, (error, stdout) => {
-      let report;
-      try { if (!error) report = JSON.parse(stdout); } catch { /* No imitation fallback. */ }
-      resolve(Object.fromEntries(['randomForest', 'lightgbm', 'xgboost', 'risk'].map(id => {
-        const capability = report?.capabilities?.[id];
-        return [id, { available: !!capability?.available, version: capability?.version || null,
-          reason: capability?.available ? null : unavailableReason(capability?.missing) }];
-      })));
-    })), { wait: true });
+  const expired = cached && !cached.pending && Date.now() - cached.at > (cached.successful ? successfulCacheMs : failedCacheMs);
+  if (!cached || cached.executable !== executable || (expired && !isModelWorkBusy())) {
+    const promise = withModelWork(() => new Promise(resolve => {
+      const started = Date.now();
+      execFile(executable, [path.join(root, 'quant/check_runtime.py')], { timeout: probeTimeoutMs, env: environment() }, (error, stdout) => {
+        let report;
+        try { if (!error) report = JSON.parse(stdout); } catch { /* No imitation fallback. */ }
+        const timedOut = (error?.killed && error.signal === 'SIGTERM') || error?.code === 'ETIMEDOUT';
+        if (error || !report?.capabilities) console.error('[model-runtime:probe]', {
+          code: error?.code ?? (error ? null : 'INVALID_OUTPUT'), signal: error?.signal || null,
+          killed: !!error?.killed, elapsedMs: Date.now() - started,
+        });
+        resolve(Object.fromEntries(['randomForest', 'lightgbm', 'xgboost', 'risk'].map(id => {
+          const capability = report?.capabilities?.[id];
+          return [id, { available: !!capability?.available, version: capability?.version || null,
+            reason: capability?.available ? null : timedOut
+              ? '모델 실행 환경 확인이 지연되고 있습니다. 잠시 후 다시 열어 주세요.'
+              : unavailableReason(capability?.missing) }];
+        })));
+      });
+    }), { wait: true }).then(result => {
+      if (cached?.promise === promise) {
+        cached.at = Date.now();
+        cached.pending = false;
+        cached.successful = Object.values(result).every(capability => capability.available);
+      }
+      return result;
+    });
     promise.catch(() => { if (cached?.promise === promise) cached = null; });
-    cached = { executable, at: Date.now(), promise };
+    cached = { executable, at: Date.now(), promise, successful: false, pending: true };
   }
   return cached.promise;
 }
