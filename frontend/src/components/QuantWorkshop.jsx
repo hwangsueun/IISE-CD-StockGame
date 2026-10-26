@@ -278,9 +278,14 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
             <input type="radio" name="workshop-model" value={model.id} checked={config.method === model.id} disabled={unavailable(model.id)}
               onChange={() => update({ method: model.id, ...(!['randomForest','lightgbm','xgboost'].includes(model.id) ? { target: 'return', tradePolicy: 'rank', ...(['conditions','score'].includes(model.id)?{reduction:'none'}:{}) } : {}) })} aria-describedby={`workshop-model-${model.id}-description`} />
             <span className="workshop-model-content"><small>{model.type}</small><strong>{model.title}</strong><span className="workshop-model-name">{model.name}</span>
-              <span id={`workshop-model-${model.id}-description`}>{model.description}</span><span className="workshop-model-output">{unavailable(model.id) ? '현재 이 모델의 학습 기능을 사용할 수 없습니다' : model.output}</span></span>
+              <span id={`workshop-model-${model.id}-description`}>{model.description}</span><span className="workshop-model-output">{unavailable(model.id) ? '서버의 모델 설치를 완료하면 사용할 수 있어요' : model.output}</span></span>
           </label>)}
         </div>
+        {modelOptions.some(model => unavailable(model.id)) && <details className="workshop-details">
+          <summary>선택할 수 없는 모델이 있나요?</summary>
+          <p>이 서버에 모델을 실행하는 데 필요한 프로그램이 아직 준비되지 않았어요. 로컬에서 실행 중이라면 아래 안내를 따라 설치한 뒤 서버를 다시 켜 주세요.</p>
+          {modelOptions.filter(model => unavailable(model.id)).map(model => <p key={model.id}><strong>{model.name}</strong> · {workspace.modelCapabilities?.[model.id]?.reason || '서버의 모델 환경을 확인해 주세요.'}</p>)}
+        </details>}
         <p className="workshop-model-current" role="status">현재 선택: <b>{methods[config.method]}</b> · {learn ? '데이터로 학습' : '직접 작성한 규칙 사용'}</p>
         <div className="workshop-grid"><Choice label="며칠 뒤의 수익률을 예측할까요?" numeric value={config.horizon} options={[[1, '1거래일 뒤'], [5, '5거래일 뒤'], [10, '10거래일 뒤'], [20, '20거래일 뒤']]} onChange={horizon => update({ horizon })} note="거래일은 주식시장이 열리는 날입니다." />
           <Choice label="얼마나 오래된 자료까지 배울까요?" numeric value={config.trainYears} options={[[1, '최대 1년'], [2, '최대 2년'], [3, '최대 3년']]} onChange={trainYears => update({ trainYears })} />

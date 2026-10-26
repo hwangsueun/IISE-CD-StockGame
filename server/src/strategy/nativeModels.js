@@ -2,23 +2,26 @@ const { spawnSync, execFile } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const script = path.join(__dirname, 'train_native.py');
-const unavailable = '학습 환경이 준비되지 않았습니다. 서버의 USER_STRATEGY_PYTHON과 quant/workshop-requirements.txt를 확인해 주세요.';
-function python() {
-  const local = path.resolve(__dirname, '../../../quant/.venv/bin/python');
-  return process.env.USER_STRATEGY_PYTHON || (fs.existsSync(local) ? local : 'python3');
-}
+const { pythonExecutable: python, unavailableReason, root } = require('../config/modelRuntime');
+const unavailable = unavailableReason();
+const { withModelWork, isModelWorkBusy } = require('../services/modelWorkGate');
 function environment() {
   return { ...process.env, OMP_NUM_THREADS: '1', OPENBLAS_NUM_THREADS: '1', MKL_NUM_THREADS: '1', PYTHONDONTWRITEBYTECODE: '1' };
 }
 let cached;
 async function capabilities() {
   const executable = python();
-  if (!cached || cached.executable !== executable || Date.now() - cached.at > 60000) {
-    const promise = new Promise(resolve => execFile(executable, [script, '--check'], { timeout: 20000, env: environment() }, (error, stdout) => {
-      let versions;
-      try { if (!error) versions = JSON.parse(stdout); } catch { /* Report unavailable without an imitation fallback. */ }
-      resolve(Object.fromEntries(['randomForest', 'lightgbm', 'xgboost', 'risk'].map(id => [id, { available: !!versions?.[id], version: versions?.[id] || null, reason: versions?.[id] ? null : unavailable }])));
-    }));
+  if (!cached || cached.executable !== executable || (Date.now() - cached.at > 60000 && !isModelWorkBusy())) {
+    const promise = withModelWork(() => new Promise(resolve => execFile(executable, [path.join(root, 'quant/check_runtime.py')], { timeout: 20000, env: environment() }, (error, stdout) => {
+      let report;
+      try { if (!error) report = JSON.parse(stdout); } catch { /* No imitation fallback. */ }
+      resolve(Object.fromEntries(['randomForest', 'lightgbm', 'xgboost', 'risk'].map(id => {
+        const capability = report?.capabilities?.[id];
+        return [id, { available: !!capability?.available, version: capability?.version || null,
+          reason: capability?.available ? null : unavailableReason(capability?.missing) }];
+      })));
+    })), { wait: true });
+    promise.catch(() => { if (cached?.promise === promise) cached = null; });
     cached = { executable, at: Date.now(), promise };
   }
   return cached.promise;

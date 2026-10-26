@@ -72,12 +72,14 @@ async function sync(client,session) {
   const {rows:holdings}=await client.query(`SELECT h.* FROM holdings h JOIN assets a USING(asset_id)
     WHERE h.session_id=$1 AND a.asset_type='stock'`,[sid]);
   const service=require('./userStrategyService');
-  const input=await service.inputs({...session,trade_date:t.trade_date},a.source_from,client);
   let result;
   try {
-    result=await service.run({...input,mode:'automate',config:a.config,model:a.model,savedDate:a.saved_date,
+    result=await require('./modelWorkGate').withModelWork(async()=>{
+    const input=await service.inputs({...session,trade_date:t.trade_date},a.source_from,client);
+    return service.runFromSource(input,{mode:'automate',config:a.config,model:a.model,savedDate:a.saved_date,
       expectedSourceHash:a.source_hash,feeBps:C.TRADE_FEE_RATE*10000,holdings,cash:Math.max(0,Number(session.cash)),
       turn:session.current_turn,nextReview:a.next_review_turn});
+    },{wait:true});
   } catch(e) { return finish({status:'error',reason:e.message}); }
   for(const o of result.orders) {
     await client.query(`INSERT INTO market_orders(session_id,owner,order_key,asset_id,side,decision_turn,decision_date,

@@ -59,6 +59,7 @@ export default function CondolenceOverlay({ event, onResolve, onDismiss }) {
   const [phase, setPhase] = useState('invite'); // 'invite' | 'submitting' | 'celebrate' | 'result'
   const [celebrateIdx, setCelebrateIdx] = useState(0);
   const [result, setResult] = useState(null);
+  const [submitError, setSubmitError] = useState('');
 
   const outcomeKey = result?.detail?.outcome || (result?.chosen === 'decline' ? 'decline' : 'up');
   const o = OUTCOME[outcomeKey] || OUTCOME.up;
@@ -77,10 +78,17 @@ export default function CondolenceOverlay({ event, onResolve, onDismiss }) {
   const { html, done, skip } = useTypewriter(narrationText, true);
 
   const choose = async (key) => {
+    if (phase === 'submitting') return;
     setPhase('submitting');
-    const r = await resolveEvent(eventLogId, key);
-    setResult({ ...r, chosen: key });
-    setPhase(r.detail?.outcome === 'down' || r.detail?.outcome === 'up' ? 'celebrate' : 'result');
+    setSubmitError('');
+    try {
+      const r = await resolveEvent(eventLogId, key);
+      setResult({ ...r, chosen: key });
+      setPhase(r.detail?.outcome === 'down' || r.detail?.outcome === 'up' ? 'celebrate' : 'result');
+    } catch (error) {
+      setSubmitError(error.message || '선택을 처리하지 못했습니다. 다시 시도해 주세요.');
+      setPhase('invite');
+    }
   };
 
   const handleClick = () => {
@@ -205,6 +213,7 @@ export default function CondolenceOverlay({ event, onResolve, onDismiss }) {
           <div className="nar-body">
             <span dangerouslySetInnerHTML={{ __html: html }} />
             {!done && <span className="cursor" />}
+            {submitError && <p className="error-text" role="alert">{submitError}</p>}
           </div>
           {phase === 'celebrate' && done && (
             <div className="nar-next">{celebrateIdx < CELEBRATE_LINES.length - 1 ? '▶ 계속' : '▶ 결과 보기'}</div>

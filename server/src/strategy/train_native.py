@@ -9,16 +9,13 @@ def libraries():
     for key, module in [('randomForest', 'sklearn'), ('lightgbm', 'lightgbm'), ('xgboost', 'xgboost'), ('risk', 'scipy')]:
         try:
             result[key] = importlib.import_module(module).__version__
-        except ImportError:
+        except Exception:
             result[key] = None
     return result
 
 
 def train(payload):
     import numpy as np
-    from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-    from sklearn.tree import DecisionTreeRegressor
-    from lightgbm import LGBMRegressor, LGBMClassifier
     cfg, samples, keys = payload['config'], payload['samples'], payload['keys']
     x = np.asarray([s['x'] for s in samples], dtype=float)
     y = np.asarray([s['y'] for s in samples], dtype=float)
@@ -27,6 +24,8 @@ def train(payload):
     params = dict(n_estimators=cfg['ensembleTrees'], max_depth=cfg['ensembleDepth'], random_state=2026, n_jobs=1)
     base, classes, link = [0.0], 1, None
     if cfg['method'] in ['randomForest', 'tree']:
+        from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+        from sklearn.tree import DecisionTreeRegressor
         params.update(min_samples_leaf=cfg['minLeaf'], max_features=0.7, bootstrap=True)
         if cfg['method'] == 'tree':
             params = dict(max_depth=cfg['treeDepth'], min_samples_leaf=50, random_state=2026)
@@ -52,7 +51,7 @@ def train(payload):
         aggregation, library, precision = 'mean', 'scikit-learn', 'float32'
         link = 'probability' if classification else None
         native_predict = model.predict_proba if classification else model.predict
-        version = libraries()['randomForest']
+        from sklearn import __version__ as version
     elif cfg['method'] == 'xgboost':
         import xgboost as xgb
         params.update(learning_rate=cfg['learningRate'], min_child_weight=cfg['minLeaf'], reg_lambda=1,
@@ -79,6 +78,7 @@ def train(payload):
         native_predict = model.predict_proba if classification else model.predict
         version = xgb.__version__
     else:
+        from lightgbm import LGBMRegressor, LGBMClassifier
         params.update(min_child_samples=cfg['minLeaf'], learning_rate=cfg['learningRate'], num_leaves=min(31, 2 ** cfg['ensembleDepth']),
                       reg_lambda=1, verbosity=-1, deterministic=True, force_col_wise=True)
         model = (LGBMClassifier if classification else LGBMRegressor)(**params).fit(x, y)
@@ -98,7 +98,7 @@ def train(payload):
         def native_predict(rows):
             p = model.booster_.predict(rows)
             return np.column_stack([1-p, p]) if classification and nclass == 2 else p
-        version = libraries()['lightgbm']
+        from lightgbm import __version__ as version
     checks = list(x[np.linspace(0, len(x)-1, min(64, len(x)), dtype=int)])
     checks.extend(np.random.default_rng(2026).uniform(np.min(x, axis=0), np.max(x, axis=0), size=(32, len(keys))))
     def boundaries(node):

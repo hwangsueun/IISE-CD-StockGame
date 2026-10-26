@@ -1,0 +1,4 @@
+# Complete game runtime: player-created models and Alpha158 explanations.
+# Keep offline Qlib training in quant/.venv; it is not needed to play the game.
+-r workshop-requirements.txt
+-r explain-requirements.txt

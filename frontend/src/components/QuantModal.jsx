@@ -163,7 +163,7 @@ export default function QuantModal() {
           {detailTab === 'selection' && <>
             <p className="quant-footnote">{data.decision?.signalDate ? `${relativeYearDate(data.decision.signalDate, data.date)}까지의 정보로 선택했습니다.` : '선택 기록이 없습니다.'} 모델 점수가 높을수록 코스피 대비 더 나은 수익률을 예상합니다. 실제 수익이나 상승 확률을 보장하지는 않습니다.</p>
             {dropout && <p className="quant-footnote">순위가 유지되면 거래하지 않습니다. 처음 종목을 채울 때를 제외하고 하루 최대 {data.nDrop}종목을 교체합니다. 아래 비중은 최근 평가 시점의 실제 보유 비중입니다.</p>}
-            <table className="data-table"><thead><tr><th>순위</th><th>종목</th><th>모델 점수</th><th>{dropout ? '보유 비중' : '목표 비중'}</th>{dropout && <th>선택</th>}<th>판단 근거</th></tr></thead>
+            <table className="data-table"><thead><tr><th>종목 점수 순위</th><th>종목</th><th>모델 점수</th><th>{dropout ? '보유 비중' : '목표 비중'}</th>{dropout && <th>선택</th>}<th>판단 근거</th></tr></thead>
               <tbody>{(data.decision?.selections || []).map((s) => <tr key={s.assetId}><td>{s.rank ?? '—'}</td><td>{s.name}</td><td>{Number.isFinite(s.score) ? s.score.toFixed(4) : '—'}</td><td>{pct(dropout ? s.weight : s.targetWeight, 1)}</td>{dropout && <td>{{bought:'신규 매수',buy_pending:'매수 예약',sell_pending:'매도 예약'}[s.action] || '유지'}</td>}<td><button type="button" className="quant-analysis-button" aria-label={`${s.name} 지표 분석`} onClick={() => showAttribution(s.assetId)}>지표 분석</button></td></tr>)}</tbody></table>
           </>}
           {detailTab === 'orders' && <>

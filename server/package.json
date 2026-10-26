@@ -9,7 +9,9 @@
     "dev": "node --watch src/index.js",
     "test": "node --test",
     "seed": "node seeds/import_all.js",
-    "seed:stub": "node seeds/import_all.js --stub"
+    "seed:stub": "node seeds/import_all.js --stub",
+    "setup:models": "node ../scripts/setup-model-runtime.cjs",
+    "check:models": "node ../scripts/setup-model-runtime.cjs --check"
   },
   "dependencies": {
     "cors": "^2.8.5",
