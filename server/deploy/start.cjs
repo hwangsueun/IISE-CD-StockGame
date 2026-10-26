@@ -14,6 +14,8 @@ async function main() {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'antsurvival-'));
   process.env.QUANT_SIGNALS_FILE = path.join(runtimeDir, 'signals.json');
   fs.writeFileSync(process.env.QUANT_SIGNALS_FILE, raw, { mode: 0o600 });
+  const { prepareAnalysis, prepareSectors } = require('./prepare-assets.cjs');
+  const analysisManifest = await prepareAnalysis(runtimeDir, metadata.sha256);
   process.env.STATIC_DIR = path.join(root, 'frontend/dist');
   const { loadArtifact } = require('../src/services/quantService');
   const { artifact } = loadArtifact();
@@ -24,6 +26,8 @@ async function main() {
   }
   const { rows: [prices] } = await query('SELECT EXISTS(SELECT 1 FROM asset_prices) AS ready');
   if (!prices.ready) throw new Error('Market prices are missing');
+  console.log(JSON.stringify({ status: 'migrated', ...await require('./migrate.cjs').runDeploymentMigrations(pool) }));
+  console.log(JSON.stringify({ status: 'sectors', ...await prepareSectors(pool, runtimeDir, analysisManifest) }));
   const app = require('../src/index');
   const port = Number(process.env.PORT || 3001);
   const server = app.listen(port, '0.0.0.0', () => {
