@@ -231,7 +231,9 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
     </section>
     <nav className="workshop-nav" aria-label="전략 제작 단계">{[['references', '전략 레퍼런스'], ['build', '내 전략 편집'], ['compare', '모델 비교'], ['results', '연습·관찰 결과'], ['versions', '저장·연습 기록']].map(([id, label]) => <button type="button" key={id} aria-pressed={view === id} disabled={busy} onClick={() => setView(id)}>{label}</button>)}</nav>
     {error && <p role="alert" className="workshop-error">{error}</p>}{message && <p role="status" className="workshop-notice">{message}</p>}
-    {busy && <p role="status" className="workshop-notice">게임 시점까지의 자료로 계산하고 있습니다… 최대 2분 정도 걸릴 수 있어요.</p>}
+    {busy && <p role="status" className="workshop-notice">{view === 'compare'
+      ? '여러 모델을 차례로 계산하고 있습니다. 비교가 끝날 때까지 몇 분 정도 걸릴 수 있어요.'
+      : '게임 시점까지의 자료로 계산하고 있습니다… 최대 2분 정도 걸릴 수 있어요.'}</p>}
     <fieldset className="workshop-body" disabled={busy}>
     {view === 'compare' && <section className="workshop-section" aria-label="저장한 모델 비교">
       <div className="workshop-section-heading"><div><h4>내 모델들을 나란히 비교하기</h4>

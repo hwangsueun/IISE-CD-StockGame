@@ -49,7 +49,11 @@ function run(input) {
       try { await worker.terminate(); } catch (terminationError) { error ||= terminationError; }
       error ? reject(error) : resolve(result);
     };
-    const timer = setTimeout(() => finish(new ApiError(503, '계산 시간이 길어졌습니다. 지표 수를 줄이고 다시 시도해 주세요.')), 120000);
+    // Saved comparisons run 2–4 independently trained models in sequence. Keep
+    // the existing per-model allowance and a hard eight-minute request ceiling.
+    const count = input.mode === 'compareSaved' && Array.isArray(input.versions) ? input.versions.length : 1;
+    const timeoutMs = 120000 * (count >= 2 && count <= 4 ? count : 1);
+    const timer = setTimeout(() => finish(new ApiError(503, '계산 시간이 길어졌습니다. 지표 수를 줄이고 다시 시도해 주세요.')), timeoutMs);
     worker.once('message', m => finish(m.error ? badRequest(m.error) : null, m.result ? JSON.parse(JSON.stringify(m.result)) : m.result));
     worker.once('error', e => finish(e));
     worker.once('exit', code => { if (!settled) finish(new Error(`전략 계산이 종료되었습니다 (${code}).`)); });
