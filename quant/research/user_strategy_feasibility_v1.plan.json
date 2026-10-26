@@ -1,0 +1,81 @@
+{
+  "experiment": "user_strategy_feasibility_v1",
+  "created_on": "2026-10-20",
+  "purpose": "Audit whether a bounded, understandable user strategy builder can express strategies with useful historical investment performance under the game's execution constraints.",
+  "scope": "Retrospective diagnostic, NOT a fresh holdout, live alpha claim, user study, game modification or deployment. All 2014-2023 history has prior analysis exposure.",
+  "data_version": "quant-v2-adjusted-2e6c8d6558fc-r2",
+  "selection": {
+    "development_start_years": [2014, 2015, 2016, 2017, 2018],
+    "validation_start_years": [2019, 2020, 2021],
+    "previously_seen_confirmation_start_years": [2022, 2023],
+    "primary_windows": "First eligible January start each year, exactly 240 weekdays, first and last turn market-open, all 117 supplied stocks subject to contemporaneous eligibility.",
+    "secondary_windows": "First eligible start each calendar quarter; overlapping windows are descriptive, never independent replications.",
+    "top_two": "Choose only from the 14 core candidates, by development annual-window median net return at 10 bps per side, then median drawdown (less negative preferred), then identifier. Freeze before validation/confirmation summaries.",
+    "no_post_result_changes": true
+  },
+  "builder_boundary": {
+    "assets": "Supplied stock universe and cash only; no shorting or leverage.",
+    "observability": "Prices and volumes through current close, known holdings/cash/calendar; 60 observed bars minimum. Original historical universe and adjustment-vintage limitations remain.",
+    "primitive_features": ["return_5", "return_20", "return_60", "return_volatility_20", "volume_relative_to_previous_20", "close_relative_to_ma20"],
+    "normalization": "Same-date cross-sectional percentile ranks; no full-period fitted transform.",
+    "signals": ["momentum60", "reversal5", "lowvol20", "blend_momentum60_lowvol20", "ridge_h1", "ridge_h20"],
+    "ridge": {
+      "features": "Six primitive features, cross-sectional ranks centered at zero; missing ranks become zero.",
+      "refit": "Every January, trailing three calendar years, only labels whose exit date is strictly before the refit date.",
+      "target": "Next market open to open after 1 or 20 market-session intervals, minus matching KOSPI open return.",
+      "penalty": "mean squared error + 0.1 * squared coefficient norm; centered intercept, deterministic closed-form fit.",
+      "minimum_training_rows": 500
+    },
+    "portfolio": "Top 10, initial equal cash allocation, held names retain quantities. Cash from exits funds entrants. Ties prefer incumbents then asset id.",
+    "core_policies": ["daily_max_one_replacement", "every_five_game_turns_max_ten_replacements"],
+    "additional_core_candidates": "Momentum60 and blend on five-turn policy with KOSPI close > trailing MA60 exposure gate; otherwise sell tradable holdings and remain in cash.",
+    "core_candidate_count": 14,
+    "execution": "Decide after close, next market open fill, same integer quantities, fixed cash budgets, buy ceil/sell floor and missing-price/rejection rules as runtime fillOpenOrder. Existing delisting convention, close valuation, no final-day new orders.",
+    "diagnostics": "Existing immutable LightGBM walk-forward signals with daily 1, daily 10, and every-20-turn 10 replacement policies; diagnostic policies are not deployable artifacts.",
+    "controls": "Cash, initial equal-cash buy-and-hold of all eligible stocks, KOSPI index return (non-tradable reference), ten fixed-seed random rankings with both core execution policies."
+  },
+  "cost_and_capital": {
+    "primary_initial_cash": 50000000,
+    "fees_per_side": [0.0, 0.001],
+    "cost_interpretation": "10 bps per side is a hypothetical aggregate cost stress, not a representation of legal/current brokerage fees or taxes.",
+    "selected_capital_checks": [10000000, 30000000, 100000000],
+    "selected_extra_cost": 0.002
+  },
+  "robustness": {
+    "neighbors_of_selected_only": {
+      "momentum60": ["momentum40", "momentum80"],
+      "reversal5": ["reversal3", "reversal10"],
+      "lowvol20": ["lowvol10", "lowvol40"],
+      "blend_momentum60_lowvol20": ["blend_weight_0.25", "blend_weight_0.75"],
+      "ridge_h1": ["ridge_h1_alpha_0.03", "ridge_h1_alpha_0.3"],
+      "ridge_h20": ["ridge_h20_alpha_0.03", "ridge_h20_alpha_0.3"]
+    },
+    "monthly_diagnostics": "Twelve 20-turn investment returns and win counts versus existing quant; no prizes added to investment performance.",
+    "cashflow_stress": "Selected strategies, normal debt 100m, 50m starting assets. Game salary minus default living costs (+2.2m) on turns 21,41,...,221; attempt ceil(100m/12) repayment at turns 20,40,...,240. Keep one remaining installment in cash, plan liquidation three turns before deadline; clip repayments to cash and remaining debt. No side jobs, random events, trust/stress termination or prize flows. Report as partial economic stress, NOT full-game victory.",
+    "accessibility": "Executable strategy-card reproducibility and neighborhood stability only; novice usability/discoverability requires a later human study."
+  },
+  "provisional_practical_gate": {
+    "note": "Engineering screen fixed before new outcomes; not a user-approved return promise or statistical alpha certification.",
+    "primary_population": "Five annual windows starting 2019-2023, selected strategies only, 50m, 10 bps per side.",
+    "median_240_turn_return_at_least": 0.05,
+    "positive_return_fraction_at_least": 0.6,
+    "median_advantage_over_equal_weight_greater_than": 0.0,
+    "fraction_beating_equal_weight_at_least": 0.6,
+    "median_drawdown_no_worse_than": -0.25,
+    "worst_drawdown_no_worse_than": -0.5,
+    "confirmation_2022_2023_median_return_greater_than": 0.0,
+    "neighbors": "Both preregistered neighboring configurations have positive pooled 2019-2023 median return at 10 bps.",
+    "capital": "All three additional starting capitals have positive pooled median return at 10 bps.",
+    "full_validation": "Impossible to certify fresh generalization or user accessibility in this retrospective automated audit, even if practical screen passes."
+  },
+  "required_checks": [
+    "Preserve hashes of original input, models and deployable signals.",
+    "Exactly reproduce saved 2022-2023 baseline with the runtime replay before interpreting new results.",
+    "Check research replay against runtime replay for existing quant, including costs and small capital.",
+    "Suffix perturbation leaves earlier constructed features and decisions unchanged.",
+    "Ridge training exit dates are strictly earlier than forecast vintage.",
+    "Orders never use same-day execution after a close decision; no negative cash or short positions.",
+    "External cash flows are excluded with the runtime time-weighted return helper.",
+    "Do not modify live DB, services, deployed model or original prototype."
+  ]
+}

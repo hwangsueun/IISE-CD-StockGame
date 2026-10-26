@@ -4,8 +4,10 @@ import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import Modal from './Modal';
 import PriceChart from './PriceChart';
+import ChartIndicatorSettings from './ChartIndicatorSettings';
+import { INDICATOR_DEFAULTS, INDICATOR_GROUPS } from '../utils/chartIndicatorSettings';
 import CommunityBoard from './CommunityBoard';
-import { relativeDateValue, relativeYearDate, relativeYearLabel, won } from '../utils/format';
+import { relativeYearDate, relativeYearLabel, won } from '../utils/format';
 
 // 봉 단위 — 증권사 HTS/MTS의 일·주·월봉과 같은 구성. 틱/분봉은 1턴=1거래일이라 원천이 없고,
 // 년봉은 240턴(약 1년) 게임에서 봉이 하나뿐이라 뺐다.
@@ -34,16 +36,11 @@ const INDICATOR_HELP = (
     <ul>
       <li>
         <b>이동평균선(MA)</b> — 일정 기간의 가격 평균을 이어 흐름을 부드럽게 보여준다.
-        짧은 기간선은 최근 변화에 민감하고, 긴 기간선은 큰 흐름을 살피는 데 유용하다.
+        짧은 기간선은 최근 변화에 민감하다. 긴 기간선으로는 장기 추세를 살펴볼 수 있다.
       </li>
-      <li>
-        <b>볼린저 밴드</b> — 이동평균선을 중심으로 최근 변동 폭을 위아래 밴드로 표시한다.
-        폭이 넓을수록 변동이 크고, 좁을수록 비교적 잔잔한 흐름이다.
-      </li>
-      <li>
-        <b>상대강도지수(RSI)</b> — 최근 상승과 하락의 힘을 0~100으로 나타낸다.
-        보통 70 이상은 과열, 30 이하는 위축을 살피는 구간이지만 반전을 보장하지 않는다.
-      </li>
+      {INDICATOR_GROUPS.flatMap((group) => group.items).map((item) => (
+        <li key={item.key}><b>{item.name}</b> — {item.help}</li>
+      ))}
     </ul>
     <p>일·주·월봉을 바꾸면 각 지표도 선택한 봉 단위로 다시 표시된다.</p>
   </>
@@ -67,6 +64,7 @@ export default function AssetDetailModal({ assetId }) {
   const [tab, setTab] = useState('chart'); // chart | news | community | info
   const [barUnit, setBarUnit] = useState('day');
   const [detail, setDetail] = useState(null);
+  const [detailError, setDetailError] = useState('');
   const [fullSeries, setFullSeries] = useState([]);
   const [visibleCount, setVisibleCount] = useState(0);
   const [chartLoading, setChartLoading] = useState(false);
@@ -76,10 +74,13 @@ export default function AssetDetailModal({ assetId }) {
   const priceCacheRef = useRef(new Map());
   const chartWheelRegionRef = useRef(null);
   const wheelDeltaRef = useRef(0);
-  // 기술적 지표 토글 (미팅5 §1: 주식·코인 차트에 MA/볼린저/RSI 제공)
+  // 기술적 지표 토글 (미팅5 §1: 주식 차트에 MA/볼린저/RSI 제공)
   const [showMa, setShowMa] = useState(true);
-  const [showBb, setShowBb] = useState(false);
-  const [showRsi, setShowRsi] = useState(false);
+  const [indicatorSettings, setIndicatorSettings] = useState(INDICATOR_DEFAULTS);
+  const updateIndicator = (key, value) => setIndicatorSettings((current) => ({ ...current, [key]: value }));
+  const toggleIndicator = (key) => setIndicatorSettings((current) => ({
+    ...current, [key]: { ...current[key], enabled: !current[key].enabled },
+  }));
   const [maPeriods, setMaPeriods] = useState(MA_DEFAULTS);
   const [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
   const [customMa, setCustomMa] = useState('');
@@ -88,9 +89,10 @@ export default function AssetDetailModal({ assetId }) {
   useEffect(() => {
     let active = true;
     setDetail(null);
+    setDetailError('');
     api.getAssetDetail(assetId, turn.date)
       .then((nextDetail) => { if (active) setDetail(nextDetail); })
-      .catch((error) => { if (active) console.error(error); });
+      .catch((error) => { if (active) setDetailError(error.message); });
     return () => { active = false; };
   }, [assetId, turn.date]);
 
@@ -194,8 +196,7 @@ export default function AssetDetailModal({ assetId }) {
   const resetIndicators = () => {
     setMaPeriods(MA_DEFAULTS);
     setShowMa(true);
-    setShowBb(false);
-    setShowRsi(false);
+    setIndicatorSettings(INDICATOR_DEFAULTS);
     setCustomMa('');
     setMaError('');
   };
@@ -216,6 +217,8 @@ export default function AssetDetailModal({ assetId }) {
   };
 
   const handleChartWheel = (event) => {
+    // 보조 지표가 여러 개여도 휠로 아래쪽 패널까지 읽을 수 있게 한다.
+    if (event.target.closest?.('.chart-indicator-panel')) return;
     if (fullSeries.length <= minVisibleCount || chartLoading) return;
     event.preventDefault();
     event.stopPropagation();
@@ -257,35 +260,36 @@ export default function AssetDetailModal({ assetId }) {
     return () => node.removeEventListener('wheel', handleChartWheel);
   });
 
+  if (detailError) return <Modal title="종목 정보" wide><p role="alert">{detailError}</p></Modal>;
   if (!detail) return <Modal title="로딩 중..." wide />;
 
   return (
     <Modal
       title={`${detail.name} ${detail.price ? '· ' + won(detail.price) : ''}`}
       wide
-      help={tab === 'chart' && detail.assetType !== 'bond' ? INDICATOR_HELP : null}
+      help={tab === 'chart' && detail.assetType === 'stock' ? INDICATOR_HELP : null}
     >
       <div className="filter-bar">
         {['chart', 'news', 'community', 'info'].map((t) => (
-          <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
+          <button key={t} data-tutorial={`asset-tab-${t}`} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
             {{ chart: '차트', news: '뉴스', community: '종토방', info: '정보' }[t]}
           </button>
         ))}
         <span className="spacer" />
         <button
           className="btn-buy"
-          disabled={(turn.marketOpen === false && detail.assetType === 'stock') || !detail.orderSupported || !(detail.price > 0) || turn.turnNumber>=240}
-          title={turn.marketOpen === false && detail.assetType === 'stock' ? '주식 휴장일에는 예약할 수 없습니다' : '매수'}
+          disabled={!!turn.investmentRestriction || (turn.marketOpen === false && detail.assetType === 'stock') || !detail.orderSupported || !(detail.price > 0) || turn.turnNumber>=240}
+          title={turn.investmentRestriction?.message || (turn.marketOpen === false && detail.assetType === 'stock' ? '주식 휴장일에는 예약할 수 없습니다' : '매수')}
           onClick={() => openModal('trade', { assetId, tradeType: 'buy' })}
         >매수 예약</button>
         <button
           className="btn-sell"
-          disabled={(turn.marketOpen === false && detail.assetType === 'stock') || !detail.orderSupported || !(detail.price > 0) || turn.turnNumber>=240}
-          title={turn.marketOpen === false && detail.assetType === 'stock' ? '주식 휴장일에는 예약할 수 없습니다' : '매도'}
+          disabled={!!turn.investmentRestriction || (turn.marketOpen === false && detail.assetType === 'stock') || !detail.orderSupported || !(detail.price > 0) || turn.turnNumber>=240}
+          title={turn.investmentRestriction?.message || (turn.marketOpen === false && detail.assetType === 'stock' ? '주식 휴장일에는 예약할 수 없습니다' : '매도')}
           onClick={() => openModal('trade', { assetId, tradeType: 'sell' })}
         >매도 예약</button>
       </div>
-      {detail.assetType !== 'stock' && <p>채권·코인 주문은 다음 턴 가격으로 체결됩니다.</p>}
+      {turn.investmentRestriction && <p className="market-closed-note">{turn.investmentRestriction.message}</p>}
       {detail.assetType === 'stock' && detail.info?.priceDetail?.adjustment_factor != null &&
         <p className="quant-footnote">수정주가 기준 · 거래량은 당시 실제 거래량입니다.</p>}
       {detail.assetType === 'stock' && detail.info?.priceDetail && <dl className="info-list horizontal">
@@ -307,28 +311,33 @@ export default function AssetDetailModal({ assetId }) {
                 {u.label}
               </button>
             ))}
-            {detail.assetType !== 'bond' && (
+            {detail.assetType === 'stock' && (
               <>
                 <span className="spacer" />
                 <button type="button" title="이동평균선(MA)" className={showMa ? 'active' : ''} aria-pressed={showMa} disabled={maPeriods.length === 0} onClick={() => setShowMa(!showMa)}>MA</button>
-                <button type="button" title="볼린저 밴드" className={showBb ? 'active' : ''} aria-pressed={showBb} onClick={() => setShowBb(!showBb)}>볼린저</button>
-                <button type="button" title="상대강도지수(RSI)" className={showRsi ? 'active' : ''} aria-pressed={showRsi} onClick={() => setShowRsi(!showRsi)}>RSI</button>
+                <button type="button" title="볼린저 밴드" className={indicatorSettings.bollinger.enabled ? 'active' : ''} aria-pressed={indicatorSettings.bollinger.enabled} onClick={() => toggleIndicator('bollinger')}>볼린저</button>
+                <button type="button" title="상대강도지수(RSI)" className={indicatorSettings.rsi.enabled ? 'active' : ''} aria-pressed={indicatorSettings.rsi.enabled} onClick={() => toggleIndicator('rsi')}>RSI</button>
                 <button
                   type="button"
                   className={showIndicatorSettings ? 'active' : ''}
                   aria-expanded={showIndicatorSettings}
                   aria-controls="indicator-settings"
                   onClick={() => setShowIndicatorSettings(!showIndicatorSettings)}
-                >상세 설정</button>
+                >상세 설정 · 10종</button>
               </>
             )}
           </div>
-          {detail.assetType !== 'bond' && showIndicatorSettings && (
+          {detail.assetType === 'stock' && showIndicatorSettings && (
             <section id="indicator-settings" className="indicator-settings" aria-label="차트 지표 상세 설정">
               <div className="indicator-settings-head">
-                <b>이동평균선</b>
+                <b>차트 지표 설정</b>
                 <button type="button" onClick={resetIndicators}>지표 초기화</button>
               </div>
+              <label className="indicator-toggle">
+                <input type="checkbox" checked={showMa} disabled={maPeriods.length === 0}
+                  onChange={(event) => setShowMa(event.target.checked)} />
+                <b>평균 가격의 흐름 · 이동평균선(MA)</b>
+              </label>
               <div className="indicator-presets" aria-label="이동평균선 프리셋">
                 {MA_PRESETS.map((period) => (
                   <button
@@ -365,6 +374,7 @@ export default function AssetDetailModal({ assetId }) {
                   </button>
                 ))}
               </div>
+              <ChartIndicatorSettings settings={indicatorSettings} onChange={updateIndicator} barUnitLabel={barUnitLabel} />
             </section>
           )}
           {chartLoading ? (
@@ -388,7 +398,7 @@ export default function AssetDetailModal({ assetId }) {
               onKeyDown={handleChartKeyDown}
             >
               <div className="chart-wheel-status" aria-hidden="true">
-                <span>휠 ↑ 확대 · ↓ 축소</span>
+                <span>가격 차트에서 휠 ↑ 확대 · ↓ 축소</span>
                 <span>{visibleRangeLabel}</span>
               </div>
               <PriceChart
@@ -397,10 +407,11 @@ export default function AssetDetailModal({ assetId }) {
                 visibleStart={visibleStart}
                 barUnitLabel={barUnitLabel}
                 referenceDate={turn.date}
-                overlays={detail.assetType === 'bond' ? {} : {
+                overlays={{
                   ma: showMa ? maPeriods : null,
-                  bollinger: showBb,
-                  rsi: showRsi,
+                  ...Object.fromEntries(Object.entries(indicatorSettings).map(([key, value]) => [
+                    key, value.enabled ? value : null,
+                  ])),
                 }}
               />
             </div>
@@ -433,7 +444,7 @@ export default function AssetDetailModal({ assetId }) {
   );
 }
 
-/** 자산 타입별 정보 탭 (stock: 재무/밸류에이션, bond: 신용/만기, coin: 시총 등) */
+/** 주식 정보 탭: 재무/밸류에이션 */
 function AssetInfo({ detail, referenceDate }) {
   const info = detail.info;
   if (!info) return <p>정보 없음</p>;
@@ -470,21 +481,5 @@ function AssetInfo({ detail, referenceDate }) {
       </div>
     );
   }
-  if (detail.assetType === 'bond') {
-    return (
-      <dl className="info-list">
-        <div><dt>종류</dt><dd>{info.bond_type}</dd></div>
-        <div><dt>신용등급</dt><dd>{info.credit_rating || '-'}</dd></div>
-        <div><dt>만기</dt><dd>{relativeDateValue(info.maturity, referenceDate)}</dd></div>
-        <div><dt>오늘 수익률</dt><dd>{info.today?.yield_rate ?? '-'}%</dd></div>
-      </dl>
-    );
-  }
-  return (
-    <dl className="info-list">
-      <div><dt>심볼</dt><dd>{info.symbol}</dd></div>
-      <div><dt>시총(USD)</dt><dd>{info.today?.market_cap_usd ? Number(info.today.market_cap_usd).toLocaleString() : '-'}</dd></div>
-      <div><dt>거래량(USD)</dt><dd>{info.today?.volume_usd ? Number(info.today.volume_usd).toLocaleString() : '-'}</dd></div>
-    </dl>
-  );
+  return null;
 }

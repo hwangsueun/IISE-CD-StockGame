@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { won } from '../utils/format';
 
-const STEP_NAMES = ['기절', '스트레스 한계', '병원 이송', '스트레스 초기화', `일 경과`, '병원비 청구'];
+const STEP_NAMES = ['기절', '스트레스 한계', '병원 이송', '스트레스 초기화', '입원 기간', '병원비 청구'];
 const TOTAL_STEPS = STEP_NAMES.length;
 const STRESS_FROM = 100;
 const STRESS_TO = 0;
@@ -21,11 +21,11 @@ export default function FaintOverlay({ event, onDismiss }) {
   const narrationText = (() => {
     switch (step) {
       case 0: return '<span class="red">기절 이벤트 발생.</span> 극심한 스트레스에 눈앞이 흐려집니다.';
-      case 1: return '<span class="red">스트레스가 한계치에 도달했습니다.</span> 몸이 신호를 보냈지만, 이미 늦었습니다.';
+      case 1: return '<span class="red">스트레스가 한계치에 도달했습니다.</span> 몸에 힘이 풀립니다.';
       case 2: return '의식을 잃고 <span class="em">병원으로 이송되었습니다.</span>';
       case 3: return '안정을 되찾았습니다. <span class="em">스트레스 지수가 초기화</span>되었습니다.';
-      case 4: return `입원으로 <span class="em">${days}일이 경과</span>했습니다. 그동안 거래는 진행되지 않았습니다.`;
-      case 5: return '퇴원 수속과 함께 <span class="red">병원비가 청구되었습니다.</span> 아래 내역을 확인하세요.';
+      case 4: return `<span class="em">${days}일 동안 입원</span>해야 합니다. 직접 주문과 자동 투자를 쉽니다. 미체결 주문은 취소됩니다.`;
+      case 5: return '<span class="red">병원비가 청구되었습니다.</span> 켜 둔 자동 투자는 입원 제한이 풀린 뒤 다음 턴 진행부터 다시 판단합니다.';
       default: return '';
     }
   })();
@@ -73,7 +73,7 @@ export default function FaintOverlay({ event, onDismiss }) {
                 <span className="v"><span className="from">{STRESS_FROM}</span><span className="arrow">▶</span><span className="to">{STRESS_TO}</span></span>
               </div>
               <div className="bill-row">
-                <span className="k">경과 시간<small>TIME PASSED</small></span>
+                <span className="k">입원 기간<small>HOSPITAL STAY</small></span>
                 <span className="v cool">{days}일</span>
               </div>
               {debtAdded > 0 && (

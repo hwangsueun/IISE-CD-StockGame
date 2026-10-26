@@ -2,6 +2,7 @@
 // 디자인 원본: public/game/Main Screen.html의 .statusbar (Phase D 이식)
 import { useGameStore } from '../state/gameStore';
 import { won } from '../utils/format';
+import { MarketComparisonBadge } from './MarketComparison';
 
 const GAUGE_CELLS = 20;
 
@@ -32,7 +33,8 @@ export default function StatusBar() {
 
   return (
     <header className="px-statusbar">
-      <div className="px-stat" data-tip="신뢰도 — 빚 갚을 능력에 대한 사채업자의 신뢰. 낮으면 독촉·불이익이 커지고, 제때 갚으면 오른다.">
+      <MarketComparisonBadge />
+      <div className="px-stat" data-tutorial="stat-trust" data-tip="신뢰도 — 빚 갚을 능력에 대한 사채업자의 신뢰. 낮으면 독촉·불이익이 커진다. 제때 갚으면 오른다.">
         <div className="px-stat-icon trust-ic">♥</div>
         <div className="px-stat-body">
           <div className="px-stat-label"><span className="ko">신뢰도</span><span className="val">{state.trust}/100</span></div>
@@ -40,7 +42,7 @@ export default function StatusBar() {
         </div>
       </div>
 
-      <div className="px-stat" data-tip="스트레스 — 높을수록 그날 뉴스를 일부 놓치고, 100이 되면 쓰러져(입원) 며칠간 투자할 수 없다.">
+      <div className="px-stat" data-tutorial="stat-stress" data-tip="스트레스 — 높을수록 그날 뉴스를 일부 놓친다. 100이 되면 입원해 며칠간 투자할 수 없다.">
         <div className="px-stat-icon stress-ic">⚡</div>
         <div className="px-stat-body">
           <div className="px-stat-label"><span className="ko">스트레스</span><span className="val">{state.stress}/100</span></div>
@@ -56,7 +58,7 @@ export default function StatusBar() {
         </div>
       </div>
 
-      <div className="px-debt" data-tip="사채업자에게 갚은 빚. 20일마다 상환일이 돌아오고, 이 막대를 끝까지 채우는 것이 목표다.">
+      <div className="px-debt" data-tip="사채업자에게 갚은 빚. 20일마다 상환일이 돌아온다. 이 막대를 끝까지 채우면 빚을 모두 갚은 것이다.">
         <div className="px-stat-icon stress-ic">☠</div>
         <div className="px-stat-body">
           <div className="px-stat-label">

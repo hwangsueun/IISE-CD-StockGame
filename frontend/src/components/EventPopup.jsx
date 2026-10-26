@@ -1,11 +1,13 @@
 // 이벤트 팝업 — 선택형(choice) 이벤트는 해결 전 턴 진행 불가 (§10)
 // 독촉전화(loan_shark_call)는 디자인 원본 Loanshark Call.html, 투자 스터디(invest_study)는
 // game-live/Invest Study Event.html, 여행(travel)은 public/game/Travel Event.html 픽셀
-// 연출을 이식. 나머지 이벤트 타입은 공용 모달 유지.
+// 연출을 이식. 경조사(condolence, 결혼식 초대)는 CondolenceOverlay(Wedding Event.html).
+// 나머지 이벤트 타입은 공용 모달 유지.
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { won } from '../utils/format';
+import CondolenceOverlay from './CondolenceOverlay';
 
 const EVENT_ICON = {
   loan_shark_call: '📞', invest_study: '📚', travel: '✈️',
@@ -19,6 +21,7 @@ export default function EventPopup({ event }) {
   if (eventType === 'loan_shark_call') return <LoanSharkCallEvent event={event} />;
   if (eventType === 'invest_study') return <InvestStudyEvent event={event} />;
   if (eventType === 'travel') return <TravelEvent event={event} />;
+  if (eventType === 'condolence') return <CondolenceOverlay event={event} />;
   return <GenericEventPopup event={event} />;
 }
 
@@ -426,7 +429,7 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
               <span className="nar-tag">옆자리 · 동료</span>
             </div>
             <div className="nar-body">
-              오늘도 하나 배웠다. 사무실 불이 꺼지기 전에, 김대리가 씩 웃었다.
+              오늘도 하나 배웠다. 김대리와 인사를 나누고 사무실을 나섰다.
               {!!stressDelta && (
                 <div className="study-stress-badge study-stress-badge--dark">
                   🧘 스트레스 {stressDelta}
@@ -482,7 +485,7 @@ export function TravelEvent({ event, onResolve, onDismiss }) {
   const couldNotAfford = result?.chosen === 'go' && result.cashDelta === undefined;
   const resultText = result && (
     result.chosen === 'skip'
-      ? '돈은 아꼈지만, 답답한 하루가 계속됩니다.'
+      ? '돈은 아꼈지만 여전히 답답합니다.'
       : couldNotAfford
         ? (result.detail?.message || '여행 갈 돈이 없다...')
         : '잠시 일상에서 벗어나 숨을 돌렸습니다. 스트레스가 낮아졌습니다.'

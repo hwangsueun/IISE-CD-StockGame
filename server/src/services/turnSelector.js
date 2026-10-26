@@ -81,7 +81,7 @@ async function hasFutureMarketOpen(sessionId, turnNumber, client) {
 }
 
 /**
- * GAME_START_RANGE 안에서 시작 개장일을 랜덤 선택하고 240평일을 반환한다.
+ * GAME_START_RANGE 안에서 개장한 월요일을 랜덤 선택하고 240평일을 반환한다.
  * 시작일 + 240평일이 데이터 범위를 넘지 않도록 상한을 보정한다.
  * @returns {Promise<{startDate: string, dates: string[]}>}
  */
@@ -97,7 +97,7 @@ async function selectTurnDates(random = Math.random) {
     throw new Error(`평일 데이터 부족: ${calendar.length}일 < ${C.TOTAL_TURNS}턴 (시드 적재 필요)`);
   }
 
-  // 첫날은 실제 개장일로 한정하되, 이후에는 평일 휴장일도 정상 턴으로 포함한다.
+  // 첫날은 실제 개장한 월요일로 한정하되, 이후에는 평일 휴장일도 정상 턴으로 포함한다.
   // 문자열은 모두 YYYY-MM-DD라 사전식 비교가 날짜 순서와 같다.
   const lastValidStartIdx = calendar.length - C.TOTAL_TURNS;
   const candidates = [];
@@ -105,6 +105,7 @@ async function selectTurnDates(random = Math.random) {
     const date = calendar[i];
     if (date < range[0]) continue;
     if (range[1] && date > range[1]) continue;
+    if (new Date(`${date}T00:00:00Z`).getUTCDay() !== 1) continue;
     // 첫날과 마지막 날을 모두 개장일로 고정하면 마지막 급등주/강제청산이 휴장일에
     // 걸린 채 게임이 끝나는 상태를 원천적으로 피할 수 있다.
     const finalDate = calendar[i + C.TOTAL_TURNS - 1];
@@ -112,7 +113,7 @@ async function selectTurnDates(random = Math.random) {
   }
   if (candidates.length === 0) {
     throw new Error(
-      `GAME_START_RANGE(${range[0]}..${range[1]}) 안에 240턴이 들어가는 시작일이 없습니다 ` +
+      `GAME_START_RANGE(${range[0]}..${range[1]}) 안에 240턴이 들어가는 월요일 개장일이 없습니다 ` +
         `(평일 ${calendar.length}일, 마지막 가능 시작 인덱스 ${lastValidStartIdx})`
     );
   }

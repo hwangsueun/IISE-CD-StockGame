@@ -73,9 +73,9 @@ function replayOpenQuant({turns,prices,assets,artifact,initialCash,totalTurns=24
     if(bars.size && turn.turn_number<totalTurns){
       if(signal){
         const model=models.get(signal.model_id);
-        if(!model||signal.signal_date!==date||model.trained_through>=date||model.available_from>date)throw Error('퀀트 모델의 학습·예측 날짜가 올바르지 않습니다');
+        if(!model||signal.signal_date!==date||model.trained_through>=date||model.available_from>date)throw Error('alpha158의 학습·예측 날짜가 올바르지 않습니다');
         for(const [id,,sourceClose] of signal.ranking){
-          if(assetMap.has(id)&&(!(bars.get(id)?.close>0)||Math.abs(bars.get(id).close-sourceClose)>.01))throw Error('퀀트 데이터와 게임 시세가 일치하지 않습니다');
+          if(assetMap.has(id)&&(!(bars.get(id)?.close>0)||Math.abs(bars.get(id).close-sourceClose)>.01))throw Error('alpha158 데이터와 게임 시세가 일치하지 않습니다');
         }
         pending=planOrders({ranking:signal.ranking,holdings,cash,bars,assets:assetMap,topK:artifact.top_k,nDrop:artifact.n_drop,turn:turn.turn_number,date});
         orders.push(...pending);

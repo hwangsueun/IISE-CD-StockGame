@@ -164,15 +164,14 @@ module.exports = {
     NAMES: ['텐배거바이오', '급등테크', '로켓에너지', '불꽃반도체', '골드러시자원'], // 가상 작전주 이름 풀
   },
 
-  // D. 경조사 (외부 랜덤형): 거부 불가, 비용 확정 차감, 스트레스 방향만 랜덤 (미팅4 §14)
+  // D. 경조사 = 지인 결혼식 초대 (선택형, 디자인 Wedding Event.html)
+  // 참석: 축의금 지출 + 스트레스 방향 랜덤 / 불참: 돈은 아끼지만 스트레스 증가
   CONDOLENCE: {
     prob: 0.03,
-    TYPES: [
-      { key: 'wedding', label: '지인 결혼식', cost: 200_000, downProb: 0.5, stressAbs: 10 },
-      { key: 'funeral', label: '지인 장례식', cost: 300_000, downProb: 0.3, stressAbs: 10 },
-      { key: 'first_birthday', label: '친구 돌잔치', cost: 100_000, downProb: 0.6, stressAbs: 10 },
-      { key: 'reunion', label: '동창 모임', cost: 150_000, downProb: 0.5, stressAbs: 10 },
-    ],
+    attendCost: 100_000,
+    attendDownProb: 0.5,   // 참석 시 스트레스가 내려갈 확률
+    attendStressAbs: 10,
+    declineStress: +10,
   },
 
   // 명절 (미팅4 §8): 랜덤 결과 — 사촌동생 용돈(현금 지출) / 아늑한 우리집(스트레스 하락)
@@ -211,7 +210,6 @@ module.exports = {
 
   // 게임 시작일이 뽑히는 구간 (turnSelector.selectTurnDates).
   // DATA_RANGE보다 1년 늦게 시작한다 = 2013년 룩백 버퍼를 시작일 후보에서 제외한다.
-  // 코인 후보 수 측면에서도 2013년은 유니버스에 2종밖에 없어 게임이 성립하지 않는다.
   // 환경변수 GAME_START_RANGE가 있으면 그쪽이 우선한다(.env.example 참고).
   START_RANGE: { from: '2014-01-02', to: '2023-12-31' },
 };

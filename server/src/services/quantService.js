@@ -27,7 +27,7 @@ async function replaySession(client,session,loaded) {
     await client.query(`INSERT INTO quant_session_models (session_id, artifact_sha256, model_version)
       VALUES ($1, $2, $3) ON CONFLICT (session_id) DO NOTHING`, [sessionId, sha, artifact.model_version]);
     const { rows: pinned } = await client.query('SELECT artifact_sha256 FROM quant_session_models WHERE session_id = $1', [sessionId]);
-    if (pinned[0].artifact_sha256 !== sha) throw conflict('이 게임에서 사용하던 퀀트 모델 버전이 필요합니다');
+    if (pinned[0].artifact_sha256 !== sha) throw conflict('이 게임에서 사용하던 alpha158 버전이 필요합니다');
     const { rows: turns } = await client.query(`SELECT turn_number, trade_date FROM game_turns
       WHERE session_id = $1 AND turn_number <= $2 ORDER BY turn_number`, [sessionId, session.current_turn]);
     if (!turns.length) throw notFound('턴 정보를 찾을 수 없습니다');
@@ -68,8 +68,8 @@ async function persistQuantOrders(client,session,orders) {
 // Called during turn advancement even when the quant modal was never opened.
 async function syncQuantOrders(client,session) {
   const loaded=loadArtifact();
-  if(!loaded || loaded.artifact.schema_version!==3)return;
-  await replaySession(client,session,loaded);
+  if(!loaded)return;
+  return (await replaySession(client,session,loaded)).replay;
 }
 
 async function getQuantPortfolio(sessionId) {
@@ -77,10 +77,12 @@ async function getQuantPortfolio(sessionId) {
   return withTransaction(async client=>{
     const {rows:[session]}=await client.query('SELECT * FROM game_sessions WHERE id=$1 FOR UPDATE',[sessionId]);
     if(!session)throw notFound('세션을 찾을 수 없습니다');
-    if(!loaded)return {status:'unavailable',message:'퀀트 학습 데이터를 준비 중입니다.'};
+    if(!loaded)return {status:'unavailable',message:'alpha158 학습 데이터를 준비 중입니다.',
+      challenge: await require('./challengeService').getState(client, session)};
     const {replay,to,artifact}=await replaySession(client,session,loaded);
     const playerTotalAsset = await computeTotalAsset(sessionId, client, { tradeDate: to, cash: session.cash });
-    return { ...replay, date: to, turnNumber: session.current_turn, modelVersion: artifact.model_version,
+    return { ...replay, challenge: await require('./challengeService').getState(client, session, replay, playerTotalAsset),
+      date: to, turnNumber: session.current_turn, modelVersion: artifact.model_version, artifactSha256: loaded.sha,
       topK: artifact.top_k, rebalanceTurns: artifact.rebalance_turns,
       strategy: artifact.strategy || 'equal_weight_rebalance', nDrop: artifact.n_drop ?? null,
       labelHorizon: artifact.label_horizon || { unit: 'weekdays', value: 120 },
@@ -89,8 +91,8 @@ async function getQuantPortfolio(sessionId) {
       nextRebalanceTurn: replay.nextRebalanceTurn <= C.TOTAL_TURNS ? replay.nextRebalanceTurn : null,
       playerTotalAsset,
       feeRate: C.TRADE_FEE_RATE, limitations: artifact.limitations,
-      comparisonNote: '퀀트는 초기 투자금만 운용합니다. 내 총자산에는 월급·생활비·상환·이벤트가 반영됩니다.' };
+      comparisonNote: 'alpha158는 초기 투자금만 운용합니다. 내 총자산에는 월급·생활비·상환·이벤트가 반영됩니다.' };
   });
 }
 
-module.exports = { getQuantPortfolio, loadArtifact, syncQuantOrders };
+module.exports = { getQuantPortfolio, loadArtifact, syncQuantOrders, replaySession };

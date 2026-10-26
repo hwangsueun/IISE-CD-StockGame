@@ -178,6 +178,61 @@ button { cursor: pointer; font: inherit; }
 @keyframes introNextBob { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
 
 /* =====================================================================
+   엔딩 컷신 (Ending.jsx) — 인트로 대화창·버튼 재사용, 배경만 방 그림
+   ===================================================================== */
+.ending-frame { overflow: hidden; }
+.ending-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background-position: center 40%; background-size: cover; background-repeat: no-repeat;
+  image-rendering: pixelated;
+  transition: filter 1.6s steps(8, end);
+}
+.ending-bg.happy { background-image: url('/game/assets/happy_end_bgr.webp'); }
+.ending-bg.bad { background-image: url('/game/assets/bad_end_bgr.webp'); }
+/* 배드 엔딩 문 두드리는 소리: 쾅(0~14%) 쾅(22~36%) 후 잠깐 멈춤. 가장자리가 드러나지 않게 살짝 확대 */
+.ending-bg.shake { animation: endingKnock 1.6s steps(1, end) infinite; }
+@keyframes endingKnock {
+  0%, 100% { transform: scale(1.06) translate(0, 0); }
+  2% { transform: scale(1.06) translate(-14px, 6px); }
+  5% { transform: scale(1.06) translate(12px, -8px); }
+  8% { transform: scale(1.06) translate(-8px, -4px); }
+  11% { transform: scale(1.06) translate(6px, 5px); }
+  14% { transform: scale(1.06) translate(0, 0); }
+  22% { transform: scale(1.06) translate(14px, -6px); }
+  25% { transform: scale(1.06) translate(-12px, 8px); }
+  28% { transform: scale(1.06) translate(8px, 4px); }
+  31% { transform: scale(1.06) translate(-6px, -5px); }
+  36% { transform: scale(1.06) translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ending-bg.shake { animation: none; }
+}
+.ending-bg.dark { filter: brightness(0.3) saturate(0.7); }
+.ending-bg.dim { filter: brightness(0.62) saturate(0.9); }
+.ending-bg.lit { filter: none; }
+.ending-frame .black-title .big,
+.ending-frame .black-title .small,
+.ending-frame .black-title .sub { text-shadow: 3px 3px 0 #000; }
+.ending-frame .narration { background: rgba(12, 7, 4, 0.94); }
+.nar-portrait.me { font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--px-gold); }
+
+.ending-report {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 9;
+  width: 640px; padding: 22px 28px 24px; cursor: default;
+  background: rgba(12, 7, 4, 0.95); border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #5a3624, inset 0 0 0 6px var(--px-frame), 6px 6px 0 #000;
+  animation: introFadeUp 0.8s steps(6, end);
+}
+.er-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 2px dashed #3d2418; padding-bottom: 10px; margin-bottom: 12px; }
+.er-en { font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--px-gold); letter-spacing: 2px; }
+.er-ko { font-family: 'Galmuri11', monospace; font-size: 15px; color: var(--px-ink-dim); }
+.er-rows { margin: 0 0 18px; display: flex; flex-direction: column; gap: 9px; }
+.er-rows div { display: flex; justify-content: space-between; gap: 24px; font-family: 'Galmuri11', monospace; font-size: 16px; }
+.er-rows dt { color: var(--px-ink-dim); }
+.er-rows dd { margin: 0; color: var(--px-ink); }
+.er-next { width: 100%; align-items: center; padding: 10px 18px; }
+
+/* =====================================================================
    메인 화면 — 픽셀아트 (Phase D: public/game/Main Screen.html 이식)
    색/좌표/그림자 수치는 디자인 원본과 동일하게 유지한다.
    ===================================================================== */
@@ -398,7 +453,7 @@ button { cursor: pointer; font: inherit; }
   filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6));
   z-index: 5;
 }
-.pbtn:hover {
+.pbtn:hover, .b-computer:focus-visible {
   transform: translateY(-3px) scale(1.04);
   filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 8px rgba(245, 197, 66, 0.7));
 }
@@ -415,8 +470,20 @@ button { cursor: pointer; font: inherit; }
 .b-calendar { left: 100px; top: 100px; width: 130px; height: 130px; }
 .b-news { left: 100px; top: 280px; width: 130px; height: 130px; }
 .b-portfolio { left: 100px; top: 450px; width: 130px; height: 130px; }
-.b-market { left: 1050px; top: 300px; width: 130px; height: 130px; }
-.b-game { left: 1050px; top: 150px; width: 130px; height: 100px; }
+.b-market { left: 1050px; top: 360px; width: 130px; height: 130px; }
+.b-game { left: 1050px; top: 210px; width: 130px; height: 100px; }
+/* 1268×716 stage의 center/cover 배경에서 원본 (1396, 712, 390, 436) 영역. */
+.b-computer { left: 737.55px; top: 260.79px; width: 206.05px; height: 230.35px; }
+.b-computer .lbl { bottom: calc(100% + 10px); }
+.b-computer:focus-visible { outline: 2px dashed var(--px-gold); outline-offset: 6px; }
+.computer-art { display: block; width: 100%; height: 100%; overflow: visible; image-rendering: pixelated; }
+.computer-notice {
+  position: absolute; bottom: calc(100% + 42px); left: 50%; transform: translateX(-50%);
+  background: var(--px-gold); color: #1a0f0a; border: 2px solid #000;
+  box-shadow: inset 0 0 0 1px #fff5cc, 2px 2px 0 #000;
+  padding: 3px 8px; white-space: nowrap; pointer-events: none;
+  font-family: 'Galmuri11', monospace; font-size: 12px; font-weight: bold;
+}
 
 /* --- HUD 날짜판/배지 (우상단) --- */
 .hud-clock {
@@ -454,6 +521,20 @@ button { cursor: pointer; font: inherit; }
 }
 .hud-btn:hover { background: #5a3624; }
 .hud-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+/* 퀀트 모델 튜토리얼이 시작되면 버튼을 금색으로 깜빡여 강조한다 */
+.hud-btn.quant-open-btn.is-spotlit {
+  position: relative; background: var(--px-gold); color: #1a0f0a; border-color: #000;
+  animation: quantBtnPulse 0.9s steps(2, end) infinite;
+}
+.hud-btn.quant-open-btn.is-spotlit::after {
+  content: 'NEW'; position: absolute; top: -10px; right: -10px;
+  background: #ef4444; color: #fff; border: 2px solid #000; padding: 1px 4px;
+  font-family: 'Press Start 2P', monospace; font-size: 7px; letter-spacing: 1px;
+}
+@keyframes quantBtnPulse {
+  0%, 100% { box-shadow: 0 0 0 2px #000, 0 0 12px 2px rgba(245, 197, 66, 0.9); }
+  50% { box-shadow: 0 0 0 2px #000, 0 0 22px 6px rgba(245, 197, 66, 0.5); }
+}
 .hud-btn.repay { background: #7f1d1d; }
 .hud-btn.repay:hover { background: #b91c1c; }
 
@@ -542,7 +623,6 @@ button { cursor: pointer; font: inherit; }
 .news-asset { color: var(--px-gold); font-style: normal; }
 .news-empty { color: var(--px-ink-dim); }
 .news-hidden { color: var(--px-red); font-size: 0.85rem; }
-.news-strong { color: var(--px-gold); margin-left: 6px; font-family: 'Press Start 2P', monospace; font-size: 8px; }
 .news-date { color: var(--px-ink-dim); font-size: 0.8rem; margin-right: 8px; }
 .news-article p { line-height: 1.6; }
 .news-dir.positive { color: #4ade80; }
@@ -674,6 +754,42 @@ button { cursor: pointer; font: inherit; }
   border: 2px solid #7f1d1d; background: #2a1010; color: #ff8a7d;
   box-shadow: inset 0 0 0 1px #3d2418;
   font-family: 'Galmuri11', monospace; font-size: 13px; line-height: 1.5;
+}
+.mk-sectors { padding: 14px 18px; overflow-y: auto; height: 100%; }
+.mk-sectors h3 { margin: 0 0 10px; color: var(--px-gold); font-size: 17px; }
+.mk-sectors p { font-size: 13px; line-height: 1.7; color: var(--px-ink-dim); margin: 6px 0 12px; }
+.mk-sectors .mk-sector-date { color: var(--px-ink); font-size: 12px; }
+.mk-sector-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mk-sector-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; text-align: left;
+  background: #1c130e; color: var(--px-ink); border: 1px solid #6d5038; box-shadow: 3px 3px #080402;
+  font-family: 'Galmuri11', monospace; }
+.mk-sector-card.up { background: #281516; border-color: #8e4c49; }
+.mk-sector-card.down { background: #121c2a; border-color: #45668e; }
+.mk-sector-title { display: flex; justify-content: space-between; gap: 6px; color: var(--px-ink); }
+.mk-sector-card small { font-size: 10px; color: var(--px-ink-dim); }
+.mk-sector-card strong { font-size: 24px; }
+.mk-sector-card.up strong { color: #ff7b73; }
+.mk-sector-card.down strong { color: #80b8eb; }
+.mk-sector-breadth { font-size: 12px; color: var(--px-ink); }
+.market-performance-badge { position: absolute; top: 104px; left: 48%; transform: translateX(-50%); display: flex; align-items: center;
+  gap: 12px; padding: 10px 14px; background: #160f0a; border: 1px solid #c6ac78; box-shadow: 3px 3px #000;
+  color: var(--px-ink); font-family: 'Galmuri11', monospace; font-size: 12px; cursor: pointer; }
+.market-performance-badge:hover, .market-performance-badge:focus-visible { outline: 1px solid var(--px-gold); background: #302012; }
+.market-performance-badge .up { color: #ff8d80; }
+.market-performance-badge .down { color: #80b8eb; }
+.comparison-period { margin: 0; font-size: 12px; color: var(--px-ink-dim); }
+.comparison-chart { background: #0c0704; padding: 10px; border: 1px solid #493223; }
+.comparison-chart svg { width: 100%; height: auto; display: block; }
+.comparison-chart text { fill: #bbaa92; font-size: 10px; font-family: 'Galmuri11', monospace; }
+.comparison-legend { display: flex; gap: 18px; font-size: 12px; color: #f5c542; }
+.comparison-legend span:nth-child(2) { color: #80b8eb; }
+.comparison-legend small { margin-left: auto; color: var(--px-ink-dim); }
+.comparison-help { color: var(--px-ink-dim); font-size: 12px; line-height: 1.7; }
+.comparison-help summary { color: var(--px-gold); cursor: pointer; }
+@media (max-width: 720px) {
+  .mk-sector-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mk-sector-title { flex-direction: column; }
+  .market-performance-badge { gap: 8px; }
 }
 .mk-strip { display: flex; gap: 10px; padding: 4px 0 12px; flex-wrap: wrap; border-bottom: 2px dashed #3d2418; margin-bottom: 10px; }
 .mk-idx { display: flex; gap: 8px; align-items: baseline; background: #0c0704; border: 2px solid #000; box-shadow: inset 0 0 0 1px #5a3624; padding: 6px 10px; }
@@ -827,6 +943,8 @@ textarea { min-height: 80px; resize: vertical; }
   display: grid; place-items: center; z-index: 20;
   animation: px-fade 180ms steps(3, end);
 }
+/* 좁은 화면에서 축소(scale)된 1280px 프레임이 그리드 밖으로 밀려나지 않게 화면 정중앙에 고정 */
+.cutscene-overlay > .game-frame { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
 
 /* --- 독촉전화 이벤트 (픽셀: 디자인 public/game/Loanshark Call.html 이식) --- */
 .ev-frame { overflow: hidden; }
@@ -1367,34 +1485,9 @@ textarea { min-height: 80px; resize: vertical; }
 .dash-h small { color: var(--px-ink-dim); font-size: 11px; margin-left: 8px; letter-spacing: 0; }
 .dash-empty { color: var(--px-ink-dim); font-family: 'Galmuri11', monospace; font-size: 13px; margin: 8px 0; }
 
-/* 대시보드 탭 내부: 자산군 사이드바 + 도넛차트/집계단위 탭 */
-.pf-dashboard-layout {
-  display: grid; grid-template-columns: 132px minmax(0, 1fr);
-  min-height: 620px; margin: 0 -18px -18px;
-}
-.pf-scope-side {
-  background: #0c0704; border-right: 3px solid #000;
-  box-shadow: inset -2px 0 0 #2a1a10;
-  display: flex; flex-direction: column; gap: 5px; padding: 12px 8px;
-}
-.pf-scope-title {
-  color: var(--px-ink-faint, #7c6248); font-size: 11px; letter-spacing: 1px;
-  padding: 2px 10px 8px; border-bottom: 1px dashed #3d2418; margin-bottom: 3px;
-}
-.pf-scope-side button {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  background: transparent; border: 2px solid transparent; color: var(--px-ink-dim);
-  padding: 10px 9px; cursor: pointer; text-align: left;
-  font-family: 'Galmuri11', monospace; font-size: 14px; letter-spacing: 1px;
-}
-.pf-scope-side button i { width: 15px; color: #5a3624; font-style: normal; text-align: center; }
-.pf-scope-side button:hover { color: var(--px-ink); background: #1a0f0a; }
-.pf-scope-side button.active {
-  background: #2a1a10; border-color: var(--px-gold); color: var(--px-gold);
-  box-shadow: inset 0 -2px 0 #5a3624, 2px 2px 0 #000;
-}
-.pf-scope-side button.active i { color: var(--px-gold); }
-.pf-dashboard-main { min-width: 0; padding: 0 18px 22px; }
+/* 현금과 개별 종목 구성 */
+.pf-dashboard-main { min-width: 0; padding-bottom: 16px; }
+.data-table tbody tr.pf-cash-row { cursor: default; background: #21170f; }
 
 .dash-pie-card, .dash-performance { display: flex; flex-direction: column; gap: 10px; }
 .dash-pie-grid {
@@ -1898,6 +1991,21 @@ textarea { min-height: 80px; resize: vertical; }
 .tut-note.below-right { transform: translateX(-100%); text-align: right; }
 .tut-note.right { transform: translateY(-50%); text-align: left; }
 .tut-note.above-right { transform: translate(-100%, -100%); text-align: right; }
+/* 창 안의 탭·행을 짚을 때: 창 바깥 옆에 띄우고, 화살표로 짚은 쪽을 가리킨다 */
+.tut-note.modal-left { transform: translate(-100%, -50%); text-align: right; padding-right: 22px; }
+.tut-note.modal-right { transform: translateY(-50%); text-align: left; padding-left: 22px; }
+.tut-note.modal-left::after, .tut-note.modal-right::before {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--px-gold);
+}
+.tut-note.modal-left::after { content: '▶'; right: 0; }
+.tut-note.modal-right::before { content: '◀'; left: 0; }
+.tut-note.modal-left .big, .tut-note.modal-right .big { font-size: 20px; }
+/* 창 안 내용 위에 놓이는 설명: 어두운 상자를 깔아 뒤 글자와 섞이지 않게 한다 */
+.tut-note.boxed {
+  background: rgba(12, 7, 4, 0.94); border: 2px solid var(--px-gold-dark);
+  box-shadow: 4px 4px 0 #000; padding: 10px 14px; max-width: 440px;
+}
 .tut-note .big { display: block; font-size: 24px; font-weight: bold; color: var(--px-gold); letter-spacing: 1px; }
 .tut-note b { color: var(--px-gold); }
 .tut-note .dim { color: #d6d3d1; font-size: 13px; }
@@ -1947,3 +2055,154 @@ textarea { min-height: 80px; resize: vertical; }
 .tut-prev:hover { color: #fff; background: #3d2418; }
 .tut-prev:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #3d2418, 1px 1px 0 #000; }
 .tut-next:active { transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #5a3624, 1px 1px 0 #000; }
+
+/* =====================================================================
+   경조사(결혼식 초대) 이벤트 — Phase D: public/game/Wedding Event.html 이식
+   ===================================================================== */
+.wed-frame {
+  --wed-rose: #ff9ec4; --wed-rose-deep: #b8527e;
+  overflow: hidden; background: #000; cursor: pointer;
+  box-shadow: 0 0 0 2px #000, 0 0 0 6px #2a1a10, 0 0 0 8px #000, 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 80px rgba(245, 197, 66, 0.16);
+}
+.wed-frame .title-plate { background: #1c1208; border-color: var(--px-gold-dark); text-shadow: 0 0 6px rgba(245, 197, 66, 0.5); }
+.wed-frame .screen-tag .nm { background: #1c1208; border-color: var(--px-gold-dark); }
+.wed-frame .screen-tag .step { margin-left: 6px; color: var(--px-gold); text-shadow: 1px 1px 0 #000; }
+.wed-room {
+  position: absolute; inset: 0; z-index: 0;
+  background: #d8cfc4 url('/game/assets/bg_wedding.png') center 28%/cover no-repeat;
+  image-rendering: pixelated; filter: brightness(0.86) saturate(1.05);
+}
+.wed-room::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 30%, rgba(255, 236, 200, 0.34), transparent 72%),
+    radial-gradient(ellipse 90% 72% at 50% 62%, transparent 28%, rgba(26, 12, 6, 0.6) 100%),
+    linear-gradient(180deg, rgba(26, 16, 8, 0.18) 0%, rgba(26, 16, 8, 0.55) 66%, rgba(12, 6, 2, 0.82) 100%);
+}
+.wed-datebox {
+  position: absolute; top: 16px; right: 22px; z-index: 30; text-align: center;
+  background: #1c1208; border: 3px solid #000; box-shadow: inset 0 0 0 2px var(--px-gold-dark), 3px 3px 0 #000; padding: 8px 14px;
+}
+.wed-datebox .ring { font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--wed-rose); text-shadow: 0 0 6px rgba(255, 158, 196, 0.5); }
+.wed-datebox .lbl { display: block; margin-top: 4px; font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--px-ink-dim); letter-spacing: 1px; }
+.wed-stage {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 250px;
+  display: flex; align-items: center; justify-content: center; padding: 78px 60px 16px; z-index: 5;
+}
+@keyframes wedCardPop { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+
+.wed-invite, .wed-celebrate, .wed-result {
+  position: relative; border: 4px solid #000; animation: wedCardPop 280ms steps(5, end);
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 30px, rgba(245, 197, 66, 0.05) 30px 31px), #1c1208;
+  box-shadow: inset 0 0 0 2px var(--px-gold-dark), inset 0 0 0 6px #281a0c, 8px 8px 0 #000, 0 0 34px rgba(245, 197, 66, 0.2);
+}
+.wed-invite { width: 560px; max-width: 92%; padding: 22px 30px 22px; text-align: center; }
+.wed-stage.invite { bottom: 390px; padding-top: 64px; }
+.wed-invite::before { content: "INVITATION"; position: absolute; top: 12px; right: 18px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #7c5040; letter-spacing: 2px; }
+.wed-invite .rings, .wed-celebrate .rings {
+  font-family: 'Press Start 2P', monospace; font-size: 26px; color: var(--wed-rose);
+  letter-spacing: 4px; text-shadow: 0 0 10px rgba(255, 158, 196, 0.55); margin-bottom: 14px;
+}
+.wed-invite .ttl { font-family: 'Galmuri11', monospace; font-size: 34px; color: var(--px-gold); letter-spacing: 6px; text-shadow: 3px 3px 0 #000; margin-bottom: 6px; }
+.wed-invite .eng, .wed-celebrate .eng { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-ink-dim); letter-spacing: 4px; margin-bottom: 18px; }
+.wed-invite .divider { height: 0; border-top: 3px double var(--px-gold-dark); margin: 4px 0 18px; }
+.wed-invite .body { font-family: 'Galmuri11', monospace; font-size: 17px; line-height: 1.85; color: var(--px-ink); letter-spacing: 0.5px; text-align: left; }
+.wed-invite .body .row { display: flex; gap: 12px; align-items: flex-start; margin: 6px 0; }
+.wed-invite .body .bullet { color: var(--wed-rose); flex: none; }
+.wed-invite .body .em { color: var(--px-gold); }
+.wed-invite .body .red { color: #ff5a4a; }
+
+.wed-celebrate {
+  width: 600px; max-width: 92%; padding: 26px 30px; text-align: center;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 30px, rgba(255, 158, 196, 0.06) 30px 31px), #1c1208;
+  box-shadow: inset 0 0 0 2px var(--wed-rose-deep), inset 0 0 0 6px #2a1018, 8px 8px 0 #000, 0 0 36px rgba(255, 158, 196, 0.26);
+}
+.wed-celebrate::before { content: "JUST MARRIED"; position: absolute; top: 12px; right: 18px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #7c5040; letter-spacing: 2px; }
+.wed-celebrate .rings { font-size: 28px; letter-spacing: 6px; animation: wedRingPulse 0.9s steps(2, end) infinite; }
+@keyframes wedRingPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.wed-celebrate .ttl { font-family: 'Galmuri11', monospace; font-size: 32px; color: var(--wed-rose); letter-spacing: 6px; text-shadow: 3px 3px 0 #000; margin-bottom: 6px; }
+.wed-celebrate .divider { height: 0; border-top: 3px double var(--wed-rose-deep); margin: 4px 0 18px; }
+.wed-celebrate .cele-cap {
+  font-family: 'Galmuri11', monospace; font-size: 19px; line-height: 1.75; color: var(--px-ink);
+  min-height: 70px; display: flex; align-items: center; justify-content: center;
+}
+.wed-celebrate .confetti {
+  margin-top: 18px; font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--px-gold);
+  letter-spacing: 8px; text-shadow: 0 0 8px rgba(245, 197, 66, 0.5); animation: wedConfetti 0.8s steps(2, end) infinite;
+}
+@keyframes wedConfetti { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+.wed-choices { position: absolute; left: 0; right: 0; bottom: 280px; display: flex; justify-content: center; gap: 26px; z-index: 7; cursor: default; }
+.wed-choice {
+  min-width: 280px; border: 4px solid #000; padding: 16px 24px;
+  font-family: 'Galmuri11', monospace; letter-spacing: 3px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: transform 90ms steps(2, end);
+}
+.wed-choice .key { font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; }
+.wed-choice .name { font-size: 22px; font-weight: bold; }
+.wed-choice .hint { font-family: 'Galmuri11', monospace; font-size: 12px; letter-spacing: 1px; }
+.wed-choice:hover { transform: translate(-1px, -2px); }
+.wed-choice:active { transform: translate(2px, 2px); }
+.wed-choice:disabled { opacity: 0.6; cursor: default; }
+.wed-choice.attend { background: var(--px-gold); color: #1c1208; box-shadow: inset 0 0 0 2px #ffe9a8, inset 0 -7px 0 var(--px-gold-dark), 5px 5px 0 #000; }
+.wed-choice.attend .key, .wed-choice.attend .hint { color: #7a5418; }
+.wed-choice.attend:hover { background: #ffd968; }
+.wed-choice.decline { background: #2a1a10; color: var(--px-ink); box-shadow: inset 0 0 0 2px #7c5040, inset 0 -7px 0 #120a04, 5px 5px 0 #000; }
+.wed-choice.decline .key { color: var(--wed-rose); }
+.wed-choice.decline .hint { color: var(--px-ink-dim); }
+.wed-choice.decline:hover { background: #3a2616; }
+
+.wed-result { width: 720px; max-width: 94%; padding: 18px 28px 16px; cursor: default; }
+.wed-stage.result { bottom: 340px; padding-top: 56px; }
+.wed-result::before { content: "RECEIPT"; position: absolute; top: 10px; right: 20px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #7c5040; letter-spacing: 2px; }
+.wed-result .rc-head { text-align: center; padding-bottom: 14px; margin-bottom: 8px; border-bottom: 3px double var(--px-gold-dark); }
+.wed-result .rc-head .rings { display: inline-block; color: var(--wed-rose); font-family: 'Press Start 2P', monospace; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px; }
+.wed-result .rc-head .ttl { font-family: 'Galmuri11', monospace; font-size: 22px; color: var(--px-gold); letter-spacing: 3px; text-shadow: 2px 2px 0 #000; }
+.wed-result .rc-head .sub { font-family: 'Galmuri11', monospace; font-size: 13px; color: var(--px-ink-dim); letter-spacing: 1px; margin-top: 8px; }
+.wed-result .rc-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 11px 4px; border-bottom: 1px dashed #3a2616; }
+.wed-result .rc-row .k { font-family: 'Galmuri11', monospace; font-size: 17px; color: var(--px-ink-dim); letter-spacing: 1px; white-space: nowrap; }
+.wed-result .rc-row .k small { display: block; font-family: 'Press Start 2P', monospace; font-size: 7px; color: #7c5040; letter-spacing: 2px; margin-top: 4px; }
+.wed-result .rc-row .v { font-family: 'Galmuri11', monospace; font-size: 20px; color: var(--px-ink); font-variant-numeric: tabular-nums; text-align: right; }
+.wed-result .rc-row .v.gold { color: var(--px-gold); font-weight: bold; }
+.wed-result .rc-row .v.up { color: #ff5a4a; font-weight: bold; }
+.wed-result .rc-row .v.down { color: var(--px-green); font-weight: bold; }
+.wed-result .rc-row.result { border-bottom: none; }
+.wed-result .rc-row.result .v { font-size: 16px; max-width: 70%; line-height: 1.55; font-weight: normal; }
+
+.wed-confirm { position: absolute; left: 0; right: 0; bottom: 262px; display: flex; justify-content: center; z-index: 7; cursor: default; }
+.wed-confirm-btn { background: var(--px-gold); color: #1c1208; box-shadow: inset 0 0 0 2px #ffe9a8, inset 0 -7px 0 var(--px-gold-dark), 5px 5px 0 #000; }
+.wed-confirm-btn:hover { background: #ffd968; }
+
+.wed-narration { height: 200px; box-shadow: inset 0 0 0 2px var(--px-gold-dark), inset 0 0 0 6px #281a0c, 6px 6px 0 #000; background: #1c1208; }
+.wed-narration .nar-portrait { color: var(--px-gold); background: #281a0c; box-shadow: inset 0 0 0 1px var(--px-gold-dark); }
+.wed-narration .nar-body { font-size: 20px; }
+.wed-narration .nar-body .rose { color: var(--wed-rose); }
+.wed-narration .nar-body .green { color: var(--px-green); }
+/* 차트 지표 설정: 설명과 기간을 함께 표시 */
+.indicator-settings { max-height: 440px; overflow-y: auto; scrollbar-width: thin; }
+.indicator-settings-note { margin: 3px 0 12px; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.indicator-group { min-width: 0; margin: 0 0 12px; padding: 0; border: 0; }
+.indicator-group legend { color: var(--px-gold); margin-bottom: 9px; font-size: 12px; }
+.indicator-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.indicator-option { padding: 10px; border: 1px solid #3d2418; background: #130b07; }
+.indicator-option.selected { border-color: #a0793a; }
+.indicator-toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; line-height: 1.6; cursor: pointer; }
+.indicator-toggle input { accent-color: var(--px-gold); flex-shrink: 0; }
+.indicator-option p { font-size: 11px; color: var(--px-ink-dim); line-height: 1.65; margin: 5px 0 8px; }
+.indicator-fields { display: flex; flex-wrap: wrap; gap: 7px 12px; }
+.indicator-number { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; color: var(--px-ink-dim); }
+.indicator-number input { width: 61px; padding: 5px; border: 1px solid #5a3624; background: #0c0704; color: var(--px-ink); font: inherit; }
+.indicator-number input:disabled { opacity: 0.45; }
+.indicator-number input:focus-visible { outline: 1px solid var(--px-gold); }
+.indicator-number small { flex-basis: 100%; color: #ff9b8d; }
+.chart-indicator-panel { margin-top: 12px; }
+.chart-indicator-head { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 14px; margin-bottom: 5px; font-size: 11px; color: var(--px-ink); }
+.indicator-chart { display: block; background: #0c0704; border: 2px solid #000; }
+.chart-indicator-description, .indicator-unavailable { margin: 5px 0; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.indicator-unavailable { color: #cbb58c; }
+@media (max-width: 720px) {
+  .indicator-option-grid { grid-template-columns: 1fr; }
+  .dash-pie-grid { grid-template-columns: 1fr; padding: 12px; }
+  .dash-pie-legend li { grid-template-columns: 12px minmax(70px, 1fr) 55px minmax(80px, auto); gap: 6px; }
+}

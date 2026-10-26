@@ -2,7 +2,7 @@
 const { query } = require('../db');
 const { notFound } = require('../utils/errors');
 const C = require('../config/constants');
-const valuationService = require('./valuationService');
+const marketComparisonService = require('./marketComparisonService');
 
 /** 턴 진행 중 스냅샷 기록 (turnService 트랜잭션 안에서 호출) */
 async function writeSnapshot(client, sessionId, turnNumber, type, { totalAsset, session, detail }) {
@@ -148,7 +148,9 @@ async function getFinalReport(sessionId) {
   const { rows: sRows } = await query(`SELECT * FROM game_sessions WHERE id = $1`, [sessionId]);
   if (!sRows[0]) throw notFound('세션을 찾을 수 없습니다');
   const session = sRows[0];
-  const totalAsset = await valuationService.computeTotalAsset(sessionId);
+  // Use the same cash-flow-adjusted investment ledger as the in-game dashboard.
+  // Salary, side jobs, prizes and debt payments must not become investment returns.
+  const performance = await marketComparisonService.getPerformance(sessionId);
 
   const { rows: monthly } = await query(
     `SELECT turn_number, total_asset, debt, stress, trust
@@ -170,11 +172,8 @@ async function getFinalReport(sessionId) {
     initialCash: Number(session.initial_cash),
     debtInitial: Number(session.debt_initial),
     debtRemaining: Number(session.debt),
-    finalTotalAsset: totalAsset,
-    totalReturn:
-      Number(session.initial_cash) > 0
-        ? (totalAsset - Number(session.initial_cash)) / Number(session.initial_cash)
-        : 0,
+    finalTotalAsset: performance.currentValue,
+    totalReturn: performance.summary.playerReturn,
     monthlyTrend: monthly,
     repayments,
     // 투자 성향 분석 + 학습 피드백 (기능명세서 §리포트/최종)

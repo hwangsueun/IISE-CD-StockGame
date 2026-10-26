@@ -8,7 +8,7 @@ export default function Modal({ title, children, wide, xwide, help, showTutorial
   const closeModal = useGameStore((s) => s.closeModal);
   const activeModal = useGameStore((s) => s.activeModal);
   const startTutorial = useGameStore((s) => s.startTutorial);
-  const inFirstDay = useGameStore((s) => s.firstDayStep !== null);
+  const inFirstDay = useGameStore((s) => s.firstDayStep !== null || s.quantTourStep !== null);
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="modal-overlay" onClick={closeModal}>

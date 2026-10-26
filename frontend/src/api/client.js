@@ -59,7 +59,21 @@ const httpApi = {
 
   // 포트폴리오 / 리포트
   getPortfolio: (sid) => get(`/api/game/${sid}/portfolio`),
+  getMarketComparison: (sid) => get(`/api/game/${sid}/portfolio/market-comparison`),
+  getSectors: (sid, date) => get(`/api/assets/sectors?${new URLSearchParams({ sessionId: sid, date })}`),
   getQuantPortfolio: (sid) => get(`/api/game/${sid}/quant`),
+  getQuantAttribution: (sid, assetId) => get(`/api/game/${sid}/quant/explanations/${encodeURIComponent(assetId)}`),
+  setStrategyAutomation: (sid, enabled, versionId) => post(`/api/game/${sid}/quant/strategies/automation`, { enabled, versionId }),
+  getStrategyWorkspace: (sid) => get(`/api/game/${sid}/quant/strategies`),
+  practiceStrategy: (sid, config, feeBps) => post(`/api/game/${sid}/quant/strategies/practice`, { config, feeBps }),
+  compareStrategies: (sid, config, feeBps) => post(`/api/game/${sid}/quant/strategies/compare`, { config, feeBps }),
+  compareSavedStrategies: (sid, versionIds, period, feeBps) =>
+    post(`/api/game/${sid}/quant/strategies/compare-saved`, { versionIds, period, feeBps }),
+  saveStrategy: (sid, config, requestKey) => post(`/api/game/${sid}/quant/strategies`, { config, requestKey }),
+  observeStrategy: (sid, id) => get(`/api/game/${sid}/quant/strategies/${id}`),
+  getStrategyRun: (sid, id) => get(`/api/game/${sid}/quant/strategies/runs/${id}`),
+  joinQuantChallenge: (sid) => post(`/api/game/${sid}/quant/challenge/join`),
+  claimQuantPrize: (sid, month) => post(`/api/game/${sid}/quant/challenge/claim`, { month }),
   getPortfolioHistory: (sid) => get(`/api/game/${sid}/portfolio/history`),
   getPortfolioDashboard: (sid, unit = 'day', assetType = 'all') => {
     const q = new URLSearchParams({ unit, assetType });
@@ -104,9 +118,6 @@ const httpApi = {
   deleteMemo: (sid, memoId) => del(`/api/game/${sid}/memo/${memoId}`),
 
   // 자산 / 시장
-  // sessionId는 코인 목록에 필수다. 코인은 세션마다 시총 규모별로 랜덤 층화추출한 10종만
-  // 거래 대상이라(session_coin_universe, migration 005), 서버가 세션을 모르면 어떤 10종을
-  // 보여줄지 결정할 수 없어 코인을 빈 배열로 돌려준다. 주식/채권은 전역이라 영향 없다.
   listAssets: ({ type, sort, date, sessionId } = {}) => {
     const q = new URLSearchParams();
     if (type) q.set('type', type);
@@ -134,7 +145,8 @@ const httpApi = {
   getAssetNews: (date, assetId) => get(`/api/news/${date}/${assetId}`),
   getCommunityPosts: (assetId, date) =>
     get(`/api/community/${assetId}${date ? `?date=${date}` : ''}`),
-  getPostComments: (postId) => get(`/api/community/post/${postId}/comments`),
+  getPostComments: (postId, date) =>
+    get(`/api/community/post/${postId}/comments${date ? `?${new URLSearchParams({ date })}` : ''}`),
 };
 
 // ---------------------------------------------------------------------
@@ -183,7 +195,20 @@ const mockAdapter = {
   getRealizedPnl: notMocked('실현손익'),
   getPortfolioHistory: notMocked('수익률 추이'),
   getPortfolioDashboard: notMocked('포트폴리오 대시보드'),
-  getQuantPortfolio: () => Promise.resolve({ status: 'unavailable', message: '퀀트 모델은 실제 데이터 서버에서 확인할 수 있습니다.' }),
+  getMarketComparison: notMocked('시장 대비 투자 성과'),
+  getSectors: notMocked('업종별 등락률'),
+  getQuantPortfolio: () => Promise.resolve({ status: 'unavailable', message: 'alpha158은 실제 데이터 서버에서 확인할 수 있습니다.' }),
+  getQuantAttribution: notMocked('alpha158 지표별 기여도'),
+  joinQuantChallenge: notMocked('투자 챌린지 참가'),
+  claimQuantPrize: notMocked('투자 챌린지 상금'),
+  setStrategyAutomation: notMocked('모델 자동 투자'),
+  getStrategyWorkspace: notMocked('나만의 투자 모델 만들기'),
+  practiceStrategy: notMocked('전략 과거 연습'),
+  compareStrategies: notMocked('학습 모델 비교'),
+  compareSavedStrategies: notMocked('저장 모델 비교'),
+  saveStrategy: notMocked('전략 저장'),
+  observeStrategy: notMocked('전략 관찰'),
+  getStrategyRun: notMocked('전략 연습 기록'),
   getGameLog: notMocked('게임 로그'),
 };
 

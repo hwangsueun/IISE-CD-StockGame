@@ -20,7 +20,7 @@ function gradeOf(gameKey, rawScore) {
 /** 오늘 부업 가능 여부 (부업 메뉴 진입 시 표시) */
 async function getStatus(sessionId) {
   const { rows } = await query(
-    `SELECT current_turn, action_locked_until_turn, side_job_turn, status
+    `SELECT current_turn, action_locked_until_turn, side_job_turn, status, stress
      FROM game_sessions WHERE id = $1`,
     [sessionId]
   );
@@ -28,12 +28,13 @@ async function getStatus(sessionId) {
   if (!s) throw notFound('세션을 찾을 수 없습니다');
   const locked = s.current_turn <= s.action_locked_until_turn;
   const doneToday = s.side_job_turn === s.current_turn;
+  const exhausted = Number(s.stress) >= C.STRESS_FAINT_THRESHOLD;
   return {
     games: GAME_KEYS,
     basePay: C.SIDE_JOB.BASE_PAY,
     grades: C.SIDE_JOB.GRADES,
-    available: s.status === 'active' && !locked && !doneToday,
-    reason: locked ? 'hospitalized' : doneToday ? 'already_done' : null,
+    available: s.status === 'active' && !locked && !doneToday && !exhausted,
+    reason: locked ? 'hospitalized' : exhausted ? 'stress_limit' : doneToday ? 'already_done' : null,
   };
 }
 
@@ -55,6 +56,9 @@ async function submitPlay(sessionId, gameKey, rawScore) {
     if (session.current_turn <= session.action_locked_until_turn) {
       throw conflict('입원 중에는 부업을 할 수 없습니다');
     }
+    if (Number(session.stress) >= C.STRESS_FAINT_THRESHOLD) {
+      throw conflict('스트레스가 한계에 도달해 부업을 할 수 없습니다');
+    }
     if (session.side_job_turn === session.current_turn) {
       throw conflict('부업은 하루 1회만 가능합니다');
     }
@@ -64,6 +68,7 @@ async function submitPlay(sessionId, gameKey, rawScore) {
     const cashReward = Math.round(C.SIDE_JOB.BASE_PAY * payRate);
     const newStress = clamp100(session.stress + stressDelta);
 
+    await require('./challengeService').externalFlow(client, session, cashReward);
     await client.query(
       `UPDATE game_sessions
        SET cash = cash + $2, stress = $3, side_job_turn = $4, updated_at = NOW()
@@ -81,6 +86,9 @@ async function submitPlay(sessionId, gameKey, rawScore) {
       [sessionId, session.current_turn,
        JSON.stringify({ gameKey, rawScore, grade }), cashReward, stressDelta]
     );
+    session.side_job_turn = session.current_turn;
+    session.stress = newStress;
+    const restriction = await require('./investmentPolicy').enforce(client, session);
 
     return {
       gameKey,
@@ -91,6 +99,8 @@ async function submitPlay(sessionId, gameKey, rawScore) {
       stress: newStress,
       cash: Number(session.cash) + cashReward,
       tradingLockedToday: true, // 부업한 날은 투자 불가
+      investmentRestriction: restriction,
+      cancelledOrderCount: restriction?.cancelledOrderCount || 0,
     };
   });
 }
