@@ -10,7 +10,7 @@
     "test": "node --test",
     "seed": "node seeds/import_all.js",
     "seed:stub": "node seeds/import_all.js --stub",
-    "postinstall": "node deploy/install-runtime.cjs"
+    "postinstall": "node -e \"if(process.env.RENDER==='true') require('./deploy/install-runtime.cjs')\""
   },
   "dependencies": {
     "cors": "^2.8.5",
