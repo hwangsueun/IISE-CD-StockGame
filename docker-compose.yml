@@ -13,7 +13,9 @@ services:
       - ./server/migrations:/docker-entrypoint-initdb.d
 
   api:
-    build: ./server
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     container_name: antsurvival_api
     ports:
       - "3001:3001"
@@ -27,8 +29,8 @@ services:
       GAME_START_RANGE: 2014-01-02..2023-12-31
       QUANT_SIGNALS_FILE: /app/data/quant/signals.json
     volumes:
-      - ./server/src:/app/src:ro
-      - ./server/seeds:/app/seeds
+      - ./server/src:/app/server/src:ro
+      - ./server/seeds:/app/server/seeds
       - ./data:/app/data
 
 volumes:

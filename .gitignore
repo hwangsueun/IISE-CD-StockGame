@@ -5,6 +5,7 @@ dist/
 .DS_Store
 pgdata/
 quant/.venv/
+quant/.runtime/
 __pycache__/
 *.py[cod]
 quant/.pytest_cache/

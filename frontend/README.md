@@ -18,6 +18,8 @@ npm run dev      # http://localhost:5173  → 본편 SPA (/api는 :3001로 프�
 npm run build    # dist/ (index SPA · design 런처 · game/ 정적 화면)
 ```
 
+투자 모델 선택·학습은 백엔드의 Python 환경도 필요합니다. 저장소 루트에서 `node scripts/setup-model-runtime.cjs`를 실행한 뒤 API 서버를 다시 시작하세요. 프론트의 `npm install`만으로 모델 패키지는 설치되지 않습니다. [전체 설치 안내](../DEVELOPMENT_GUIDE.md#다른-컴퓨터에서-투자-모델까지-실행하기).
+
 ## 백엔드 없이 개발 (mock 모드)
 
 `.env`(또는 `.env.local`)에:

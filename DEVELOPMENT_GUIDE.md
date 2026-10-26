@@ -1,5 +1,40 @@
 # ANT SURVIVAL 개발 진행 가이드
 
+## 다른 컴퓨터에서 투자 모델까지 실행하기
+
+Node.js 20 이상, Python 3.11 이상(권장 3.12), PostgreSQL과 게임 데이터가 필요하다. 저장소를 받은 뒤 아래 명령을 **저장소 루트**에서 실행한다.
+
+```bash
+npm --prefix server ci
+npm --prefix frontend ci
+node scripts/setup-model-runtime.cjs
+```
+
+마지막 명령은 `quant/.runtime` 가상환경을 만들고 Random Forest·LightGBM·XGBoost·위험 분석·Alpha158 기여도 분석에 필요한 패키지를 모두 설치한다. Linux x86_64는 같은 버전의 XGBoost CPU 패키지를 설치해 사용하지 않는 CUDA/NCCL 다운로드를 생략한다. 각 패키지의 실제 import까지 확인하므로 설치가 빠진 상태는 성공으로 처리하지 않는다. 별도 Python을 지정하려면 `--python python3.12`를 붙인다. Windows도 같은 Node 명령을 사용하며 `py -3.12` 또는 `python`을 찾아 `Scripts/python.exe`를 만든다.
+
+API 서버는 이 저장소의 `quant/.runtime`을 자동으로 찾는다. **다른 PC의 `.env`나 가상환경을 그대로 복사하지 않는다.** 기존 `.env`의 `USER_STRATEGY_PYTHON`·`QUANT_EXPLAIN_PYTHON`이 다른 컴퓨터의 절대경로라면 제거한다. 필요할 때만 현재 컴퓨터의 실행 파일로 지정하며 상대경로는 저장소 루트 기준이다. 설치 후 API 서버를 다시 시작한다.
+
+```bash
+# 설치된 환경을 다시 확인할 때 (설치나 데이터 변경 없음)
+node scripts/setup-model-runtime.cjs --check
+# 또는 server 폴더에서 npm run setup:models / npm run check:models
+```
+
+- macOS에서 LightGBM/XGBoost의 `libomp` 오류가 나면 `brew install libomp` 후 설치 명령을 다시 실행한다.
+- Debian/Ubuntu는 `python3-venv`와 `libgomp1`이 필요하다. `sudo apt-get install python3-venv libgomp1`로 설치한다.
+- 모델 선택이 막히면 제작 화면의 **선택할 수 없는 모델이 있나요?**를 펼쳐 빠진 패키지와 설치 명령을 확인한다.
+- 이 설치는 DB·주가·뉴스·저장 모델 파일을 만들거나 바꾸지 않는다. 실제 데이터 DB와 `signals.json`, 기여도 분석용 `features.parquet`·`spec.json`·모델 체크포인트는 별도로 전달받아야 한다. 합성 seed만으로 실제 Alpha158 분석을 검증할 수는 없다.
+
+Docker로 API를 실행하면 Python 및 위 패키지를 이미지에 함께 설치한다. 빌드 컨텍스트는 저장소 루트다.
+
+```bash
+docker compose up -d --build api
+# 이미지 단독 빌드
+docker build -f server/Dockerfile -t antsurvival-api .
+```
+
+Render의 Node 서비스도 기존 프론트/서버 설치 명령에 `node scripts/setup-model-runtime.cjs`를 추가한다. Python 3.11 이상이 있는 빌드 환경을 사용하며 `quant/.runtime`은 실행 시에도 유지해야 한다. Docker 서비스는 `server/Dockerfile`과 저장소 루트 context를 사용한다. 어느 방식이든 배포 전 `--check`가 통과해야 한다.
+
 ## 퀀트 모델 실행 (2026-10-06)
 
 현재 로컬 게임에는 수정가격 데이터 `quant-v2-adjusted-2e6c8d6558fc-r2`와 `model-v4-adjusted-open`을 연결했다. 기본 운용 프로필은 `daily_open`이며 다음 개장일 시가에 체결한다. 데이터 정의와 결과는 [ARCHITECTURE.md §15-5](ARCHITECTURE.md#15-5-수정주가-최종-데이터와-게임-반영-2026-10-06)를 참고한다.
@@ -12,6 +47,8 @@
 GitHub에는 게임 코드·마이그레이션·데이터 가공/학습 코드가 들어간다. 기존 `data/` 제외 규칙에 따라 원본 엑셀, done 데이터, `signals.json`, 모델 가중치, DB 백업은 별도로 전달해야 한다. 새 체크아웃만으로는 로컬의 수정가격 DB와 퀀트 실행 데이터가 설치되지 않는다.
 
 2026-10-08 원격 변경 병합: 첫날 튜토리얼은 매수 예약 → 주문 내역 확인 → 체결 이후 매도 안내 순서다. 미니게임 변경용 `007_sort_characters_minigame.sql`은 퀀트용 `007_quant_opponent.sql`과 별개이므로 기존 DB에서도 파일명별로 적용 여부를 확인한다. 현재 로컬 DB에는 둘 다 적용했다.
+
+다음 절차는 오프라인 Alpha158 재학습용이다. 게임 내 투자 모델 실행에는 위의 `setup-model-runtime.cjs`를 사용한다.
 
 현재 수정가격 DB에 기존 raw 주식 seed나 `import_quant.js`를 다시 적용하지 않는다. 현재 최종 버전은 이미 생성됐으므로 덮어쓰지 않으며, 새 데이터/실험은 새 revision/model-version으로 만든다. 원본 엑셀은 수정하지 않는다. 환경 준비:
 
@@ -93,11 +130,12 @@ quant/.venv/bin/python -m unittest discover -s quant -p 'test_*.py'
 
 ### 1-1. 처음 세팅 (팀원 온보딩, 최초 1회)
 
-전제: Docker Desktop, Node.js 20+ 설치.
+전제: Docker Desktop, Node.js 20+, Python 3.11+ 설치. 투자 모델까지 사용할 때는 위의 런타임 설치도 완료한다.
 
 ```bash
 git clone https://github.com/hwangsueun/IISE-CD-StockGame.git
 cd IISE-CD-StockGame
+node scripts/setup-model-runtime.cjs
 
 # 1) DB 기동 (postgres:16 컨테이너, migrations/ 자동 실행)
 docker compose up -d db

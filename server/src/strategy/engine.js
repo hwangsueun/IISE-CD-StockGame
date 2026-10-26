@@ -66,7 +66,31 @@ function rankValues(rows, key) {
     i = j;
   }
 }
-function buildFrames({ prices, assets, benchmark }) {
+function frameOptions(config) {
+  // Keep the same price history and cross-sectional universe. Only unreferenced
+  // feature columns are omitted; sampling, ranks, warm-up and labels stay exact.
+  const featureKeys = new Set([...config.terms.map(t => t.feature), ...config.conditions.map(c => c.feature)]);
+  if (config.allocation === 'inverseVol' || config.riskModel === 'historical') featureKeys.add('vol20');
+  if (config.entryCeiling !== null) featureKeys.add('return5');
+  return { featureKeys, zscoreKeys: new Set(config.representation === 'zscore' ? config.terms.map(t => t.feature) : []) };
+}
+function retainedRowDates(input, config) {
+  const dates = [...new Set(input.prices.map(p => p.trade_date))].sort().filter(d => d <= input.asOf);
+  if (!dates.length) return new Set();
+  const evaluating = !['save', 'automate'].includes(input.mode);
+  const evaluation = input.mode === 'observe' ? weekdays(input.savedDate, input.asOf)
+    : weekdays(dates[Math.min(60, dates.length - 1)], input.asOf).slice(-240);
+  const cutoff = evaluating ? evaluation[0] : input.asOf;
+  const from = new Date(`${cutoff}T00:00:00Z`); from.setUTCFullYear(from.getUTCFullYear() - config.trainYears);
+  const trainingFrom = from.toISOString().slice(0, 10);
+  // Training consumes only every fifth market session. Keep all prices and run
+  // every rolling update; discard only feature rows that no consumer can read.
+  return new Set(dates.filter((date, index) => date === dates.at(-1) || date >= cutoff ||
+    (index % 5 === 0 && date >= trainingFrom && !['observe', 'automate'].includes(input.mode))));
+}
+function buildFrames({ prices, assets, benchmark }, { featureKeys, zscoreKeys, rowDates } = {}) {
+  const selected = featureKeys ? features.filter(f => featureKeys.has(f.id)) : features;
+  const standardized = zscoreKeys ? selected.filter(f => zscoreKeys.has(f.id)) : selected;
   const assetMap = new Map(assets.map(a => [a.asset_id, a])), byDate = new Map(), histories = new Map(), featureHistories = new Map();
   for (const p of prices) {
     if (!byDate.has(p.trade_date)) byDate.set(p.trade_date, new Map());
@@ -81,15 +105,16 @@ function buildFrames({ prices, assets, benchmark }) {
       const a = histories.get(id) || []; a.push(bar); if (a.length > 261) a.shift(); histories.set(id, a);
       const asset = assetMap.get(id);
       if (!asset || asset.is_active === false || !(bar.open > 0) || (asset.listed_from && date < asset.listed_from) || (asset.listed_to && date > asset.listed_to)) continue;
-      const values = rawFeatures(a), state = featureHistories.get(id) || { history: [], moments: {} }, zscores = {};
+      const allValues = rawFeatures(a), values = featureKeys ? Object.fromEntries(selected.map(f => [f.id, allValues[f.id]])) : allValues;
+      const state = featureHistories.get(id) || { history: [], moments: {} }, zscores = {};
       // Welford add/remove updates retain the exact 60-observation definition without rescanning every window.
       // Calculate today's input before adding today's value to the historical moments.
-      for (const f of features) {
+      for (const f of standardized) {
         const m = state.moments[f.id], sd = m?.count === 60 ? Math.sqrt(Math.max(0, m.m2 / 59)) : NaN;
         zscores[f.id] = finite(sd) && finite(values[f.id]) ? (sd > 1e-12 ? (values[f.id] - m.mean) / sd : 0) : NaN;
       }
       const expired = state.history.length === 60 ? state.history.shift() : null;
-      for (const f of features) {
+      for (const f of standardized) {
         const m = state.moments[f.id] ||= { count: 0, mean: 0, m2: 0 }, old = expired?.[f.id], value = values[f.id];
         if (finite(old)) {
           if (m.count === 1) { m.count = 0; m.mean = 0; m.m2 = 0; }
@@ -97,10 +122,10 @@ function buildFrames({ prices, assets, benchmark }) {
         }
         if (finite(value)) { m.count++; const delta = value - m.mean; m.mean += delta / m.count; m.m2 += delta * (value - m.mean); }
       }
-      state.history.push(values); featureHistories.set(id, state);
-      rows.push({ id, name: asset.masked_name || '이름 미등록', values, zscores, ranks: {}, close: bar.close });
+      if (standardized.length) { state.history.push(values); featureHistories.set(id, state); }
+      if (!rowDates || rowDates.has(date)) rows.push({ id, name: asset.masked_name || '이름 미등록', values, zscores, ranks: {}, close: bar.close });
     }
-    for (const f of features) rankValues(rows, f.id);
+    for (const f of selected) rankValues(rows, f.id);
     const benchmarkValue = index.get(date);
     // Stale/holiday index observations are never inserted as artificial zero-return sessions.
     if (benchmarkValue > 0) indexHistory.push(benchmarkValue);
@@ -354,7 +379,24 @@ function monthly(history, initialCash, rivalHistory = []) {
   return out;
 }
 function sourceHash(input, until) {
-  const prices = input.prices.filter(p => p.trade_date <= until).map(p => { if (input.config?.researchVersion) return p; const { high_price, low_price, ...legacy } = p; return legacy; });
-  return hash({ assets: input.assets, prices, benchmark: input.benchmark.filter(p => p.trade_date <= until) });
+  // Stream the exact legacy JSON byte sequence, rather than allocating another
+  // full-history object/UTF-8 string while the original prices and features live.
+  const digest = crypto.createHash('sha256');
+  digest.update('{"assets":'); digest.update(JSON.stringify(input.assets));
+  digest.update(',"prices":['); let first = true;
+  for (const row of input.prices) {
+    if (row.trade_date > until) continue;
+    let value = row;
+    if (!input.config?.researchVersion) { const { high_price, low_price, ...legacy } = row; value = legacy; }
+    if (!first) digest.update(','); first = false;
+    digest.update(JSON.stringify(value));
+  }
+  digest.update('],"benchmark":['); first = true;
+  for (const row of input.benchmark) {
+    if (row.trade_date > until) continue;
+    if (!first) digest.update(','); first = false;
+    digest.update(JSON.stringify(row));
+  }
+  digest.update(']}'); return digest.digest('hex');
 }
-module.exports = { validateConfig, weekdays, rawFeatures, rankValues, buildFrames, trainingSet, train, predict, selection, targetOrders, replay, monthly, sourceHash, hash };
+module.exports = { validateConfig, weekdays, rawFeatures, rankValues, frameOptions, retainedRowDates, buildFrames, trainingSet, train, predict, selection, targetOrders, replay, monthly, sourceHash, hash };

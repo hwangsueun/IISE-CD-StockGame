@@ -151,11 +151,17 @@ async function advanceTurn(sessionId) {
     }
 
     const nextTurn = session.current_turn + 1;
+    const prevDate = await getTurnDate(sessionId, session.current_turn, client);
+    // Revalue the actual account after this turn's repayment, side jobs and choices.
+    // The saved daily snapshot predates those cash flows and is not investment capital.
+    const investmentCapital = await valuationService.computeTotalAsset(sessionId, client, {
+      tradeDate: prevDate,
+      cash: session.cash,
+    });
     await require('./challengeService').captureOpeningCapital(client, session);
     const modelAutomation = await require('./strategyAutomation').sync(client,session);
     // Persist the close-t quant decision before the next open is processed.
     await require('./quantService').syncQuantOrders(client,session);
-    const prevDate = await getTurnDate(sessionId, session.current_turn, client);
     const nextDate = await getTurnDate(sessionId, nextTurn, client);
     const marketOpen = await turnSelector.isMarketOpen(nextDate, client);
     session.current_turn = nextTurn;
@@ -203,14 +209,11 @@ async function advanceTurn(sessionId) {
       tradeDate: nextDate,
       cash: session.cash,
     });
-    const { rows: prevSnap } = await client.query(
-      `SELECT total_asset FROM session_snapshots
-       WHERE session_id = $1 AND snapshot_type = 'daily'
-       ORDER BY turn_number DESC LIMIT 1`,
-      [sessionId]
-    );
-    const prevAsset = prevSnap[0] ? Number(prevSnap[0].total_asset) : totalAssetBefore;
-    const dailyReturn = prevAsset > 0 ? (totalAssetBefore - prevAsset) / prevAsset : 0;
+    // Salary/living costs arrive during this transition, after order settlement.
+    // Exclude that external flow; price changes, execution costs and surge P&L remain.
+    const monthlyCashDelta = monthly ? monthly.salary - monthly.livingCost : 0;
+    const dailyReturn = investmentCapital > 0
+      ? (totalAssetBefore - monthlyCashDelta - investmentCapital) / investmentCapital : 0;
     session.stress = clamp100(session.stress + stressPolicy.dailyReturnStressDelta(dailyReturn));
 
     // --- 이벤트 발생 판단/적용 (기절/독촉전화/급등주/경조사/명절/스터디/여행) ---

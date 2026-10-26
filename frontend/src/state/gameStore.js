@@ -16,6 +16,16 @@ let turnRequestSequence = 0;
 const isCurrentSessionRequest = (get, sessionId, generation) =>
   sessionRequestGeneration === generation && get().sessionId === sessionId;
 
+const normalizePendingEvent = (event) => ({
+  ...event,
+  eventLogId: event.eventLogId ?? event.event_log_id,
+  eventType: event.eventType ?? event.event_type,
+  turnNumber: event.turnNumber ?? event.turn_number,
+  kind: 'choice',
+  prompt: event.prompt ?? event.detail?.prompt,
+  choices: event.choices ?? event.detail?.choices ?? [],
+});
+
 export const useGameStore = create((set, get) => ({
   // --- 회원 (게스트 허용) ---
   user: null,              // { id, username, nickname } | null
@@ -223,7 +233,11 @@ export const useGameStore = create((set, get) => ({
       if (!isCurrentResume()) return;
       stateLoaded = true;
       set({ status: s.status, state: s, turnLoadError: null });
-      if (s.status === 'active') await get().loadTurn(s.currentTurn, generation);
+      if (s.status === 'active') {
+        // 현재·이전 턴의 미해결 선택도 함께 복원할 때까지 다음 날 진행을 막는다.
+        set({ pendingTurnNumber: s.currentTurn });
+        await get().loadTurn(s.currentTurn, generation);
+      }
     } catch (resumeError) {
       if (!isCurrentResume()) return;
       if (stateLoaded && get().pendingTurnNumber) {
@@ -266,11 +280,16 @@ export const useGameStore = create((set, get) => ({
     if (isNewTurn) {
       set({ surgePromptPending: true, pendingTurnNumber: turnNumber, turnLoadError: null });
     }
-    const turn = await api.getTurn(sid, turnNumber);
+    const restoreEvents = isNewTurn || pendingTarget === turnNumber;
+    const [turn, pendingEvents] = await Promise.all([
+      api.getTurn(sid, turnNumber),
+      restoreEvents ? api.getPendingEvents(sid) : Promise.resolve(null),
+    ]);
     if (!isCurrentSessionRequest(get, sid, generation) || turnRequestId !== turnRequestSequence) return null;
     set({
       turn,
       state: { ...get().state, ...turn.state },
+      ...(pendingEvents === null ? {} : { pendingEvents: pendingEvents.map(normalizePendingEvent) }),
       pendingTurnNumber: get().pendingTurnNumber === turnNumber ? null : get().pendingTurnNumber,
       turnLoadError: null,
     });
@@ -280,7 +299,7 @@ export const useGameStore = create((set, get) => ({
   async advanceTurn() {
     const current = get();
     // 연속 클릭이나 턴 조회 재시도 중에는 이미 확정한 턴을 한 번 더 진행하지 않는다.
-    if (current.loading || current.pendingTurnNumber !== null) return;
+    if (current.loading || current.pendingTurnNumber !== null || current.pendingEvents.length > 0) return;
     if (!current.sessionId || !current.turn || current.status !== 'active') return;
     // 20턴을 마칠 때 방문 컷신을 먼저 진행한다. 입원 중에는 서버가 미납 처리한다.
     if (current.turn.isRepaymentTurn && !current.turn.repaymentCompleted && !current.turn.actionLocked) {
@@ -400,27 +419,46 @@ export const useGameStore = create((set, get) => ({
   async resolveEvent(eventLogId, choice, payload) {
     const sid = get().sessionId;
     const generation = sessionRequestGeneration;
+    const eventTurn = get().pendingTurnNumber ?? get().turn?.turnNumber;
     const r = await api.resolveEvent(sid, eventLogId, choice, payload);
     if (!isCurrentSessionRequest(get, sid, generation)) return r;
-    const currentState = get().state;
-    set({
-      status: r.status || get().status,
-      state: currentState ? {
-        ...currentState,
+    const current = get();
+    const targetTurn = current.pendingTurnNumber ?? current.turn?.turnNumber;
+    if (targetTurn === eventTurn) {
+      const applyResult = (previous) => previous ? {
+        ...previous,
         ...(r.cash === undefined ? {} : { cash: Number(r.cash) }),
         ...(r.debt === undefined ? {} : { debt: Number(r.debt) }),
         ...(r.stress === undefined ? {} : { stress: Number(r.stress) }),
         ...(r.trust === undefined ? {} : { trust: Number(r.trust) }),
-        ...(r.totalAsset === undefined ? {} : { totalAsset: Number(r.totalAsset) }),
-      } : currentState,
-    });
+        ...(r.totalAsset !== undefined ? { totalAsset: Number(r.totalAsset) }
+          : previous.totalAsset == null || r.cash === undefined ? {}
+          : { totalAsset: Number(previous.totalAsset) + Number(r.cash) - Number(previous.cash) }),
+      } : previous;
+      // 선택 전에 시작한 조회가 늦게 도착해 확정된 결과를 되돌리지 못하게 한다.
+      turnRequestSequence += 1;
+      set({
+        status: r.status || current.status,
+        state: applyResult(current.state),
+        turn: current.turn ? { ...current.turn, state: applyResult(current.turn.state) } : current.turn,
+      });
+    }
     // 선택 결과가 성공/실패를 확정하면 즉시 결과 화면으로 전환한다. 종료된 세션의
     // 턴 상세를 다시 요청하면 이벤트 팝업 아래에 종료 전 화면이 남게 된다.
     if (r.finished || (r.status && r.status !== 'active')) return r;
     // 새 턴 상세를 아직 읽는 중이라면 이벤트가 만들어진 새 턴을 갱신한다.
     // 화면에 잠시 남아 있는 구 턴 번호로 새 턴 요청을 덮지 않는다.
-    const targetTurn = get().pendingTurnNumber ?? get().turn?.turnNumber;
-    if (targetTurn) await get().loadTurn(targetTurn, generation);
+    if (targetTurn) {
+      try {
+        await get().loadTurn(targetTurn, generation);
+      } catch (refreshError) {
+        // 이미 처리한 선택은 결과 확인으로 이어간다. 다시 제출하게 만들지 않는다.
+        if (isCurrentSessionRequest(get, sid, generation) && get().pendingTurnNumber === targetTurn) {
+          set({ turnLoadError: refreshError.message || '현재 턴을 불러오지 못했습니다.' });
+        }
+        console.error('[resolveEvent] 선택 후 상태 새로고침 실패', refreshError);
+      }
+    }
     return r;
   },
 

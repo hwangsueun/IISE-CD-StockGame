@@ -6,6 +6,13 @@ const C = require('../config/constants');
 const riskEngine = require('./risk');
 const { replayQuant, validateArtifact } = require('../services/quantReplay');
 
+function artifactHash(file) {
+  const digest = crypto.createHash('sha256'), buffer = Buffer.allocUnsafe(64 * 1024), fd = fs.openSync(file, 'r');
+  try { let size; while ((size = fs.readSync(fd, buffer, 0, buffer.length, null)) > 0) digest.update(buffer.subarray(0, size)); }
+  finally { fs.closeSync(fd); }
+  return digest.digest('hex');
+}
+
 function compareSaved(input) {
   const observing = input.comparisonPeriod === 'observe';
   const versions = input.versions;
@@ -41,17 +48,21 @@ function compareSaved(input) {
     comparedModels: versions.map(v => ({ id: v.id, name: v.config.name, savedTurn: v.savedTurn })), reports };
 }
 
-function execute(input) {
+function execute(input, consumeInput = false) {
   if (input.mode === 'compareSaved') return compareSaved(input);
-  const config = engine.validateConfig(input.config), data = engine.buildFrames(input);
+  const config = engine.validateConfig(input.config), data = engine.buildFrames(input, { ...engine.frameOptions(config), rowDates: engine.retainedRowDates(input, config) });
   // Each worker has its own module state. Cost stress cannot change the running game's fee rate.
   C.TRADE_FEE_RATE = input.feeBps / 10000;
   const availableDates = [...data.frames.keys()].filter(d => d <= input.asOf);
   if (!availableDates.length) throw Error('이 시점의 주가 데이터가 없습니다.');
   const sourceHash = engine.sourceHash(input, input.mode === 'observe' ? input.savedDate : input.asOf);
   if (input.mode === 'observe' && sourceHash !== input.expectedSourceHash) throw Error('저장 당시의 가격 데이터와 달라 관찰 결과를 재계산할 수 없습니다.');
+  const savedSourceHash = input.mode === 'automate' ? engine.sourceHash(input, input.savedDate) : null;
+  // In a worker the source belongs to this one calculation. Frames retain every
+  // price needed for trading/risk; release the duplicated database row objects.
+  if (consumeInput) input.prices = null;
   if(input.mode==='automate') {
-    if(engine.sourceHash(input,input.savedDate)!==input.expectedSourceHash)throw Error('저장 당시의 가격 자료가 변경되어 자동 투자를 보류했습니다.');
+    if(savedSourceHash!==input.expectedSourceHash)throw Error('저장 당시의 가격 자료가 변경되어 자동 투자를 보류했습니다.');
     const frame=data.frames.get(input.asOf);
     if(!frame)return {orders:[],reason:'휴장일이라 자동 주문을 기다립니다.'};
     const signal=input.model?.artifactVersion===2?input.model.signal:input.model;
@@ -76,25 +87,33 @@ function execute(input) {
   else dates = engine.weekdays(availableDates[Math.min(60, availableDates.length - 1)], input.asOf).slice(-240);
   if (input.mode !== 'observe' && dates.length < 20) throw Error('과거 연습에 필요한 가격 이력이 부족합니다. 게임을 조금 더 진행해 주세요.');
   const equal = engine.replay(config, data, dates, input.initialCash, null, { equalHold: true });
-  let rival = null, rivalNote = '이 기간의 alpha158 데이터가 없습니다.';
+  let rival = null, rivalNote = '이 기간의 alpha158 데이터가 없습니다.', rivalReady = false;
+  function* framePrices() {
+    for (const [date, frame] of data.frames) for (const [id, bar] of frame.bars)
+      yield { asset_id: id, trade_date: date, open_price: bar.open, close_price: bar.close };
+  }
+  function prepareRival() {
+  if (rivalReady) return;
+  rivalReady = true;
   if (input.quantFile) {
-    const raw = fs.readFileSync(input.quantFile);
-    const sha = crypto.createHash('sha256').update(raw).digest('hex');
-    if (input.quantSha !== sha) throw Error('기존 alpha158 파일이 변경되었습니다. 다시 시도해 주세요.');
-    const artifact = JSON.parse(raw); validateArtifact(artifact);
+    if (input.quantSha !== artifactHash(input.quantFile)) throw Error('기존 alpha158 파일이 변경되었습니다. 다시 시도해 주세요.');
+    const artifact = input.quantArtifact || JSON.parse(fs.readFileSync(input.quantFile)); validateArtifact(artifact);
     if (artifact.schema_version === 3 && dates.filter(d => data.frames.has(d)).every(d => artifact.sessions[d])) {
-      const replay = replayQuant({ turns: dates.map((d, i) => ({ turn_number: i + 1, trade_date: d })), prices: input.prices,
+      const replay = replayQuant({ turns: dates.map((d, i) => ({ turn_number: i + 1, trade_date: d })), prices: framePrices(),
         assets: input.assets, artifact, initialCash: input.initialCash, totalTurns: dates.length });
       let peak = input.initialCash, mdd = 0;
       for (const row of replay.history) { peak = Math.max(peak, row.totalAsset); mdd = Math.min(mdd, row.totalAsset / peak - 1); }
       rival = { returnRate: replay.returnRate, maxDrawdown: mdd, tradeCount: replay.trades.length, history: replay.history }; rivalNote = '';
     }
   }
+  }
   const indexStart = [...data.frames.values()].filter(f => f.date <= dates[0] && f.market.value > 0).at(-1)?.market.value;
   const indexHistory = []; let lastIndex = indexStart;
   for (const date of dates) { const value = data.frames.get(date)?.market.value; if (value > 0) lastIndex = value; indexHistory.push(indexStart > 0 && lastIndex > 0 ? lastIndex / indexStart - 1 : null); }
   const summary = result => ({ returnRate: result.returnRate, maxDrawdown: result.maxDrawdown, tradeCount: result.tradeCount });
   function reportFor(config, bundle) {
+  // Native learners finish before loading/replaying the Alpha158 artifact.
+  prepareRival();
   const model = bundle?.artifactVersion === 2 ? bundle.signal : bundle;
   const riskModel = bundle?.artifactVersion === 2 ? bundle.risk : null, risk = riskEngine.runtime(riskModel, data);
   const own = engine.replay(config, data, dates, input.initialCash, model, { endGame: input.mode === 'observe' && input.ended, risk });
@@ -116,43 +135,48 @@ function execute(input) {
   };
   }
   if (input.mode === 'compare') {
-    let reports, training = null;
+    let plans, training = null;
     if(config.comparison==='reduction') {
       if(!['ridge','tree','randomForest','lightgbm','xgboost'].includes(config.method) || config.terms.length<=config.components)
         throw Error('차원 축소 비교에는 학습 모델과 축 개수보다 많은 지표가 필요합니다.');
       const prepared=engine.trainingSet(config,data,dates[0],input.feeBps), risk=riskEngine.fit(config,data,dates[0]);
-      reports=['none','pca','anchoredPca'].map(reduction=>{
-        const c={...config,reduction}, report=reportFor(c,{artifactVersion:2,signal:engine.train(c,data,dates[0],prepared),risk});
-        report.variantLabel={none:'원래 지표',pca:'PCA',anchoredPca:'내 가설을 유지한 PCA'}[reduction];return report;
+      plans=['none','pca','anchoredPca'].map(reduction=>{
+        const c={...config,reduction};
+        return {config:c,bundle:{artifactVersion:2,signal:engine.train(c,data,dates[0],prepared),risk},
+          label:{none:'원래 지표',pca:'PCA',anchoredPca:'내 가설을 유지한 PCA'}[reduction]};
       });
     } else if (config.comparison === 'risk') {
       if (config.riskModel === 'none') throw Error('비교할 위험 모델을 먼저 선택해 주세요.');
       const bundle = fitBundle(config, dates[0]);
       const off = { ...config, riskModel: 'none', stressTest: false };
-      reports = [reportFor(off, { ...bundle, risk: null }), reportFor(config, bundle)];
-      reports[0].variantLabel = '위험 조절 없음'; reports[1].variantLabel = '위험 조절 적용';
+      plans = [{config:off,bundle:{...bundle,risk:null},label:'위험 조절 없음'}, {config,bundle,label:'위험 조절 적용'}];
     } else if (config.comparison === 'labels') {
       if (!['randomForest','lightgbm','xgboost'].includes(config.method)) throw Error('라벨 비교는 분류 가능한 학습 모델에서 실행해 주세요.');
       const risk = riskEngine.fit(config, data, dates[0]);
-      reports = ['binary','threeClass','tails'].map(target => {
+      plans = ['binary','threeClass','tails'].map(target => {
         const c = { ...config, target };
-        const report = reportFor(c, { artifactVersion: 2, signal: engine.train(c, data, dates[0], null, input.feeBps), risk });
-        report.variantLabel = { binary: '상승 / 비상승', threeClass: '하락 / 중립 / 상승', tails: '중립 제외' }[target]; return report;
+        return {config:c,bundle:{artifactVersion:2,signal:engine.train(c,data,dates[0],null,input.feeBps),risk},
+          label:{binary:'상승 / 비상승',threeClass:'하락 / 중립 / 상승',tails:'중립 제외'}[target]};
       });
     } else {
       if (!config.terms.length) throw Error('학습 모델에 공통으로 넣을 지표를 하나 이상 선택해 주세요.');
       const prepared = engine.trainingSet(config, data, dates[0], input.feeBps), risk = riskEngine.fit(config, data, dates[0]);
       training = prepared.metadata;
       const methods = config.target !== 'return' ? ['randomForest','lightgbm','xgboost'] : config.researchVersion ? ['ridge','randomForest','lightgbm','xgboost'] : ['ridge','randomForest','lightgbm'];
-      reports = methods.map(method => {
+      plans = methods.map(method => {
         const c = { ...config, method };
-        return reportFor(c, { artifactVersion: 2, signal: engine.train(c, data, dates[0], prepared), risk });
+        return {config:c,bundle:{artifactVersion:2,signal:engine.train(c,data,dates[0],prepared),risk}};
       });
     }
+    const reports = plans.map(plan => {
+      const report = reportFor(plan.config, plan.bundle);
+      if (plan.label) report.variantLabel = plan.label;
+      return report;
+    });
     return { kind: 'compare', comparison: config.comparison, config, from: dates[0], to: dates.at(-1), turnCount: dates.length,
       initialCash: input.initialCash, feeBps: input.feeBps, sourceHash, training, reports };
   }
   return reportFor(config, input.mode === 'observe' ? input.model : fitBundle(config, dates[0]));
 }
-if (parentPort) { try { parentPort.postMessage({ result: execute(workerData) }); } catch (error) { parentPort.postMessage({ error: error.message }); } }
+if (parentPort) { try { parentPort.postMessage({ result: execute(workerData, true) }); } catch (error) { parentPort.postMessage({ error: error.message }); } }
 module.exports = { execute };

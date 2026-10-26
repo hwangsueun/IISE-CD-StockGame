@@ -8,7 +8,7 @@ const { features, references, template } = require('../strategy/catalog');
 const { loadArtifact } = require('./quantService');
 const { capabilities } = require('../strategy/nativeModels');
 const C = require('../config/constants');
-let workers = 0;
+const { withModelWork } = require('./modelWorkGate');
 const activeSessions = new Set();
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 function configOf(input) { try { return validateConfig(input); } catch (e) { throw badRequest(e.message); } }
@@ -30,24 +30,42 @@ async function inputs(s, from = minusYears(s.trade_date, 4), client = { query })
     await q(`SELECT trade_date,value FROM macro_daily WHERE indicator_code='kospi' AND trade_date >= $1 AND trade_date <= $2 ORDER BY trade_date`, [from, s.trade_date]),
   ];
   const quant = loadArtifact();
+  // Every game/observation and practice has at most 240 weekdays. Share the
+  // corresponding pinned signals, not a second parsed copy of ten years.
+  const comparisonFrom = require('../strategy/engine').weekdays(minusYears(s.trade_date, 1), s.trade_date).slice(-C.TOTAL_TURNS)[0];
+  const quantArtifact = quant ? { ...quant.artifact, sessions: Object.fromEntries(Object.entries(quant.artifact.sessions)
+    .filter(([date]) => date >= comparisonFrom && date <= s.trade_date)) } : null;
   return { assets: results[0].rows, prices: results[1].rows, benchmark: results[2].rows, asOf: s.trade_date,
-    initialCash: Number(s.initial_cash), quantFile: quant?.file, quantSha: quant?.sha || null, sourceFrom: from };
+    initialCash: Number(s.initial_cash), quantFile: quant?.file, quantSha: quant?.sha || null, quantArtifact, sourceFrom: from };
 }
 function run(input) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.resolve(__dirname, '../strategy/worker.js'), { workerData: input });
     let settled = false;
-    const finish = (error, result) => { if (settled) return; settled = true; clearTimeout(timer); worker.terminate(); error ? reject(error) : resolve(result); };
+    const finish = async (error, result) => {
+      if (settled) return; settled = true; clearTimeout(timer);
+      // A timed-out worker can still own its native child. Keep the shared slot
+      // until the worker has exited so the next model cannot overlap its memory.
+      try { await worker.terminate(); } catch (terminationError) { error ||= terminationError; }
+      error ? reject(error) : resolve(result);
+    };
     const timer = setTimeout(() => finish(new ApiError(503, '계산 시간이 길어졌습니다. 지표 수를 줄이고 다시 시도해 주세요.')), 120000);
     worker.once('message', m => finish(m.error ? badRequest(m.error) : null, m.result ? JSON.parse(JSON.stringify(m.result)) : m.result));
     worker.once('error', e => finish(e));
     worker.once('exit', code => { if (!settled) finish(new Error(`전략 계산이 종료되었습니다 (${code}).`)); });
   });
 }
+function runFromSource(source, options) {
+  // Worker construction clones its input synchronously. Do not retain a second
+  // four-year price history on the API's suspended async stack during training.
+  const pending = run({ ...source, ...options });
+  source.prices = null; source.assets = null; source.benchmark = null; source.quantArtifact = null;
+  return pending;
+}
 async function exclusive(sid, fn) {
-  if (activeSessions.has(sid) || workers >= 2) throw new ApiError(429, '다른 전략을 계산하고 있습니다. 완료 후 다시 시도해 주세요.');
-  workers++; activeSessions.add(sid);
-  try { return await fn(); } finally { workers--; activeSessions.delete(sid); }
+  if (activeSessions.has(sid)) throw new ApiError(429, '다른 전략을 계산하고 있습니다. 완료 후 다시 시도해 주세요.');
+  activeSessions.add(sid);
+  try { return await fn(); } finally { activeSessions.delete(sid); }
 }
 async function workspace(sid) {
   const s = await snapshot(sid);
@@ -68,8 +86,11 @@ async function practice(sid, body, mode = 'practice') {
   const config = configOf(body.config);
   if (![0, 10, 20].includes(body.feeBps)) throw badRequest('편도 비용은 0·10·20bp 중 선택해 주세요.');
   return exclusive(sid, async () => {
-    const s = await snapshot(sid), input = await inputs(s);
-    const report = await run({ ...input, mode, config, feeBps: body.feeBps });
+    const s = await snapshot(sid);
+    const report = await withModelWork(async () => {
+      const input = await inputs(s);
+      return runFromSource(input, { mode, config, feeBps: body.feeBps });
+    });
     const { rows: [row] } = await query(`INSERT INTO user_strategy_runs(session_id,config,report) VALUES($1,$2,$3) RETURNING id`, [sid, config, report]);
     return { ...report, id: row.id };
   });
@@ -89,13 +110,15 @@ async function compareSaved(sid, body = {}) {
     const versions = versionIds.map(id => rows.find(v => v.id === id));
     if (versions.some(v => v.saved_date > s.trade_date || v.saved_turn > s.current_turn)) throw conflict('현재 턴 이후에 저장한 모델은 비교할 수 없습니다.');
     const observing = period === 'observe';
-    const input = observing ? await inputs(s, versions.map(v => v.source_from).sort()[0]) : await inputs(s);
-    if (observing && versions.some(v => v.quant_sha !== input.quantSha)) throw conflict('저장 당시의 alpha158 비교 모델이 필요합니다.');
-    if (observing && versions.some(v => Number(v.fee_bps) !== Number(versions[0].fee_bps))) throw conflict('관찰 비교에는 같은 거래비용으로 저장한 모델이 필요합니다.');
-    const report = await run({ ...input, mode: 'compareSaved', comparisonPeriod: period,
-      feeBps: observing ? Number(versions[0].fee_bps) : feeBps, ended: s.status !== 'active',
-      versions: versions.map(v => ({ id: v.id, config: configOf(v.config), model: v.model,
-        savedDate: v.saved_date, savedTurn: v.saved_turn, sourceFrom: v.source_from, sourceHash: v.source_hash })) });
+    const report = await withModelWork(async () => {
+      const input = observing ? await inputs(s, versions.map(v => v.source_from).sort()[0]) : await inputs(s);
+      if (observing && versions.some(v => v.quant_sha !== input.quantSha)) throw conflict('저장 당시의 alpha158 비교 모델이 필요합니다.');
+      if (observing && versions.some(v => Number(v.fee_bps) !== Number(versions[0].fee_bps))) throw conflict('관찰 비교에는 같은 거래비용으로 저장한 모델이 필요합니다.');
+      return runFromSource(input, { mode: 'compareSaved', comparisonPeriod: period,
+        feeBps: observing ? Number(versions[0].fee_bps) : feeBps, ended: s.status !== 'active',
+        versions: versions.map(v => ({ id: v.id, config: configOf(v.config), model: v.model,
+          savedDate: v.saved_date, savedTurn: v.saved_turn, sourceFrom: v.source_from, sourceHash: v.source_hash })) });
+    });
     const { rows: [row] } = await query('INSERT INTO user_strategy_runs(session_id,config,report) VALUES($1,$2,$3) RETURNING id',
       [sid, report.config, report]);
     return { ...report, id: row.id };
@@ -114,7 +137,10 @@ async function save(sid, body) {
     if (s.status !== 'active' || s.current_turn >= C.TOTAL_TURNS) throw conflict('게임 종료 전까지만 새 전략 관찰을 시작할 수 있습니다.');
     const { rows: [{ count }] } = await query('SELECT COUNT(*) FROM user_strategy_versions WHERE session_id=$1', [sid]);
     if (Number(count) >= 20) throw conflict('이번 게임에는 최대 20개 버전을 저장할 수 있습니다.');
-    const input = await inputs(s), result = await run({ ...input, mode: 'save', config, feeBps: C.TRADE_FEE_RATE * 10000 });
+    const { input, result } = await withModelWork(async () => {
+      const input = await inputs(s), result = await runFromSource(input, { mode: 'save', config, feeBps: C.TRADE_FEE_RATE * 10000 });
+      return { input, result };
+    });
     return withTransaction(async client => {
       const { rows: [now] } = await client.query('SELECT current_turn,status FROM game_sessions WHERE id=$1 FOR UPDATE', [sid]);
       const { rows: [existing] } = await client.query('SELECT id,config FROM user_strategy_versions WHERE session_id=$1 AND request_key=$2', [sid, body.requestKey]);
@@ -138,10 +164,12 @@ async function observe(sid, id) {
     const s = await snapshot(sid);
     const { rows: [version] } = await query('SELECT * FROM user_strategy_versions WHERE session_id=$1 AND id=$2', [sid, id]);
     if (!version) throw notFound('저장한 전략을 찾을 수 없습니다.');
-    const input = await inputs(s, version.source_from);
-    if (version.quant_sha !== input.quantSha) throw conflict('저장 당시의 alpha158 비교 모델이 필요합니다.');
-    return { ...await run({ ...input, mode: 'observe', config: version.config, model: version.model, feeBps: Number(version.fee_bps),
-      initialCash: Number(version.initial_cash), savedDate: version.saved_date, expectedSourceHash: version.source_hash, ended: s.status !== 'active' }), id, savedTurn: version.saved_turn };
+    return withModelWork(async () => {
+      const input = await inputs(s, version.source_from);
+      if (version.quant_sha !== input.quantSha) throw conflict('저장 당시의 alpha158 비교 모델이 필요합니다.');
+      return { ...await runFromSource(input, { mode: 'observe', config: version.config, model: version.model, feeBps: Number(version.fee_bps),
+        initialCash: Number(version.initial_cash), savedDate: version.saved_date, expectedSourceHash: version.source_hash, ended: s.status !== 'active' }), id, savedTurn: version.saved_turn };
+    });
   });
 }
 async function report(sid, id) {
@@ -150,4 +178,4 @@ async function report(sid, id) {
   if (!row) throw notFound('연습 기록을 찾을 수 없습니다.');
   return { ...row.report, id };
 }
-module.exports = { workspace, practice, compare: (sid, body) => practice(sid, body, 'compare'), compareSaved, save, observe, report, inputs, run };
+module.exports = { workspace, practice, compare: (sid, body) => practice(sid, body, 'compare'), compareSaved, save, observe, report, inputs, run, runFromSource };

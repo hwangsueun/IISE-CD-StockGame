@@ -1,0 +1,48 @@
+.quant-attribution-selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.quant-attribution-selectors .workshop-field { max-width: none; min-width: 0; }
+.quant-attribution-selectors select { max-width: 100%; }
+.quant-important-features { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 16px; }
+.quant-important-feature { min-width: 0; padding: 16px; background: #182018; border: 1px solid #546348; }
+.quant-important-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px; }
+.quant-important-heading h6 { font: inherit; font-size: 14px; font-weight: bold; margin: 0; }
+.quant-important-heading > strong { font-size: 11px; white-space: nowrap; }
+.quant-feature-position { display: grid; place-items: center; width: 25px; height: 25px; background: #35452c; color: #dae6c7; font-weight: bold; }
+.quant-feature-values { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 12px 0; }
+.quant-stock-contribution { min-width: 0; padding: 12px; background: #242d20; }
+.quant-stock-contribution > strong { font-size: 12px; overflow-wrap: anywhere; }
+.quant-stock-contribution dl, .quant-branch-values dl { margin: 8px 0 0; }
+.quant-stock-contribution dl > div, .quant-branch-values dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; }
+.quant-stock-contribution dt, .quant-branch-values dt { color: #b9c4ab; font-size: 11px; }
+.quant-stock-contribution dd, .quant-branch-values dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.quant-feature-formula { margin-top: 10px; font-size: 11px; }
+.quant-feature-formula > summary { color: #c0c9ad; }
+.quant-decision-evidence { margin: 16px 0 0; border-top: 1px solid #43543a; padding-top: 12px; }
+.quant-decision-evidence > h6 { font: inherit; font-weight: bold; margin: 0; color: #e5e9db; }
+.quant-decision-evidence p { font-size: 12px; }
+.quant-branch-example { margin-top: 12px; padding: 12px; border-left: 3px solid #8b9d6d; background: #252e20; }
+.quant-evidence-tag { display: block; color: #bacd9f; font-size: 11px; margin-bottom: 8px; }
+.quant-observed-condition { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.quant-observed-condition > span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.quant-branch-context { font-size: 11px; margin: 6px 0 12px; }
+.quant-branch-context ol { padding-left: 18px; }
+.quant-branch-context li + li { margin-top: 10px; }
+.quant-branch-result b { color: #f2e5c8; white-space: nowrap; }
+.quant-branch-values { font-size: 11px; }
+.quant-attribution .quant-evidence-note { margin-top: 12px; font-size: 11px; color: #b2bda5; }
+@media(max-width:650px) {
+  .quant-attribution-selectors { grid-template-columns: 1fr; }
+  .quant-important-feature { padding: 12px; }
+  .quant-important-heading { grid-template-columns: auto minmax(0, 1fr); }
+  .quant-important-heading > strong { grid-column: 2; }
+  .quant-feature-values { grid-template-columns: 1fr; }
+  .quant-branch-example { padding: 10px; }
+}
+.quant-reference-comparison { margin-top: 12px; padding: 14px; background: #303b25; border: 1px solid #78905e; }
+.quant-reference-comparison > strong { color: #e2edca; font-size: 13px; }
+.quant-reference-scores { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 14px 0; }
+.quant-reference-scores > div { min-width: 0; }
+.quant-reference-scores div span { display: block; font-size: 11px; color: #bdcbae; }
+.quant-reference-scores div strong { display: block; color: #f0e6bf; font-size: 17px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.quant-reference-comparison > details, .quant-evidence-method, .quant-other-branches { margin-top: 12px; font-size: 11px; }
+@media(max-width:420px) { .quant-reference-scores { gap: 8px; } .quant-reference-scores div strong { font-size: 14px; } }
+.quant-attribution .quant-direction-note { padding: 9px 11px; border-left: 2px solid #b8a36a; background: #353226; color: #e6d6b1; font-size: 11px; }

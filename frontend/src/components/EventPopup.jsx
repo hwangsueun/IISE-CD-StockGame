@@ -31,6 +31,7 @@ function GenericEventPopup({ event }) {
   const [submitting, setSubmitting] = useState(false);
   const [amount, setAmount] = useState('');
   const [result, setResult] = useState(null);
+  const [submitError, setSubmitError] = useState('');
 
   const detail = event.detail || {};
   const prompt = event.prompt || detail.prompt;
@@ -38,10 +39,14 @@ function GenericEventPopup({ event }) {
   const needsAmount = (key) => AMOUNT_CHOICES.has(`${event.eventType || event.event_type}:${key}`);
 
   const choose = async (key) => {
+    if (submitting) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       const payload = needsAmount(key) ? { amount: Number(amount) || 0 } : undefined;
       setResult(await resolveEvent(event.eventLogId || event.event_log_id, key, payload));
+    } catch (error) {
+      setSubmitError(error.message || '선택을 처리하지 못했습니다. 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -65,6 +70,7 @@ function GenericEventPopup({ event }) {
         ) : (
           <>
             <p className="event-prompt">{prompt}</p>
+            {submitError && <p className="error-text" role="alert">{submitError}</p>}
             {detail.label && <p className="minigame-help">{detail.label} (스트레스 반영됨)</p>}
             {choices.some((c) => needsAmount(c.key)) && (
               <label className="field">
@@ -118,6 +124,7 @@ function LoanSharkCallEvent({ event }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [elapsed, setElapsed] = useState(0);
+  const [submitError, setSubmitError] = useState('');
 
   const { html: typedHtml, done: typedDone, skip } = useTypewriter(prompt, true);
 
@@ -129,10 +136,14 @@ function LoanSharkCallEvent({ event }) {
   const ss = String(elapsed % 60).padStart(2, '0');
 
   const choose = async (key) => {
+    if (submitting) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       const payload = needsAmount(key) ? { amount: Number(amount) || 0 } : undefined;
       setResult(await resolveEvent(event.eventLogId || event.event_log_id, key, payload));
+    } catch (error) {
+      setSubmitError(error.message || '선택을 처리하지 못했습니다. 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -197,6 +208,7 @@ function LoanSharkCallEvent({ event }) {
           <div className="nar-body">
             <span dangerouslySetInnerHTML={{ __html: result ? resultText(result) : typedHtml }} />
             {!result && !typedDone && <span className="cursor" />}
+            {submitError && <p className="error-text" role="alert">{submitError}</p>}
           </div>
 
           {!result && typedDone && (
@@ -289,6 +301,7 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
   const [showQuiz] = useState(() => Math.random() < 0.5);
   const [quiz] = useState(() => pickOne(CONCEPT_QUIZ));
   const [quizPicked, setQuizPicked] = useState(null);
+  const [submitError, setSubmitError] = useState('');
 
   const atLastLine = lineIdx === STUDY_OFFER_LINES.length - 1;
   const { html, done, skip } = useTypewriter(STUDY_OFFER_LINES[lineIdx], phase === 'offer');
@@ -300,10 +313,17 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
   };
 
   const choose = async (key) => {
+    if (phase === 'submitting') return;
     setPhase('submitting');
-    const r = await resolveEvent(eventLogId, key);
-    setResult(r);
-    setPhase(key === 'decline' ? 'declined' : 'study');
+    setSubmitError('');
+    try {
+      const r = await resolveEvent(eventLogId, key);
+      setResult(r);
+      setPhase(key === 'decline' ? 'declined' : 'study');
+    } catch (error) {
+      setSubmitError(error.message || '선택을 처리하지 못했습니다. 다시 시도해 주세요.');
+      setPhase('offer');
+    }
   };
 
   const stressDelta = result?.stressDelta;
@@ -327,6 +347,7 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
             <div className="nar-body">
               <span dangerouslySetInnerHTML={{ __html: html }} />
               {!done && <span className="cursor" />}
+              {submitError && <p className="error-text" role="alert">{submitError}</p>}
             </div>
 
             {done && atLastLine && (
@@ -471,14 +492,22 @@ export function TravelEvent({ event, onResolve, onDismiss }) {
 
   const [phase, setPhase] = useState('offer'); // 'offer' | 'submitting' | 'result'
   const [result, setResult] = useState(null);
+  const [submitError, setSubmitError] = useState('');
 
   const { html, done, skip } = useTypewriter(prompt, phase === 'offer' || phase === 'submitting');
 
   const choose = async (key) => {
+    if (phase === 'submitting') return;
     setPhase('submitting');
-    const r = await resolveEvent(eventLogId, key);
-    setResult({ ...r, chosen: key });
-    setPhase('result');
+    setSubmitError('');
+    try {
+      const r = await resolveEvent(eventLogId, key);
+      setResult({ ...r, chosen: key });
+      setPhase('result');
+    } catch (error) {
+      setSubmitError(error.message || '선택을 처리하지 못했습니다. 다시 시도해 주세요.');
+      setPhase('offer');
+    }
   };
 
   // 'go'인데 cashDelta가 없다 == 서버가 "여행 갈 돈이 없다" 분기를 탔다는 뜻
@@ -540,6 +569,7 @@ export function TravelEvent({ event, onResolve, onDismiss }) {
               <div className="nar-body">
                 <span dangerouslySetInnerHTML={{ __html: html }} />
                 {!done && <span className="cursor" />}
+                {submitError && <p className="error-text" role="alert">{submitError}</p>}
               </div>
             </div>
           </>
