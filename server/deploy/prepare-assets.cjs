@@ -2,6 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
+const { promisify } = require('node:util');
+const execFile = promisify(require('node:child_process').execFile);
 
 async function hashFile(file) {
   const hash = crypto.createHash('sha256');
@@ -37,10 +39,15 @@ async function prepareSectors(pool, runtimeDir, manifest) {
     }
     const csv = path.join(runtimeDir, 'sectors.csv');
     fs.writeFileSync(csv, zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'sectors.csv.gz'))), { mode: 0o600 });
-    const result = await require('../seeds/import_sectors').importSectors(csv);
+    // Release the import's temporary maps with the child process before serving
+    // games on the small production instance.
+    const imported = await execFile(process.execPath, [path.join(__dirname, '../seeds/import_sectors.js')], {
+      env: { ...process.env, SECTOR_CSV: csv }, timeout: 120000, maxBuffer: 1024 * 1024,
+    });
+    if (imported.stdout.trim()) console.log(imported.stdout.trim());
     await client.query("INSERT INTO deployment_data(name,sha256) VALUES('sector-indices-v1',$1)", [sha]);
     fs.unlinkSync(csv);
-    return result;
+    return { installed: true };
   } finally {
     try { await client.query('SELECT pg_advisory_unlock(12026026, 2)'); } finally { client.release(); }
   }
