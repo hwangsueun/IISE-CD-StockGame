@@ -79,7 +79,9 @@ test('deployment migrations preserve old games, serialize starts, verify hashes 
   const changedDir = await fs.mkdtemp(path.join(os.tmpdir(), 'antsurvival-migration-checksum-'));
   directories.push(changedDir);
   for (const filename of MIGRATIONS) await fs.copyFile(path.join(migrationsDir, filename), path.join(changedDir, filename));
-  await fs.appendFile(path.join(changedDir, MIGRATIONS.at(-1)), '\n-- changed after installation\n');
+  const changedFile = path.join(changedDir, MIGRATIONS.at(-1));
+  const changedSql = await fs.readFile(changedFile, 'utf8');
+  await fs.writeFile(changedFile, changedSql.replace(/COMMIT;\s*$/i, '-- changed after installation\nCOMMIT;\n'));
   await assert.rejects(runDeploymentMigrations(fresh.pool, { migrationsDir: changedDir }), /checksum mismatch/);
   assert.equal((await fresh.pool.query('SELECT COUNT(*)::int AS n FROM app_schema_migrations')).rows[0].n, MIGRATIONS.length);
 
@@ -102,7 +104,9 @@ test('deployment migrations preserve old games, serialize starts, verify hashes 
   const badDir = await fs.mkdtemp(path.join(os.tmpdir(), 'antsurvival-migration-rollback-'));
   directories.push(badDir);
   for (const filename of MIGRATIONS) await fs.copyFile(path.join(migrationsDir, filename), path.join(badDir, filename));
-  await fs.appendFile(path.join(badDir, MIGRATIONS.at(-1)), '\nSELECT missing_migration_test_function();\n');
+  const brokenFile = path.join(badDir, MIGRATIONS.at(-1));
+  const brokenSql = await fs.readFile(brokenFile, 'utf8');
+  await fs.writeFile(brokenFile, brokenSql.replace(/COMMIT;\s*$/i, 'SELECT missing_migration_test_function();\nCOMMIT;\n'));
   await assert.rejects(runDeploymentMigrations(broken.pool, { migrationsDir: badDir }), /does not exist/);
   const { rows: [rolledBack] } = await broken.pool.query(`SELECT
     to_regclass($1) AS ledger, to_regclass($2) AS challenge`,
