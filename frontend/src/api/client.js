@@ -94,8 +94,8 @@ const httpApi = {
 
   // 부업 미니게임 (기능명세서 §부업)
   getSideJobStatus: (sid) => get(`/api/game/${sid}/side-job/status`),
-  playSideJob: (sid, gameKey, rawScore) =>
-    post(`/api/game/${sid}/side-job/play`, { gameKey, rawScore }),
+  playSideJob: (sid, gameKey, rawScore, mode = 'manual') =>
+    post(`/api/game/${sid}/side-job/play`, { gameKey, rawScore, mode }),
   getSideJobHistory: (sid) => get(`/api/game/${sid}/side-job/history`),
 
   // 급등주 (미팅5 §4)

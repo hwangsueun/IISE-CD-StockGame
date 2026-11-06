@@ -21,6 +21,7 @@ import TutorialOverlay from '../components/TutorialOverlay';
 import FirstDayTutorial, { NEXT_DAY_STEP } from '../components/FirstDayTutorial';
 import QuantTutorial from '../components/QuantTutorial';
 import { shouldStartQuantTour } from '../utils/quantTutorial';
+import { shouldAdvanceHospitalDay } from '../utils/hospitalRecovery';
 
 const MODALS = {
   market: MarketModal,
@@ -46,12 +47,23 @@ function dateParts(dateStr) {
 }
 
 export default function MainPage() {
-  const { sessionId, turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
+  const { sessionId, status, turn, loading, error, advanceTurn, openModal, activeModal, modalProps, pendingEvents,
     lastTurnResult, surgeResults, surgePromptPending, pendingTurnNumber, turnLoadError,
     retryPendingTurn, resumeGame, dismissFaint, tutorialStep, tutorialProgress, startTutorial,
     firstDayStep, startFirstDay, quantTourStep, startQuantTour } = useGameStore();
 
   const faintEvent = lastTurnResult?.events?.find((e) => e.eventType === 'faint');
+
+  // Each hospital day still uses the normal saved turn transition, including market and repayment effects.
+  // Cleanup plus the store's loading guard prevents duplicate requests in StrictMode and on rerenders.
+  useEffect(() => {
+    if (!shouldAdvanceHospitalDay({ turn, status, loading, error, turnLoadError, pendingTurnNumber,
+      pendingEvents, surgeResults, surgePromptPending, faintEvent, activeModal,
+      tutorialStep, firstDayStep, quantTourStep })) return undefined;
+    const timer = setTimeout(() => advanceTurn(), 350);
+    return () => clearTimeout(timer);
+  }, [sessionId, status, turn, loading, error, turnLoadError, pendingTurnNumber, pendingEvents,
+    surgeResults, surgePromptPending, faintEvent, activeModal, tutorialStep, firstDayStep, quantTourStep, advanceTurn]);
 
   // 개발용: ?tutorial=market 등으로 카테고리 안내를, ?tutorial(=7)로 첫날 체험형 튜토리얼(7단계부터)을 다시 확인한다.
   useEffect(() => {
@@ -64,7 +76,7 @@ export default function MainPage() {
 
   // 처음 하는 게임이면 첫날 체험형 튜토리얼을 띄운다. 새로고침·첫 턴 로드 재시도에도 동일하게 적용된다.
   useEffect(() => {
-    if (turn && !activeModal && tutorialStep === null && firstDayStep === null && !tutorialProgress.welcome) startFirstDay();
+    if (turn && !turn.actionLocked && !activeModal && tutorialStep === null && firstDayStep === null && !tutorialProgress.welcome) startFirstDay();
   }, [turn, activeModal, tutorialStep, firstDayStep, tutorialProgress.welcome, startFirstDay]);
 
   // 11일차부터 한 번 안내한다. 이벤트·상환·이미 열린 화면을 마친 다음 시작한다.
@@ -83,7 +95,7 @@ export default function MainPage() {
     if (tutorialStep !== null || firstDayStep !== null || quantTourStep !== null || !tutorialProgress.welcome) return;
     if (pendingEvents.length > 0 || surgeResults.length > 0 || surgePromptPending || faintEvent || activeModal) return;
     const key = `${sessionId}:${turn.turnNumber}`;
-    if (turn.challenge?.rounds?.some(r => r.endTurn === turn.turnNumber) && autoOpenedChallengeRef.current !== key) {
+    if (!turn.actionLocked && turn.challenge?.rounds?.some(r => r.endTurn === turn.turnNumber) && autoOpenedChallengeRef.current !== key) {
       autoOpenedChallengeRef.current = key;
       openModal('quant');
       return;
@@ -204,7 +216,7 @@ export default function MainPage() {
           <div className="nextturn-wrap">
             <button
               className="nextturn-btn"
-              disabled={loading || Boolean(activeModal) || pendingEvents.length > 0 || surgeResults.length > 0 ||
+              disabled={turn.actionLocked || loading || Boolean(activeModal) || pendingEvents.length > 0 || surgeResults.length > 0 ||
                 surgePromptPending || pendingTurnNumber !== null || tutorialStep !== null || quantTourStep !== null ||
                 (firstDayStep !== null && firstDayStep !== NEXT_DAY_STEP)}
               onClick={advanceTurn}
@@ -213,10 +225,11 @@ export default function MainPage() {
               <img src="/game/assets/btn_nextturn.png" alt="" />
               <span className="nt-text">
                 <span className="nt-en">NEXT TURN</span>
-                <span className="nt-ko">{loading ? '진행 중...' : '다음 날 ▶'}</span>
+                <span className="nt-ko">{turn.actionLocked ? '입원 자동 진행' : loading ? '진행 중...' : '다음 날 ▶'}</span>
               </span>
             </button>
             {error && <p className="error-text">{error}</p>}
+            {turn.actionLocked && error && <button type="button" className="btn-primary" disabled={loading} onClick={() => resumeGame()}>입원 상태 다시 확인</button>}
           </div>
 
           <div className="crt" />

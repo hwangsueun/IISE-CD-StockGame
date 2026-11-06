@@ -313,7 +313,7 @@
         <b style="color:var(--c-green)">초록</b> &gt;
         <b style="color:var(--c-blue)">파랑</b> &gt;
         <b style="color:var(--c-red)">빨강</b></p>
-      <p class="dim">제한시간 60초 · 목숨 3</p>
+      <p class="dim" data-difficulty-rules></p>
       <p class="dim">오분류하면 목숨 &minus;1 · 시간 내 전부 치우면 보너스</p>
       <div class="btn-row">
         <button class="btn sub" id="howtoBtn">? 게임방법</button>
@@ -341,7 +341,8 @@
     <div class="window">
       <div class="mini-tag">HOW TO PLAY</div>
       <h1>이제 실전이다!</h1>
-      <p>실전은 <b style="color:var(--gold)">60초</b> 동안 캐릭터 <b style="color:var(--gold)">50명</b>이 쏟아진다.<br>목숨은 3개, 전부 치우면 보너스!</p>
+      <p data-difficulty-rules></p>
+      <p>전부 치우면 보너스!</p>
       <p class="dim">일당은 점수로 정해진다 · 연속으로 맞히면 콤보 보너스</p>
       <div class="btn-row">
         <button class="btn sub" id="tutAgainBtn">&#8635; 다시 보기</button>
@@ -367,6 +368,7 @@
   </div>
 </div>
 
+<script src="minigameDifficulty.js"></script>
 <script src="Minigame_Sort_Characters.js"></script>
 </body>
 </html>

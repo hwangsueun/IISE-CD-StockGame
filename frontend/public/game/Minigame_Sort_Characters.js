@@ -8,8 +8,11 @@
   // --- 부업 임베드 연동 (React 앱이 iframe으로 열었을 때만 동작) ---
   var EMBEDDED = (function () { try { return window.parent && window.parent !== window; } catch (_) { return false; } })();
   if (EMBEDDED) { var _bb = document.getElementById('backBtn'); if (_bb) _bb.style.display = 'none'; }
+  var scorePosted = false;
+  if (EMBEDDED) document.getElementById('retryBtn').hidden = true;
   function postScore(rawScore) {
-    if (!EMBEDDED) return;
+    if (!EMBEDDED || HOWTO_ONLY || scorePosted) return;
+    scorePosted = true;
     // game 키는 서버 SIDE_JOB.SCORE_CUTS 의 키와 반드시 일치해야 한다 (constants.js).
     try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'sort_characters', rawScore: rawScore }, '*'); } catch (_) {}
   }
@@ -21,9 +24,14 @@
     document.getElementById('tutStartBtn').hidden = true;
   }
 
+  var DIFFICULTY = window.AntSurvivalDifficulty;
+  var RULES = DIFFICULTY.games.sort_characters;
+
   // ===== 규칙 설정 =====
-  var GAME_SECONDS = 60;
-  var START_LIVES = 3;
+  var GAME_SECONDS = RULES.seconds;
+  var START_LIVES = RULES.lives;
+  var ruleText = '난이도 ' + DIFFICULTY.label + ' · 제한시간 ' + GAME_SECONDS + '초 · 목숨 ' + START_LIVES + '개 · 캐릭터 50명';
+  document.querySelectorAll('[data-difficulty-rules]').forEach(function (el) { el.textContent = ruleText; });
   var INIT_PILE = 50;      // 총 캐릭터 수 (중간 리필 없음 -> 이게 전부)
   var CLEAR_BONUS = 500;   // 시간 내 전부 치웠을 때 보너스
 
@@ -512,7 +520,7 @@
 
   // ===== 시작 / 종료 =====
   function start() {
-    if (HOWTO_ONLY || criteriaOpen) return;
+    if (HOWTO_ONLY || playing || criteriaOpen || (EMBEDDED && scorePosted)) return;
     tutStop();
     chars.slice().forEach(function (p) { if (p.el.parentNode) p.el.parentNode.removeChild(p.el); });
     chars = [];
@@ -689,7 +697,7 @@
         renderStep();
       } else {
         tut.step = 3.5;
-        say('틀리면 캐릭터가 <b>튕겨 나오고</b> 목숨(❤)이 하나 줄어요.<br><span class="sub">콤보도 끊겨요. 실전에선 3번 틀리면 끝!</span>', true);
+        say('틀리면 캐릭터가 <b>튕겨 나오고</b> 목숨(❤)이 하나 줄어요.<br><span class="sub">콤보도 끊겨요. 실전에선 ' + START_LIVES + '번 틀리면 끝!</span>', true);
         later(tutFinish, 2400);
       }
     }

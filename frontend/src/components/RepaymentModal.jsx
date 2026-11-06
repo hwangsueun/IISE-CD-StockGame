@@ -96,7 +96,7 @@ export default function RepaymentModal({ advanceAfterRepayment = false }) {
   if (turn?.repaymentCompleted && !result && !submitting) {
     return (
       <div className="event-overlay cutscene-overlay">
-        <div className="game-frame ev-frame">
+        <div className="game-frame ev-frame repayment-frame">
           <div className="title-plate">★ 이번 달 상환 처리 완료 ★</div>
           <div className="intro-stage">
             <div className="big-center"><div className="big">이번 달 상환은 이미 처리됐습니다.</div></div>
@@ -113,7 +113,7 @@ export default function RepaymentModal({ advanceAfterRepayment = false }) {
 
   return (
     <div className="event-overlay cutscene-overlay">
-      <div className="game-frame ev-frame">
+      <div className="game-frame ev-frame repayment-frame">
         <div className="title-plate">★ EVENT · 상환일 — 사채업자 방문 ★</div>
 
         <div className="screen-tag">
@@ -155,6 +155,7 @@ export default function RepaymentModal({ advanceAfterRepayment = false }) {
                     <span className="won">₩</span>
                     <input
                       type="text" inputMode="numeric" autoComplete="off" placeholder="금액을 입력하세요"
+                      aria-label="송금액"
                       value={amount}
                       onChange={(e) => { setAmount(e.target.value.replace(/[^0-9]/g, '')); setInputMsg(''); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') submitRepay(); }}

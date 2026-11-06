@@ -97,7 +97,7 @@ function Delta({ value, lowerBetter, suffix = '' }) {
   if (!value) return <span className="delta neutral">±0</span>;
   const sign = value > 0 ? '+' : '';
   const good = lowerBetter ? value < 0 : value > 0;
-  return <span className={`delta ${good ? 'up' : 'down'}`}>{sign}{value}{suffix}</span>;
+  return <span className={`delta ${good ? 'up' : 'down'}`}>{sign}{Number(value).toLocaleString('ko-KR')}{suffix}</span>;
 }
 
 function resultText(result) {
@@ -151,11 +151,10 @@ function LoanSharkCallEvent({ event }) {
 
   const stat = (key) => Number(liveState[key] ?? 0);
   const delta = (key) => stat(key) - Number(baseline[key] ?? 0);
-  const debtMan = (n) => `${Math.round(n / 10000).toLocaleString('ko-KR')}만`;
 
   return (
     <div className="event-overlay cutscene-overlay">
-      <div className="game-frame ev-frame">
+      <div className="game-frame ev-frame loan-call-frame">
         <div className="title-plate">★ EVENT · 사채업자의 전화 ★</div>
 
         <div className="ev-stage" />
@@ -182,8 +181,8 @@ function LoanSharkCallEvent({ event }) {
           <div className="ev-stat-pill">
             <span className="ic" style={{ color: '#f5c542' }}>☠</span>
             <span className="k">남은 빚</span>
-            <span className="v">{debtMan(stat('debt'))}</span>
-            <Delta value={Math.round(delta('debt') / 10000)} lowerBetter suffix="만" />
+            <span className="v">{won(stat('debt'))}</span>
+            <Delta value={delta('debt')} lowerBetter suffix="원" />
           </div>
         </div>
 
@@ -221,6 +220,7 @@ function LoanSharkCallEvent({ event }) {
                     <input
                       className="choice-amount"
                       type="number" min="0" placeholder="상환액 (원)"
+                      aria-label="상환 금액"
                       value={amount} onChange={(e) => setAmount(e.target.value)}
                     />
                   )}
@@ -248,8 +248,8 @@ function LoanSharkCallEvent({ event }) {
   );
 }
 
-// --- 투자/경제 개념 문제 풀 (프론트 전용 플레이버. 서버엔 대응 개념이 없어 채점하지 않고
-//     정답만 바로 보여준다 — 문제은행을 서버로 옮길 계획이 생기면 이 배열을 그쪽으로 옮길 것) ---
+// 이전 이벤트 응답에 퀴즈가 없는 경우에만 사용하는 호환용 문제 풀.
+// 새 이벤트는 서버가 선택한 지식과 연결된 detail.quiz를 보여준다.
 const CONCEPT_QUIZ = [
   { chip: '기초 원칙', q: '"계란을 한 바구니에 담지 마라"가 강조하는 원칙은?',
     opts: ['한 종목에 몰빵', '분산투자', '초단타 매매', '빚내서 투자'], answer: 1,
@@ -299,7 +299,7 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
   const [phase, setPhase] = useState('offer'); // 'offer' | 'submitting' | 'study' | 'summary' | 'declined'
   const [result, setResult] = useState(null);
   const [showQuiz] = useState(() => Math.random() < 0.5);
-  const [quiz] = useState(() => pickOne(CONCEPT_QUIZ));
+  const [fallbackQuiz] = useState(() => pickOne(CONCEPT_QUIZ));
   const [quizPicked, setQuizPicked] = useState(null);
   const [submitError, setSubmitError] = useState('');
 
@@ -328,6 +328,7 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
 
   const stressDelta = result?.stressDelta;
   const detail = result?.detail || {};
+  const quiz = detail.quiz || fallbackQuiz;
   // 퀴즈는 정답을 확인해야, 인사이트는 바로 다음으로 넘어갈 수 있다
   const canContinue = showQuiz ? quizPicked !== null : true;
 
@@ -416,7 +417,8 @@ export function InvestStudyEvent({ event, onResolve, onDismiss }) {
                   </>
                 ) : (
                   <>
-                    <span className="study-chip">오늘의 인사이트</span>
+                    <span className="study-chip">{detail.insightTopic || '오늘의 인사이트'}</span>
+                    {detail.insightTitle && <p className="study-q">{detail.insightTitle}</p>}
                     <p className="study-text">{detail.insight}</p>
                     {detail.directionHint && (
                       <p className="study-hint">🧭 {detail.directionHint.text}</p>

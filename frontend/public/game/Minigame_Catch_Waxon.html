@@ -227,7 +227,8 @@
       <div class="mini-tag">MINIGAME 01</div>
       <h1>왝슨을 잡아라!</h1>
       <p>연못 위를 날아다니는 <b style="color:var(--gold)">왝슨</b>을 클릭해서 포획하세요.</p>
-      <p class="dim">작고 빠른 왝슨일수록 점수가 높습니다 · 제한시간 5초</p>
+      <p class="dim">작은 왝슨일수록 화면 점수가 높습니다 · 일당은 포획 수로 정해집니다.</p>
+      <p class="dim" data-difficulty-rules></p>
       <div class="btn-row">
         <button class="btn sub" id="howtoBtn">? 게임방법</button>
         <button class="btn" id="startBtn">▶ 게임 시작</button>
@@ -246,7 +247,8 @@
     <div class="window">
       <div class="mini-tag">HOW TO PLAY</div>
       <h1>이제 실전이다!</h1>
-      <p>실전은 <b style="color:var(--gold)">5초</b> 동안 9마리가 빠르게 날아다닌다.<br>최대한 많이 잡아라!</p>
+      <p data-difficulty-rules></p>
+      <p>최대한 많이 잡아라!</p>
       <p class="dim">일당은 잡은 마리 수로 정해진다 · 허공을 눌러도 감점은 없다</p>
       <div class="btn-row">
         <button class="btn sub" id="tutAgainBtn">↺ 다시 보기</button>
@@ -272,6 +274,7 @@
   </div>
 </div>
 
+<script src="minigameDifficulty.js"></script>
 <script>
 (function () {
   'use strict';
@@ -279,8 +282,11 @@
   // --- 부업 임베드 연동 (React 앱이 iframe으로 열었을 때만 동작; 단독 실행에는 영향 없음) ---
   var EMBEDDED = (function () { try { return window.parent && window.parent !== window; } catch (_) { return false; } })();
   if (EMBEDDED) { var _bb = document.getElementById('backBtn'); if (_bb) _bb.style.display = 'none'; }
+  var scorePosted = false;
+  if (EMBEDDED) document.getElementById('retryBtn').hidden = true;
   function postScore(rawScore) {
-    if (!EMBEDDED) return;
+    if (!EMBEDDED || HOWTO_ONLY || scorePosted) return;
+    scorePosted = true;
     try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'catch_waxon', rawScore: rawScore }, '*'); } catch (_) {}
   }
 
@@ -291,9 +297,14 @@
     document.getElementById('tutStartBtn').hidden = true;
   }
 
-  var GAME_SECONDS = 5;      // 제한시간 5초
-  var MAX_BIRDS = 9;          // 동시에 떠다니는 왝슨 수
-  var MIN_SIZE = 42, MAX_SIZE = 110;
+  var DIFFICULTY = window.AntSurvivalDifficulty;
+  var RULES = DIFFICULTY.games.catch_waxon;
+
+  var GAME_SECONDS = RULES.seconds;
+  var MAX_BIRDS = RULES.birds;
+  var MIN_SIZE = RULES.minSize, MAX_SIZE = RULES.maxSize;
+  var ruleText = '난이도 ' + DIFFICULTY.label + ' · 제한시간 ' + GAME_SECONDS + '초 · 동시 ' + MAX_BIRDS + '마리 · 이동속도 ' + Math.round(RULES.speed * 100) + '%';
+  document.querySelectorAll('[data-difficulty-rules]').forEach(function (el) { el.textContent = ruleText; });
 
   var stage = document.getElementById('stage');
   var hudScore = document.getElementById('hudScore');
@@ -358,7 +369,7 @@
     }
 
     var dir = normalize(targetX - startX, targetY - startY);
-    var speed = rand(430, 860) * (0.85 + (size / MAX_SIZE) * 0.35);
+    var speed = rand(430, 860) * (0.85 + (size / MAX_SIZE) * 0.35) * RULES.speed;
     return createBird(size, startX, startY, dir, speed, edge < 2);
   }
 
@@ -521,7 +532,7 @@
 
   // ---- 시작 / 종료 ----
   function start() {
-    if (HOWTO_ONLY) return;
+    if (HOWTO_ONLY || playing || (EMBEDDED && scorePosted)) return;
     tutStop();
     // 초기화
     birds.slice().forEach(removeBird);

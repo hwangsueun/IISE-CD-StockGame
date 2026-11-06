@@ -17,6 +17,7 @@ const surgeStockService = require('./surgeStockService');
 const gameService = require('./gameService');
 const valuationService = require('./valuationService');
 const reportService = require('./reportService');
+const { selectStudyKnowledge } = require('../education/investmentStudyKnowledge');
 const { clamp100 } = require('../utils/clamp');
 
 const rand = (min, max) => min + Math.random() * (max - min);
@@ -113,7 +114,7 @@ const EVENT_DEFS = {
 
   // ------------------------------------------------------------------
   // B. 투자 스터디 (랜덤 기회형, 미팅5 §B): 수락/거절, 현금 수익 없음
-  //    기본: 스트레스 −6~−12 + 금융 인사이트 / 40% 방향성 힌트 / 10% 희귀(−15 + 전조 힌트)
+  //    기본: 스트레스 −6~−12 + 금융 지식·연결 퀴즈 / 확률형 점검 과제 (미래 예측 아님)
   // ------------------------------------------------------------------
   invest_study: {
     kind: 'choice',
@@ -122,17 +123,22 @@ const EVENT_DEFS = {
     choices: [
       {
         key: 'join', label: '참여한다',
-        effect: () => {
+        effect: ({ studyHistory = [] } = {}) => {
           const cfg = C.INVEST_STUDY;
           const rare = Math.random() < cfg.rareProb;
           const hint = rare || Math.random() < cfg.hintProb;
           const stressDelta = rare ? cfg.rareStress : Math.round(rand(cfg.baseStress.min, cfg.baseStress.max));
+          const lesson = selectStudyKnowledge(studyHistory);
           return {
             stressDelta,
             detail: {
-              insight: buildInsight(),                       // 금융 인사이트 1개 (항상)
-              directionHint: hint ? buildDirectionHint() : null, // 시장 방향성 힌트
-              omenHint: rare ? buildOmenHint() : null,           // 이벤트 전조 힌트
+              insightId: lesson.id,
+              insightTitle: lesson.title,
+              insightTopic: lesson.topic,
+              insight: lesson.insight,
+              quiz: lesson.quiz,
+              directionHint: hint ? buildDirectionHint() : null,
+              omenHint: rare ? buildOmenHint() : null,
               rare,
             },
           };
@@ -210,22 +216,13 @@ const EVENT_DEFS = {
   },
 };
 
-// --- 투자 스터디 힌트 생성 -------------------------------------------
-// TODO(gamelogic): 실제 다음 턴 가격/뉴스 데이터 기반 힌트로 교체.
-// 힌트는 "정답 공개가 아닌 판단을 돕는 간접 신호"여야 한다 (미팅5).
-function buildInsight() {
-  return pick([
-    '분산 투자는 개별 종목 리스크를 줄여준다.',
-    '금리가 오르면 기업의 이자 부담이 커질 수 있다.',
-    '거래량이 실리지 않은 급등은 오래가지 못하는 경우가 많다.',
-    'PER이 낮다고 무조건 저평가는 아니다. 업종 평균과 비교하라.',
-  ]);
-}
+// --- 추가 학습 과제. 실제 다음 턴 가격이나 랜덤 이벤트를 알고 주는 예측 신호가 아니다.
+// 기존 응답 키는 유지하되, 아직 존재하지 않는 미래 데이터에 대한 단정은 하지 않는다.
 function buildDirectionHint() {
-  return { scope: 'market', text: '다음 주 시장 변동성이 커질 조짐이 있다.' };
+  return { scope: 'study', text: '점검 과제: 같은 기간의 시장지수와 내 보유 종목 수익률을 나란히 비교해 보세요.' };
 }
 function buildOmenHint() {
-  return { scope: 'event', text: '조만간 큰 지출이 생길 것 같은 예감이 든다.' };
+  return { scope: 'budget', text: '생활비와 상환 예정액을 계산해 투자에 쓰지 않을 현금을 구분해 보세요.' };
 }
 
 // --- 발생/적용 -------------------------------------------------------
@@ -243,6 +240,8 @@ async function rollTurnEvents(client, session, ctx) {
   for (const type of order) {
     if (fired.length >= C.EVENT_MAX_PER_TURN && type !== 'faint') continue; // 기절은 한도 무시하고 항상 판정
     const def = EVENT_DEFS[type];
+    // Hospital days pass automatically; do not interrupt recovery with new optional choices.
+    if (def.kind === 'choice' && session.current_turn <= session.action_locked_until_turn) continue;
     if (!def.trigger({ session, ...ctx })) continue;
 
     if (def.kind === 'immediate') {
@@ -342,7 +341,20 @@ async function resolveEvent(sessionId, eventLogId, choiceKey, payload) {
     if (!choice) throw badRequest(`유효하지 않은 선택입니다: ${choiceKey}`);
 
     const session = { ...row, id: sessionId };
-    const eff = choice.effect({ session, payload });
+    let studyHistory = [];
+    if (row.event_type === 'invest_study' && choiceKey === 'join') {
+      // 세션 행 잠금 안에서 이력 조회와 선택을 함께 처리해 동시 해결 때도 순서를 유지한다.
+      // 기존 JSONB detail을 사용하므로 새 테이블/컬럼 없이 과거 이력과 호환된다.
+      const history = await client.query(
+        `SELECT detail FROM event_log
+         WHERE session_id = $1 AND event_type = 'invest_study' AND resolved = TRUE
+           AND detail ? 'insight'
+         ORDER BY id DESC`,
+        [sessionId]
+      );
+      studyHistory = history.rows;
+    }
+    const eff = choice.effect({ session, payload, studyHistory });
     const cashDelta = eff.cashDelta || 0;
     const debtDelta = eff.debtDelta || 0;
     const newStress = clamp100(row.stress + (eff.stressDelta || 0));

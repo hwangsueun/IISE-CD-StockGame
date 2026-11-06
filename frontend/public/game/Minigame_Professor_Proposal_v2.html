@@ -322,6 +322,12 @@
     box-shadow: inset 0 0 0 1px var(--panel-light); padding: 7px 12px;
   }
   #tutSkip:hover { color: var(--gold); }
+  @media (max-width: 600px) {
+    #introTitle h1 { font-size: 26px; margin-top: 8px; letter-spacing: 1px; }
+    #introTitle p { font-size: 13px; margin-top: 8px; line-height: 1.5; }
+    #introBtns { gap: 8px; }
+    #introBtns .btn { padding: 10px 12px; font-size: 14px; letter-spacing: 1px; }
+  }
 </style>
 </head>
 <body>
@@ -340,7 +346,8 @@
     <div class="mini-tag">MINIGAME 02</div>
     <h1>교수님의 수상한 제안</h1>
     <p>교수님이 <b style="color:var(--gold)">수상한 제안</b>을 던지기 시작했다…!<br>
-    <span style="color:var(--ink-dim)">← → 이동 · 길게 누르면 달리기 · 제안에 맞으면 안 됩니다 (목숨 3개)</span></p>
+    <span style="color:var(--ink-dim)">← → 이동 · 길게 누르면 달리기 · 제안에 맞으면 안 됩니다</span></p>
+    <p class="dim" data-difficulty-rules></p>
   </div>
   <div id="introBtns">
     <button class="btn sub" id="howtoBtn">? 게임방법</button>
@@ -356,7 +363,8 @@
     <div class="window">
       <div class="mini-tag">HOW TO PLAY</div>
       <h1>이제 실전이다!</h1>
-      <p>목숨은 <b style="color:var(--gold)">3개</b>. 시간이 갈수록 제안이 빨라지고,<br>10초가 지나면 교수님이 <b style="color:var(--gold)">둘</b>이 된다!</p>
+      <p data-difficulty-rules></p>
+      <p>시간이 갈수록 제안이 빨라집니다. 작은 글자 중심을 피해 이동하세요.</p>
       <p class="dim">일당은 버틴 시간으로 정해진다 · 오래 버틸수록 좋다</p>
       <div class="btn-row">
         <button class="btn sub" id="tutAgainBtn">↺ 다시 보기</button>
@@ -387,6 +395,7 @@
   </div>
 </div>
 
+<script src="minigameDifficulty.js"></script>
 <script>
 (function () {
   'use strict';
@@ -394,8 +403,11 @@
   // --- 부업 임베드 연동 (React 앱이 iframe으로 열었을 때만 동작; 단독 실행에는 영향 없음) ---
   var EMBEDDED = (function () { try { return window.parent && window.parent !== window; } catch (_) { return false; } })();
   if (EMBEDDED) { var _bb = document.getElementById('backBtn'); if (_bb) _bb.style.display = 'none'; }
+  var scorePosted = false;
+  if (EMBEDDED) document.getElementById('retryBtn').hidden = true;
   function postScore(rawScore) {
-    if (!EMBEDDED) return;
+    if (!EMBEDDED || HOWTO_ONLY || scorePosted) return;
+    scorePosted = true;
     try { window.parent.postMessage({ source: 'antsurvival-minigame', game: 'avoid_professor', rawScore: rawScore }, '*'); } catch (_) {}
   }
 
@@ -406,8 +418,13 @@
     document.getElementById('tutStartBtn').hidden = true;
   }
 
+  var DIFFICULTY = window.AntSurvivalDifficulty;
+  var RULES = DIFFICULTY.games.avoid_professor;
+
   // ===== 튜닝 값 =====
-  var LIVES = 3;
+  var LIVES = RULES.lives;
+  var ruleText = '난이도 ' + DIFFICULTY.label + ' · 목숨 ' + LIVES + '개 · ' + RULES.secondAt + '초 뒤 두 번째 교수님 · 낙하속도 ' + Math.round(RULES.fallSpeed * 100) + '%';
+  document.querySelectorAll('[data-difficulty-rules]').forEach(function (el) { el.textContent = ruleText; });
   var WALK_SPEED = 340;        // px/s
   var RUN_SPEED = 640;         // px/s
   var RUN_HOLD_MS = 230;       // 이 시간 이상 꾹 누르면 달리기
@@ -457,7 +474,7 @@
   var walkT = 0, walkFrame = 0;
   var invincibleUntil = 0;
 
-  // 교수님 상태: 10초 뒤 두 번째 교수님(용)이 등장
+  // 교수님 상태: 선택 난이도의 시점에 두 번째 교수님이 등장
   var dragons = [];   // { el, active, appearAt, x, targetX, w, h, dropTimer, mouthTimer, bias, topOffset }
 
   function rand(a, b) { return a + Math.random() * (b - a); }
@@ -557,7 +574,7 @@
       {
         el: prof2El,
         active: false,
-        appearAt: 10,
+        appearAt: RULES.secondAt,
         x: 0,
         targetX: 0,
         w: 0,
@@ -631,12 +648,12 @@
   // ===== 수상한 제안 메시지 =====
   function spawnMsg(d) {
     var W = stage.clientWidth, H = stage.clientHeight;
-    var maxW = clamp(W * 0.18, 150, 260);
+    var maxW = clamp(W * 0.14, 105, 180);
     var el = document.createElement('div');
     el.className = 'msg';
     el.textContent = PROPOSALS[Math.floor(Math.random() * PROPOSALS.length)];
     el.style.maxWidth = maxW + 'px';
-    el.style.fontSize = Math.round(clamp(H * 0.03, 24, 36)) + 'px';
+    el.style.fontSize = Math.round(clamp(H * 0.026, 16, 24)) + 'px';
 
     // 글자 실제 크기를 기준으로 충돌 판정이 되도록 먼저 화면 밖에 배치해 측정
     el.style.transform = 'translate(-9999px,-9999px)';
@@ -648,7 +665,7 @@
     // 각 교수님 입 근처에서 글자만 떨어짐
     var x = clamp(d.x + d.w / 2 - w / 2 + rand(-maxW * 0.35, maxW * 0.35), 0, W - w);
     var y = H * 0.075 + d.topOffset + d.h * 0.7;
-    var vy = (H * 0.32) * (1 + elapsed * 0.022);   // 시간이 갈수록 빨라짐
+    var vy = (H * 0.32) * (1 + elapsed * 0.022) * RULES.fallSpeed;   // 시간이 갈수록 빨라짐
     var m = { el: el, x: x, y: y, w: w, h: h, vy: vy };
     el.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     msgs.push(m);
@@ -673,6 +690,13 @@
       t: H - groundBottom - ph + padY,
       b: H - groundBottom
     };
+  }
+
+  function messageHitsPlayer(m, pr) {
+    var padX = m.w * (1 - RULES.hitScale) / 2;
+    var padY = m.h * (1 - RULES.hitScale) / 2;
+    return m.x + padX < pr.r && m.x + m.w - padX > pr.l &&
+      m.y + padY < pr.b && m.y + m.h - padY > pr.t;
   }
 
   function hitPlayer(now) {
@@ -705,16 +729,16 @@
 
     movePlayer(dt, now);
 
-    // 교수님 1마리로 시작하고, 10초가 지나면 2마리가 동시에 제안을 뱉음
+    // 선택 난이도의 등장 시점부터 두 교수님이 동시에 제안을 던진다.
     dragons.forEach(function (d, idx) {
       moveDragon(d, dt, idx);
       if (!d.active) return;
 
-      // 제안 투척 간격: 0.95초 → 최소 0.38초까지 점점 짧아짐
+      // 난이도별 시작/최소 간격 사이에서 점점 빨라진다.
       d.dropTimer -= dt * 1000;
       if (d.dropTimer <= 0) {
         spawnMsg(d);
-        d.dropTimer = Math.max(380, 950 - elapsed * 14) * rand(0.8, 1.25);
+        d.dropTimer = Math.max(RULES.dropMinMs, RULES.dropStartMs - elapsed * 14) * rand(0.8, 1.25);
       }
     });
 
@@ -727,8 +751,7 @@
 
       // 충돌 (무적시간엔 통과)
       if (now >= invincibleUntil &&
-          m.x < pr.r && m.x + m.w > pr.l &&
-          m.y < pr.b && m.y + m.h > pr.t) {
+          messageHitsPlayer(m, pr)) {
         removeMsg(m);
         hitPlayer(now);
         continue;
@@ -758,7 +781,7 @@
 
   // ===== 시작 / 종료 =====
   function start() {
-    if (HOWTO_ONLY) return;
+    if (HOWTO_ONLY || playing || (EMBEDDED && scorePosted)) return;
     tutStop();
     msgs.slice().forEach(removeMsg);
     lives = LIVES; score = 0; dodged = 0; elapsed = 0;
@@ -890,7 +913,7 @@
       m.y += m.vy * dt;
       m.el.style.transform = 'translate(' + m.x + 'px,' + m.y + 'px)';
       if (now >= invincibleUntil &&
-          m.x < pr.r && m.x + m.w > pr.l && m.y < pr.b && m.y + m.h > pr.t) {
+          messageHitsPlayer(m, pr)) {
         removeMsg(m);
         tutHit(now);
         continue;
@@ -926,7 +949,7 @@
     stage.appendChild(f);
     setTimeout(function () { f.remove(); }, 720);
     if (tut.step === 3) {
-      tut.note = '<span class="warn">맞으면 목숨(♥)이 하나 줄어요! 실전에선 3번 맞으면 끝. 다시 피해 보세요.</span>';
+      tut.note = '<span class="warn">맞으면 목숨(♥)이 하나 줄어요! 실전에선 ' + LIVES + '번 맞으면 끝. 다시 피해 보세요.</span>';
       later(function () { tut.note = ''; }, 2200);
     }
   }

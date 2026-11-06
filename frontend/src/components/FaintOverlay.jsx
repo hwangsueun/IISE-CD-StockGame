@@ -25,7 +25,7 @@ export default function FaintOverlay({ event, onDismiss }) {
       case 2: return '의식을 잃고 <span class="em">병원으로 이송되었습니다.</span>';
       case 3: return '안정을 되찾았습니다. <span class="em">스트레스 지수가 초기화</span>되었습니다.';
       case 4: return `<span class="em">${days}일 동안 입원</span>해야 합니다. 직접 주문과 자동 투자를 쉽니다. 미체결 주문은 취소됩니다.`;
-      case 5: return '<span class="red">병원비가 청구되었습니다.</span> 켜 둔 자동 투자는 입원 제한이 풀린 뒤 다음 턴 진행부터 다시 판단합니다.';
+      case 5: return '<span class="red">병원비가 청구되었습니다.</span> 확인하면 입원 기간이 자동으로 지나갑니다. 퇴원 후 다시 투자할 수 있습니다.';
       default: return '';
     }
   })();
@@ -93,7 +93,7 @@ export default function FaintOverlay({ event, onDismiss }) {
         {showConfirm && (
           <div className="confirm-strip">
             <button type="button" className="confirm-btn" onClick={onDismiss}>
-              <span className="arr">▶</span>확인
+              <span className="arr">▶</span>확인 · 자동 진행
             </button>
           </div>
         )}

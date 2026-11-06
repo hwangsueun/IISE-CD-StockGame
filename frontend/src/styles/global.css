@@ -390,6 +390,12 @@ button { cursor: pointer; font: inherit; }
   box-shadow: inset 0 0 0 2px #7f1d1d, inset 2px 2px 0 #ef4444;
   padding: 10px 14px; height: 64px; flex: 1; max-width: 300px;
 }
+.px-debt { min-width: 200px; padding: 6px 10px; gap: 8px; }
+.px-debt .px-stat-icon { width: 24px; height: 24px; font-size: 16px; }
+.px-debt .px-stat-label { flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.px-debt .px-stat-label .ko { font-size: 12px; }
+.px-debt .px-stat-label .val { font-family: 'Galmuri11', monospace; font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
+.px-debt .px-debt-bar { height: 10px; }
 .px-debt-bar {
   height: 14px; background: #000; border: 2px solid #000;
   box-shadow: inset 0 0 0 1px #2a1a10; position: relative; padding: 1px;
@@ -1077,6 +1083,11 @@ textarea { min-height: 80px; resize: vertical; }
 .ev-stat-pill .delta.up { background: #166534; color: #fff; }
 .ev-stat-pill .delta.down { background: #7f1d1d; color: #fff; }
 .ev-stat-pill .delta.neutral { background: #2a1a10; color: var(--px-ink-dim); }
+.loan-call-frame .ev-header { left: 24px; transform: none; max-width: calc(100% - 380px); flex-wrap: wrap; }
+.loan-call-frame .ev-stats { width: 300px; }
+.loan-call-frame .ev-stat-pill { display: grid; grid-template-columns: 16px minmax(55px, 1fr) auto; min-width: 0; gap: 4px 8px; }
+.loan-call-frame .ev-stat-pill .v { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.loan-call-frame .ev-stat-pill .delta { grid-column: 2 / -1; justify-self: end; margin-left: 0; max-width: 100%; overflow-wrap: anywhere; }
 
 .ring-waves { position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%); width: 600px; height: 600px; pointer-events: none; z-index: 5; }
 .ring-waves span {
@@ -1844,6 +1855,73 @@ textarea { min-height: 80px; resize: vertical; }
 }
 .result-paid .k { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--px-gold); letter-spacing: 1px; }
 .result-paid .v { font-family: 'Press Start 2P', monospace; font-size: 18px; color: var(--px-gold); text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+
+/* 상환 금액은 라벨을 밀어내지 않고, 입력창은 남은 너비 안에서 줄어든다. */
+.repayment-frame .remit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.repayment-frame .remit-row { min-width: 0; gap: 4px 12px; flex-wrap: wrap; }
+.repayment-frame .remit-row .k { flex-shrink: 0; }
+.repayment-frame .remit-row .v { min-width: 0; max-width: 100%; margin-left: auto; overflow-wrap: anywhere; text-align: right; }
+.repayment-frame .input-area { grid-template-columns: minmax(0, 1fr) auto; }
+.repayment-frame .input-wrap { min-width: 0; }
+.repayment-frame .input-box input { min-width: 0; width: 0; }
+.repayment-frame .repay-shortcut { max-width: 100%; overflow-wrap: anywhere; }
+.repayment-frame .result-row { grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr); gap: 8px 16px; }
+.repayment-frame .result-row .before, .repayment-frame .result-row .after { min-width: 0; overflow-wrap: anywhere; }
+.repayment-frame .result-paid { flex-wrap: wrap; gap: 8px; }
+.repayment-frame .result-paid .v { max-width: 100%; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .cutscene-overlay > .loan-call-frame, .cutscene-overlay > .repayment-frame {
+    width: calc(100vw - 24px); max-width: 680px; height: auto; max-height: calc(100dvh - 48px);
+    transform: none; overflow-x: hidden; overflow-y: auto;
+  }
+  .loan-call-frame .title-plate, .repayment-frame .title-plate { position: relative; inset: auto; width: fit-content; max-width: 100%; font-size: 8px; line-height: 1.7; letter-spacing: 1px; }
+  .loan-call-frame .ev-header { position: relative; inset: auto; transform: none; max-width: none; margin: 12px; padding: 8px 10px; gap: 8px; }
+  .loan-call-frame .ev-header .lbl { font-size: 9px; }
+  .loan-call-frame .ev-header .nm { font-size: 15px; }
+  .loan-call-frame .ev-stats { position: relative; inset: auto; width: auto; margin: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .loan-call-frame .ev-stat-pill { grid-template-columns: 12px minmax(0, 1fr) auto; padding: 6px; gap: 4px; }
+  .loan-call-frame .ev-stat-pill:last-child { grid-column: 1 / -1; }
+  .loan-call-frame .ev-stat-pill .k { font-size: 12px; }
+  .loan-call-frame .ev-stat-pill .v { font-size: 10px; letter-spacing: 0; }
+  .loan-call-frame .ring-waves { display: none; }
+  .loan-call-frame .phone-wrap { position: relative; left: auto; top: auto; transform: none; width: 180px; height: 180px; margin: 8px auto; animation: none; }
+  .loan-call-frame .phone-screen .label { font-size: 4px; }
+  .loan-call-frame .phone-screen .caller { font-size: 7px; }
+  .loan-call-frame .phone-screen .number { font-size: 4px; }
+  .loan-call-frame .phone-screen .timer { font-size: 6px; }
+  .loan-call-frame .narration, .repayment-frame .narration { position: relative; inset: auto; margin: 12px; padding: 12px 12px 38px; height: auto; min-height: 180px; }
+  .loan-call-frame .nar-head, .repayment-frame .nar-head { flex-wrap: wrap; gap: 6px; }
+  .loan-call-frame .nar-body, .repayment-frame .nar-body { min-height: 70px; font-size: 16px; line-height: 1.6; overflow: visible; }
+  .loan-call-frame .nar-choices { grid-template-columns: minmax(0, 1fr); }
+  .loan-call-frame .choice-amount { min-width: 0; width: 100%; }
+  .repayment-frame .screen-tag { position: relative; inset: auto; margin: 12px; flex-wrap: wrap; }
+  .repayment-frame .intro-stage { position: relative; inset: auto; min-height: 220px; padding: 16px 12px; }
+  .repayment-frame .big-center { min-width: 0; }
+  .repayment-frame .big-center .big { font-size: 22px !important; letter-spacing: 2px; overflow-wrap: anywhere; }
+  .repayment-frame .big-center .knock { font-size: 28px; letter-spacing: 2px; }
+  .repayment-frame .big-center .small { line-height: 1.8; font-size: 10px; letter-spacing: 1px; }
+  .repayment-frame .remit-card, .repayment-frame .result-card { width: 100%; min-width: 0; padding: 12px; }
+  .repayment-frame .remit-head { flex-wrap: wrap; gap: 8px; }
+  .repayment-frame .remit-grid { grid-template-columns: minmax(0, 1fr); }
+  .repayment-frame .remit-row .v { font-size: 16px; }
+  .repayment-frame .input-area { grid-template-columns: minmax(0, 1fr); }
+  .repayment-frame .input-lbl { font-size: 8px; letter-spacing: 0; }
+  .repayment-frame .input-box { padding: 0 8px; }
+  .repayment-frame .input-box input { font-size: 17px; letter-spacing: 0; }
+  .repayment-frame .input-box input::placeholder { font-size: 11px; }
+  .repayment-frame .send-btn { min-width: 0; min-height: 64px; }
+  .repayment-frame .result-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .repayment-frame .result-row .k { grid-column: 1 / -1; }
+  .repayment-frame .result-row .before::before, .repayment-frame .result-row .after::before { float: left; font-size: 11px; line-height: 2; color: var(--px-ink-dim); }
+  .repayment-frame .result-row .before::before { content: '상환 전 · '; }
+  .repayment-frame .result-row .after::before { content: '상환 후 · '; }
+  .repayment-frame .result-paid { padding: 10px 8px; }
+  .repayment-frame .result-paid .v { font-size: 14px; letter-spacing: 0; }
+  .repayment-frame .choice-strip.single { position: relative; inset: auto; width: auto; max-width: none; margin: 12px; }
+  .repayment-frame .choice-btn .text { font-size: 18px; }
+  .repayment-frame .press-hint { position: relative; inset: auto; margin: 0 12px 16px; text-align: center; font-size: 10px; }
+}
 
 /* --- 기절(입원) 이벤트 (픽셀: 디자인 public/game/Faint Event.html 이식, 병원 청록 톤) --- */
 :root {
