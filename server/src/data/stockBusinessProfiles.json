@@ -1,0 +1,1691 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "kind": "existing_dart_report_llm_summary",
+    "descriptionField": "business_summary_asof",
+    "source": {
+      "path": "data-pipeline/news_generator/data/processed/stock_llm_profile_yearly_clean.csv",
+      "sha256": "cc21c2f0360f84a5c7581e511f133cda6c3eb4dbf85b0bf1d04e389fa66eed71"
+    },
+    "corroboratingJsonl": {
+      "path": "data-pipeline/news_generator/data/processed/stock_llm_profile_yearly_clean.jsonl",
+      "sha256": "9472d966c6f25945f60158e84fac965a1f09e4f33d1674d05f907f7eb1691984"
+    },
+    "maskingSource": {
+      "path": "data-pipeline/data/processed/rename_map/stock_rename_map.csv",
+      "sha256": "7ceb1266d97dfcf4a7f6ec62191e833ff49e97cca5d38f814d6e0369ee85ff3c"
+    },
+    "maskingMethod": "existing maskingService.maskText with verified stock, alias, coin and group dictionaries; no runtime source dependency",
+    "selection": "latest business year among profiles received on or before the game date; latest receipt within that year",
+    "aliasSource": {
+      "path": "data-pipeline/data/processed/rename_map/alias_rename_map.csv",
+      "sha256": "05f40feb90c85c3c01fc4e94d78f6b2d64c59159f441c904b12c0498fb1ba8cd"
+    },
+    "coinSource": {
+      "path": "data-pipeline/data/processed/rename_map/coin_rename_map.csv",
+      "sha256": "415aa92dccc94b12f01e110a838e3f79d4c60679475cc19796f42ffe327cf755"
+    },
+    "maskingEngine": {
+      "path": "IISE-CD-StockGame-Challenge/server/src/services/maskingService.js",
+      "sha256": "4e5ea7489f05eea60b4aaa69cc2d6d5dfa3f0c1eb6bbb051c18c26271554ab4d"
+    }
+  },
+  "coverage": {
+    "universeCount": 117,
+    "representedStockCount": 23,
+    "profileCount": 249,
+    "earliestReceiptDate": "2014-03-28",
+    "latestReceiptDate": "2024-04-01"
+  },
+  "profiles": {
+    "STOCK_000210": [
+      {
+        "description": "지주회사 체제 전환 후 브랜드 사용, 배당, 임대 수익 중심",
+        "asOfDate": "2024-03-29",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240329002623"
+      },
+      {
+        "description": "지주회사 체제 전환 후 로열티, 배당, 임대 수익 중심",
+        "asOfDate": "2023-07-28",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230728000644"
+      },
+      {
+        "description": "지주회사 체제 전환 후 브랜드 로열티, 배당, 임대 수익 중심",
+        "asOfDate": "2023-07-28",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20230728000642"
+      },
+      {
+        "description": "건설, 제조, 에너지, 기타 부문 중심의 대기업",
+        "asOfDate": "2021-04-05",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210405003117"
+      },
+      {
+        "description": "건설, 제조, 에너지, 부동산 중심의 대형 기업",
+        "asOfDate": "2020-05-15",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200515001792"
+      },
+      {
+        "description": "건설, 제조, 에너지, 부동산 중심의 대형 기업",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401005101"
+      },
+      {
+        "description": "건설, 제조, 에너지, 관광 중심의 대형 종합기업",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402004589",
+        "qualityNote": "임원 정보와 관련된 중복 및 오류 기재 있음"
+      },
+      {
+        "description": "건설, 제조, 에너지, 관광 중심의 대형 기업",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004619"
+      },
+      {
+        "description": "건설, 제조, 에너지, 관광 중심의 종합 기업",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330004025"
+      },
+      {
+        "description": "건설, 제조, 에너지, 관광 중심의 대형 종합기업",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331004321"
+      },
+      {
+        "description": "건설·제조·기타 부문 중심의 대형 기업",
+        "asOfDate": "2014-05-15",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140515001539",
+        "qualityNote": "사업 내용과 관련된 구체적 정보 부족"
+      }
+    ],
+    "STOCK_000240": [
+      {
+        "description": "지주회사로 전환된 에너지 솔루션 및 경영자문 중심",
+        "asOfDate": "2024-03-20",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240320001601"
+      },
+      {
+        "description": "축전지 제조와 자회사 경영자문 중심의 지주회사",
+        "asOfDate": "2023-03-24",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230324001090"
+      },
+      {
+        "description": "지주회사로서 축전지 제조와 자회사 경영자문 중심",
+        "asOfDate": "2022-12-15",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20221215000241",
+        "qualityNote": "타이어 사업부문 정보는 포함되지 않음"
+      },
+      {
+        "description": "지주회사로서 자회사 경영지도와 지분법이익 중심",
+        "asOfDate": "2022-12-15",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20221215000231"
+      },
+      {
+        "description": "지주회사로서 자회사 경영지도 및 상표권 수익 중심",
+        "asOfDate": "2022-12-15",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20221215000222"
+      },
+      {
+        "description": "지주사업과 축전지 제조 중심의 기업",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401005003"
+      },
+      {
+        "description": "지주회사로서 자회사 경영지도와 상표권 수익 중심",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402005232"
+      },
+      {
+        "description": "타이어 제조·판매, 축전지·기계·금형 제조 중심의 지주회사",
+        "asOfDate": "2017-08-14",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170814001002"
+      },
+      {
+        "description": "지주회사로서 자회사 경영자문 및 상표권 수익 중심",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330003174"
+      },
+      {
+        "description": "지주회사로서 자회사 경영자문 및 상표권 수익 중심",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331004084",
+        "qualityNote": "타이어 제조 관련 정보는 분할 후 별도 회사로 이전됨"
+      },
+      {
+        "description": "지주사업과 상표권 수익 중심의 기업",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331000510",
+        "qualityNote": "타이어 사업부문 분할로 인한 사업 구조 변화"
+      }
+    ],
+    "STOCK_000270": [
+      {
+        "description": "완성차 제조·판매와 인증중고차 온라인 플랫폼 사업",
+        "asOfDate": "2024-03-12",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240312000909",
+        "qualityNote": "사업 내용과 제품 정보는 제한적임"
+      },
+      {
+        "description": "완성차 제조와 판매 중심의 자동차 제조업체",
+        "asOfDate": "2023-03-09",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230309000734"
+      },
+      {
+        "description": "완성차 제조와 판매 중심의 자동차 제조업체",
+        "asOfDate": "2022-03-21",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220321000650"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20211210000500"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20211210000477"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20211210000468"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20211210000450"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20211210000438"
+      },
+      {
+        "description": "완성차 및 부품 해외판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20211210000418"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2021-12-10",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20211210000409"
+      },
+      {
+        "description": "완성차 및 부품 제조·판매 중심의 자동차 제조업체",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002985"
+      }
+    ],
+    "STOCK_000660": [
+      {
+        "description": "반도체 제조 및 연구개발 중심의 기술 기업",
+        "asOfDate": "2024-03-19",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240319000684",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "반도체 제조 및 연구개발 중심의 기술 기업",
+        "asOfDate": "2023-03-21",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230321001209",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "반도체 메모리 제품 중심의 글로벌 제조업체",
+        "asOfDate": "2022-03-22",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220322000590"
+      },
+      {
+        "description": "메모리 반도체 중심의 글로벌 제조업체",
+        "asOfDate": "2021-03-30",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210330000776"
+      },
+      {
+        "description": "반도체 제조 및 판매 중심의 글로벌 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004441",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 제조 및 판매 중심의 글로벌 기업",
+        "asOfDate": "2019-04-04",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190404002329",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 판매와 연구개발 중심의 글로벌 기업",
+        "asOfDate": "2018-06-15",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180615000111",
+        "qualityNote": "주요 제품과 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 제조 및 판매 중심의 대형 제조주",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004537",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 생산 및 판매 중심의 글로벌 기업",
+        "asOfDate": "2016-05-16",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160516001867",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 생산과 판매 중심의 글로벌 기업",
+        "asOfDate": "2015-05-15",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150515001332",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "글로벌 반도체 제조업체",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002980",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      }
+    ],
+    "STOCK_000990": [
+      {
+        "description": "반도체 제조 및 연구개발 중심의 기술 기업",
+        "asOfDate": "2024-03-27",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240327001130",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "반도체 제조 및 연구개발 중심의 기술주",
+        "asOfDate": "2023-03-21",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230321001125",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 제조 및 연구개발 중심의 기술 기업",
+        "asOfDate": "2022-03-21",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220321001280",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "반도체 제조와 연구개발 중심의 기술주",
+        "asOfDate": "2021-03-19",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210319001013",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "반도체 제조와 연구개발 중심의 기술 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004051",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "반도체 제조와 연구개발 중심의 기술 기업",
+        "asOfDate": "2019-03-29",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190329003805",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "반도체 제조와 연구개발 중심의 기술 기업",
+        "asOfDate": "2018-08-13",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180813000640",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "반도체 제조와 연구개발 중심의 기술 기업",
+        "asOfDate": "2017-03-28",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170328000730",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "반도체 제조와 연구개발 중심의 기술 기업",
+        "asOfDate": "2016-03-29",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160329001125",
+        "qualityNote": "주요 제품 및 사업 부문 정보 부족"
+      },
+      {
+        "description": "제조업 중심의 반도체 전문 기업",
+        "asOfDate": "2015-03-27",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150327001476",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "제조업 중심의 반도체 전문 기업",
+        "asOfDate": "2014-05-30",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140530000975",
+        "qualityNote": "주요 제품 정보 부족"
+      }
+    ],
+    "STOCK_002380": [
+      {
+        "description": "건축자재와 화학제품 중심의 제조업체",
+        "asOfDate": "2024-03-27",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240327001177",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "건축자재와 화학제품 중심의 제조업체",
+        "asOfDate": "2023-03-16",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230316000762",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "건축자재와 화학제품 중심의 제조업체",
+        "asOfDate": "2022-03-17",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220317001213",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "건축자재와 화학제품 중심의 제조업체",
+        "asOfDate": "2021-03-18",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210318000812",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "제조, 도료, 건축자재, 유리 중심의 대기업집단",
+        "asOfDate": "2021-03-17",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20210317000457",
+        "qualityNote": "주요 제품과 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "제조, 도료, 건축자재, 유리 중심의 대기업집단",
+        "asOfDate": "2021-03-17",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20210317000416",
+        "qualityNote": "주요 제품과 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "제조, 도료, 건축자재, 유리 중심의 대기업집단",
+        "asOfDate": "2021-03-17",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20210317000396",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "제조, 도료, 건축자재, 유리 중심의 대기업 계열",
+        "asOfDate": "2021-03-17",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20210317000365",
+        "qualityNote": "주요 제품과 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "건축자재와 화학제품 중심의 제조업체",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330003845",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "건축자재와 산업용 소재 중심의 제조업체",
+        "asOfDate": "2015-04-06",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150406000842",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "건축자재와 화학제품 중심의 제조업체",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331003495",
+        "qualityNote": "주요 제품과 사업부문에 대한 구체적 정보 부족"
+      }
+    ],
+    "STOCK_003490": [
+      {
+        "description": "항공운송과 항공우주사업 중심의 대형 항공사",
+        "asOfDate": "2024-03-13",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240313001650"
+      },
+      {
+        "description": "항공운송과 항공우주사업 중심의 대형 항공주",
+        "asOfDate": "2023-03-14",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230314000740"
+      },
+      {
+        "description": "항공운송과 항공우주사업 중심의 대형 항공주",
+        "asOfDate": "2022-03-15",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220315001120"
+      },
+      {
+        "description": "항공운송사업과 항공우주사업 중심의 대형 항공주",
+        "asOfDate": "2021-03-18",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210318001404"
+      },
+      {
+        "description": "항공운송, 항공우주, 기내식 제조 중심의 대형 항공사",
+        "asOfDate": "2020-04-14",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200414002243"
+      },
+      {
+        "description": "항공운송과 항공우주 중심의 대형 항공사",
+        "asOfDate": "2020-04-09",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20200409002561"
+      },
+      {
+        "description": "항공운송과 항공기 제조·정비 중심의 대형 항공사",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20190401004973"
+      },
+      {
+        "description": "항공운송, 항공우주, 기내식 제조 중심의 대형 항공사",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004822"
+      },
+      {
+        "description": "여객 및 화물 항공운송, 항공우주사업, 기내식 제조",
+        "asOfDate": "2016-05-16",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160516003079"
+      },
+      {
+        "description": "여객·화물 항공운송과 항공우주사업 중심의 대형 항공주",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331004421"
+      },
+      {
+        "description": "국내외 여객·화물 항공운송과 항공우주사업 중심",
+        "asOfDate": "2014-05-15",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140515000635"
+      }
+    ],
+    "STOCK_003550": [
+      {
+        "description": "지주회사로서 배당수익, 상표권 사용수익, 임대수익 중심",
+        "asOfDate": "2024-03-19",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240319000703"
+      },
+      {
+        "description": "전자, 화학, 통신 중심의 대기업 계열",
+        "asOfDate": "2023-03-21",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230321001235",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "지주회사로 전환된 대기업 그룹",
+        "asOfDate": "2022-03-21",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220321001237",
+        "qualityNote": "구체적인 사업 내용과 제품 정보 부족"
+      },
+      {
+        "description": "가전, 모바일, 자동차 부품, 태양광 패널 중심의 대형 제조주",
+        "asOfDate": "2021-03-11",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210311000968"
+      },
+      {
+        "description": "가전, 모바일, 자동차 부품, 디스플레이 중심의 대형 제조주",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004561"
+      },
+      {
+        "description": "가전, 모바일, 자동차부품, B2B 중심의 대형 제조주",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401004643"
+      },
+      {
+        "description": "가전, 모바일, 자동차부품, LED 중심의 대형 제조주",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402005213"
+      },
+      {
+        "description": "가전, 모바일, 홈엔터테인먼트, 차량부품 중심의 대형 제조주",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004986"
+      },
+      {
+        "description": "전자제품, 가전, 자동차부품 중심의 대형 제조주",
+        "asOfDate": "2016-05-16",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160516003529"
+      },
+      {
+        "description": "전자제품, 가전, 에너지 솔루션 중심의 대형 제조주",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331002709"
+      },
+      {
+        "description": "전자제품, 가전, 통신, 화학 중심의 대형 제조·서비스 계열",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331001987"
+      }
+    ],
+    "STOCK_004000": [
+      {
+        "description": "케미칼사업과 그린소재사업 중심의 화학 계열",
+        "asOfDate": "2024-03-29",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240329003375",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "케미칼사업과 그린소재사업 중심의 화학 계열",
+        "asOfDate": "2023-03-14",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230314001159",
+        "qualityNote": "주요 리스크 정보 부족"
+      },
+      {
+        "description": "기초화합물, 비료, 합성수지 제조 중심의 화학 기업",
+        "asOfDate": "2022-03-10",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220310001085",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "기초화합물, 비료, 합성수지 제조 중심의 화학기업",
+        "asOfDate": "2021-03-11",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210311001146",
+        "qualityNote": "주요 제품 및 사업 부문 정보 부족"
+      },
+      {
+        "description": "기초화합물, 비료, 합성수지 제조 중심의 화학기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004434",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "기초화합물, 비료, 합성수지 제조 중심의 화학 계열",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401002360",
+        "qualityNote": "주요 제품 및 리스크 정보 부족"
+      },
+      {
+        "description": "정밀화학 제품 중심의 제조업체",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402003781",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "정밀화학 제품 중심의 제조업체",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331002869",
+        "qualityNote": "주요 제품 및 사업 부문 정보 부족"
+      },
+      {
+        "description": "정밀화학 제품 중심의 제조업체",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330002581",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "정밀화학 제품 중심의 제조업체",
+        "asOfDate": "2015-05-19",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150519000257",
+        "qualityNote": "구체적인 제품 및 사업 부문 정보 부족"
+      },
+      {
+        "description": "정밀화학 제품 중심의 제조업체",
+        "asOfDate": "2014-04-25",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140425000684",
+        "qualityNote": "주요 제품 및 사업 부문 정보 부족"
+      }
+    ],
+    "STOCK_004800": [
+      {
+        "description": "여러 사업 부문을 가진 대기업",
+        "asOfDate": "2024-03-15",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240315000695",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "사업 내용과 위험관리 중심의 기업",
+        "asOfDate": "2023-03-09",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230309000903",
+        "qualityNote": "구체적인 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "여러 사업 부문을 가진 대기업",
+        "asOfDate": "2022-03-10",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220310001203",
+        "qualityNote": "구체적인 사업 내용과 제품 정보 부족"
+      },
+      {
+        "description": "폴리에스터 타이어코드, Seatbelt 원사, Airbag 원단 중심의 자동차 소재 제조",
+        "asOfDate": "2021-03-24",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210324000507"
+      },
+      {
+        "description": "폴리에스터 타이어코드, Seatbelt 원사, Airbag 원단 중심의 자동차 소재 제조",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004774",
+        "qualityNote": "사업 내용과 관련된 구체적 수치나 사건 정보 부족"
+      },
+      {
+        "description": "여러 사업부문과 연구개발 활동을 포함한 종합 기업",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401002305",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "여러 사업부문과 연구개발 활동을 포함한 종합기업",
+        "asOfDate": "2018-03-26",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180326000377",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "여러 사업부문과 연구개발 활동을 보유한 기업",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004981",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "여러 사업부문과 연구개발 활동을 보유한 기업",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330004322",
+        "qualityNote": "구체적인 사업 내용과 제품 정보 부족"
+      },
+      {
+        "description": "여러 사업부문과 연구개발 활동을 포함한 종합기업",
+        "asOfDate": "2015-05-19",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150519000168",
+        "qualityNote": "구체적인 사업 내용과 제품 정보 부족"
+      },
+      {
+        "description": "여러 사업부문을 가진 종합 기업",
+        "asOfDate": "2014-05-15",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140515001595",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      }
+    ],
+    "STOCK_005380": [
+      {
+        "description": "자동차 및 부품 제조·판매와 금융·철도차량 사업",
+        "asOfDate": "2024-03-13",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240313001451"
+      },
+      {
+        "description": "자동차 제조 및 판매, 금융, 철도차량 제작 중심의 대형 제조주",
+        "asOfDate": "2024-03-14",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20240314001531"
+      },
+      {
+        "description": "자동차 제조·판매와 금융·철도차량 사업 중심의 대형 제조주",
+        "asOfDate": "2024-03-14",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20240314001466"
+      },
+      {
+        "description": "자동차 및 부품 제조·판매와 금융·철도차량 사업",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20220217001036"
+      },
+      {
+        "description": "자동차 제조 및 판매, 금융, 철도차량 제작 중심의 대형 제조·금융 계열",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20220217001012"
+      },
+      {
+        "description": "자동차 제조·판매와 금융·철도차량 사업 중심의 대기업",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20220217000981"
+      },
+      {
+        "description": "자동차 및 부품 제조, 금융, 철도차량 제작 중심의 대형 제조·금융 계열",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20220217000967"
+      },
+      {
+        "description": "자동차 제조 및 판매, 금융, 철도차량 제작 중심의 대형 제조·금융 계열",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20220217000946"
+      },
+      {
+        "description": "자동차 제조 및 판매, 금융, 철도차량 제작 중심의 대형 제조·금융 계열",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20220217000915"
+      },
+      {
+        "description": "자동차 제조·판매와 금융·철도차량 사업 중심의 대형 제조·금융 계열",
+        "asOfDate": "2022-02-17",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20220217000891"
+      },
+      {
+        "description": "자동차 제조와 금융 서비스 중심의 대형 제조주",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002965"
+      }
+    ],
+    "STOCK_006120": [
+      {
+        "description": "자회사 지배를 통한 순수지주회사",
+        "asOfDate": "2024-03-20",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240320001824"
+      },
+      {
+        "description": "자회사 지분 소유를 통한 지주회사",
+        "asOfDate": "2023-03-21",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230321001269"
+      },
+      {
+        "description": "사업 내용과 위험 관리 중심의 기업",
+        "asOfDate": "2022-03-22",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220322000926",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "LPG와 혈액제제 중심의 에너지·생명과학 계열",
+        "asOfDate": "2021-03-23",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210323000907"
+      },
+      {
+        "description": "LPG와 혈액제제 중심의 에너지·생명과학 계열",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004480"
+      },
+      {
+        "description": "혈액제제와 LPG 중심의 에너지·생명과학 계열",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401003286"
+      },
+      {
+        "description": "혈액제제와 LPG 중심의 에너지·바이오 계열",
+        "asOfDate": "2018-07-04",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180704000549",
+        "qualityNote": "사업 내용과 제품 정보가 일부 누락됨"
+      },
+      {
+        "description": "바이오디젤, LPG, 화학제품 중심의 에너지·화학 계열",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331005070",
+        "qualityNote": "태서인베스트의 사업 내용 구체적 설명 부족"
+      },
+      {
+        "description": "바이오디젤, PET 수지, LPG 중심의 화학·에너지 계열",
+        "asOfDate": "2016-05-16",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160516003598"
+      },
+      {
+        "description": "친환경 소재와 바이오디젤 중심의 화학·에너지 계열",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331003998",
+        "qualityNote": "태서인베스트의 직접적인 사업 내용은 명확하지 않음"
+      },
+      {
+        "description": "화학, 생명과학, 가스 사업 중심의 복합 기업",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331003106",
+        "qualityNote": "태서인베스트의 사업 내용이 명확하지 않음"
+      }
+    ],
+    "STOCK_006400": [
+      {
+        "description": "에너지솔루션과 전자재료 중심의 첨단소재 기업",
+        "asOfDate": "2024-03-12",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240312000853",
+        "qualityNote": "사업 내용에 대한 구체적 설명 부족"
+      },
+      {
+        "description": "에너지솔루션과 전자재료 중심의 제조업체",
+        "asOfDate": "2023-03-13",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230313000726",
+        "qualityNote": "사업 개요와 내용에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "에너지솔루션과 전자재료 중심의 첨단소재 기업",
+        "asOfDate": "2022-03-08",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220308000915"
+      },
+      {
+        "description": "에너지솔루션과 전자재료 중심의 첨단소재 기업",
+        "asOfDate": "2021-03-09",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210309000252",
+        "qualityNote": "사업 내용과 관련된 구체적 정보 부족"
+      },
+      {
+        "description": "2차전지와 전자재료 중심의 에너지·소재 계열",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330003729"
+      },
+      {
+        "description": "2차전지와 전자재료 중심의 첨단 기술 제조업체",
+        "asOfDate": "2019-03-29",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190329003979"
+      },
+      {
+        "description": "소형전지와 전자재료 중심의 에너지솔루션 기업",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004475"
+      },
+      {
+        "description": "에너지솔루션, 케미칼, 전자재료 중심의 제조업체",
+        "asOfDate": "2016-06-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160630000416",
+        "qualityNote": "사업 개요와 내용에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "소형전지, 자동차전지, 케미칼, 전자재료 중심의 제조업체",
+        "asOfDate": "2015-05-27",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150527000239"
+      },
+      {
+        "description": "에너지 및 디스플레이 사업 중심의 제조업체",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331001273",
+        "qualityNote": "사업 내용과 개요에 대한 구체적 정보 부족"
+      }
+    ],
+    "STOCK_006800": [
+      {
+        "description": "글로벌 투자전문기업으로서 금융서비스 제공",
+        "asOfDate": "2024-03-18",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240318000604",
+        "qualityNote": "사업 내용과 리스크 관리에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "글로벌 투자전문기업과 금융서비스 제공 중심",
+        "asOfDate": "2023-03-15",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230315001134",
+        "qualityNote": "사업 내용과 제품 정보가 구체적이지 않음"
+      },
+      {
+        "description": "금융투자업과 파생상품 거래 중심의 증권사",
+        "asOfDate": "2022-03-16",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220316001023",
+        "qualityNote": "사업 내용과 제품에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "금융투자업과 자산운용 중심의 종합금융사",
+        "asOfDate": "2021-03-16",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210316000896",
+        "qualityNote": "사업 내용과 제품 정보가 구체적이지 않음"
+      },
+      {
+        "description": "금융투자업과 파생상품 거래 중심의 증권사",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004390",
+        "qualityNote": "주요 사업 및 제품에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "금융투자업 중심의 종합 금융 서비스 제공",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401004649",
+        "qualityNote": "사업 내용과 제품 정보가 명확하지 않음"
+      },
+      {
+        "description": "금융투자업 중심의 종합 금융 서비스 제공",
+        "asOfDate": "2018-06-28",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180628000425",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "금융투자업 중심의 종합 금융 서비스 제공",
+        "asOfDate": "2017-05-04",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170504001329",
+        "qualityNote": "사업 내용과 관련된 구체적 정보 부족"
+      },
+      {
+        "description": "금융투자업 중심의 종합 금융 서비스 제공",
+        "asOfDate": "2016-03-25",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160325001475"
+      },
+      {
+        "description": "금융투자업 중심의 종합 금융 서비스 제공",
+        "asOfDate": "2015-03-30",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150330000977"
+      },
+      {
+        "description": "금융투자업 중심의 종합 증권사",
+        "asOfDate": "2014-03-28",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140328001247"
+      }
+    ],
+    "STOCK_007700": [
+      {
+        "description": "패션 및 라이프스타일 브랜드 운영 중심의 기업",
+        "asOfDate": "2024-03-20",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240320001670",
+        "qualityNote": "구체적인 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "의류 및 패션 관련 사업 중심의 기업",
+        "asOfDate": "2023-03-21",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230321001401",
+        "qualityNote": "구체적인 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "지주부문, 물류부문, 투자부문, 패션부문 중심의 사업",
+        "asOfDate": "2022-08-16",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220816001167",
+        "qualityNote": "구체적인 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "패션 브랜드 라이센스 및 물류 서비스 중심의 기업",
+        "asOfDate": "2021-03-15",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210315000334",
+        "qualityNote": "사업 내용에 대한 구체적 설명 부족"
+      },
+      {
+        "description": "패션 브랜드 라이센스 및 물류 대행 중심의 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330002736",
+        "qualityNote": "사업 내용과 관련된 구체적 정보 부족"
+      },
+      {
+        "description": "패션 브랜드 라이센스 및 자체 브랜드 중심의 의류 사업",
+        "asOfDate": "2019-03-28",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190328001677",
+        "qualityNote": "사업 내용에 대한 구체적 설명 부족"
+      },
+      {
+        "description": "패션 브랜드 DISCOVERY, MLB, MLB KIDS 중심의 의류 및 물류 사업",
+        "asOfDate": "2018-04-13",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180413000372"
+      },
+      {
+        "description": "의류 라이센스 브랜드 중심의 패션 기업",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331000374"
+      },
+      {
+        "description": "의류 라이센스 브랜드 중심의 패션 기업",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330001659",
+        "qualityNote": "사업 내용에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "사업 내용과 주요 제품 정보 부족",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331001018",
+        "qualityNote": "주요 제품 및 사업 내용 정보 부족"
+      },
+      {
+        "description": "의류 및 패션 관련 사업 중심의 기업",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331001322",
+        "qualityNote": "주요 제품 정보 부족"
+      }
+    ],
+    "STOCK_008770": [
+      {
+        "description": "면세점과 호텔 운영 중심의 서비스 유통 기업",
+        "asOfDate": "2024-03-13",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240313001634"
+      },
+      {
+        "description": "면세점과 호텔·레저 사업 중심의 서비스 유통 기업",
+        "asOfDate": "2023-03-08",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230308000580"
+      },
+      {
+        "description": "면세점과 호텔·레저 사업 중심의 서비스 유통 계열",
+        "asOfDate": "2022-03-10",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220310000632"
+      },
+      {
+        "description": "면세유통과 호텔·레저 사업 중심의 서비스 유통 기업",
+        "asOfDate": "2021-03-10",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210310001048"
+      },
+      {
+        "description": "면세유통과 호텔업 중심의 글로벌 서비스 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004268"
+      },
+      {
+        "description": "면세유통과 호텔업 중심의 글로벌 서비스 기업",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401003563"
+      },
+      {
+        "description": "면세유통과 호텔업 중심의 글로벌 서비스 기업",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402003835"
+      },
+      {
+        "description": "면세유통과 호텔업 중심의 글로벌 서비스 기업",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331005132"
+      },
+      {
+        "description": "면세유통과 호텔사업 중심의 서비스 유통 기업",
+        "asOfDate": "2016-05-16",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160516003735"
+      },
+      {
+        "description": "면세유통과 호텔사업 중심의 서비스 유통 기업",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331003870"
+      },
+      {
+        "description": "면세유통과 호텔사업 중심의 서비스 유통 기업",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002990"
+      }
+    ],
+    "STOCK_009150": [
+      {
+        "description": "전자 부품 제조와 유원전자 매출 의존",
+        "asOfDate": "2024-03-29",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240329002895",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 기술 기업",
+        "asOfDate": "2023-03-07",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230307000653",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 기술 기업",
+        "asOfDate": "2022-03-08",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220308000667",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조와 연구개발 중심의 기업",
+        "asOfDate": "2021-03-09",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210309000338",
+        "qualityNote": "주요 제품 및 사업부문 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 기술 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330003915",
+        "qualityNote": "주요 제품 및 사업 부문 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 대형 제조주",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401003500",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조와 연구개발 중심의 기술 기업",
+        "asOfDate": "2018-08-14",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180814001230",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 기술 기업",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004394",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 대형 제조주",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330003977",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조와 연구개발 중심의 기업",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331003273",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "전자 부품 제조 중심의 대형 제조주",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002337",
+        "qualityNote": "주요 제품 정보 부족"
+      }
+    ],
+    "STOCK_010060": [
+      {
+        "description": "지주회사 체제로 전환한 투자사업 중심의 기업",
+        "asOfDate": "2024-03-29",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240329003297",
+        "qualityNote": "사업 내용 구체적 정보 부족"
+      },
+      {
+        "description": "베이직케미컬, 카본케미컬, 에너지솔루션 중심의 화학·에너지 계열",
+        "asOfDate": "2023-03-06",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230306000254"
+      },
+      {
+        "description": "베이직케미컬, 카본케미컬, 에너지솔루션 중심의 중견기업",
+        "asOfDate": "2022-03-11",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220311000911"
+      },
+      {
+        "description": "태양광산업 관련 소재와 화학제품 중심의 제조업체",
+        "asOfDate": "2021-04-01",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210401002874",
+        "qualityNote": "주요 사업 및 제품, 구체적 사업 내용 부족"
+      },
+      {
+        "description": "태양광 발전과 화학제품 제조 중심의 글로벌 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330001981"
+      },
+      {
+        "description": "폴리실리콘, 태양광발전, 화학제품 중심의 글로벌 제조주",
+        "asOfDate": "2019-03-29",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190329003340"
+      },
+      {
+        "description": "폴리실리콘, TDI, 과산화수소 중심의 화학·태양광 소재 기업",
+        "asOfDate": "2018-06-12",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180612000223"
+      },
+      {
+        "description": "태양광 발전과 화학제품 제조 중심의 글로벌 기업",
+        "asOfDate": "2017-03-30",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170330001496"
+      },
+      {
+        "description": "폴리실리콘, TDI, 과산화수소 중심의 화학·태양광 소재 기업",
+        "asOfDate": "2016-05-11",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160511001331"
+      },
+      {
+        "description": "폴리실리콘, 특수가스, 무기화학 중심의 화학 제조업체",
+        "asOfDate": "2015-04-09",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150409000956"
+      },
+      {
+        "description": "태양광 소재와 특수가스 중심의 화학 제조업체",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331001913"
+      }
+    ],
+    "STOCK_010130": [
+      {
+        "description": "종합비철금속 제련과 자원순환 사업 중심",
+        "asOfDate": "2024-03-28",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240328001400"
+      },
+      {
+        "description": "비철금속 제련과 판매 중심의 제조업체",
+        "asOfDate": "2023-03-09",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230309000731",
+        "qualityNote": "사업 내용과 위험 관리 정보 부족"
+      },
+      {
+        "description": "비철금속 제련과 아연·연·은·금 생산 중심",
+        "asOfDate": "2022-03-15",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220315001010"
+      },
+      {
+        "description": "비철금속 제련과 판매 중심의 소재 산업 기업",
+        "asOfDate": "2021-03-16",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210316000528"
+      },
+      {
+        "description": "비철금속 제련과 판매 중심의 제조업체",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330003334"
+      },
+      {
+        "description": "비철금속 제련과 아연·연·금·은 생산 중심의 제조업체",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401003964"
+      },
+      {
+        "description": "비철금속 제련과 아연·연·금·은 생산 중심의 제조업체",
+        "asOfDate": "2018-04-05",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180405000065"
+      },
+      {
+        "description": "비철금속 제련과 판매 중심의 제조업체",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331002299"
+      },
+      {
+        "description": "비철금속 제련과 수출 중심의 제조업체",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330002726"
+      },
+      {
+        "description": "비철금속 제련과 수출 중심의 제조업체",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331004325"
+      },
+      {
+        "description": "비철금속 제련과 수출 중심의 제조업체",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002753"
+      }
+    ],
+    "STOCK_010950": [
+      {
+        "description": "정유 및 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2024-03-20",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240320001242",
+        "qualityNote": "주요 제품 및 서비스에 대한 구체적 정보 부족"
+      },
+      {
+        "description": "정유·석유화학 제품과 윤활유 사업 중심의 에너지·화학 계열",
+        "asOfDate": "2023-03-20",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230320000502",
+        "qualityNote": "구체적인 제품 정보 부족"
+      },
+      {
+        "description": "정유·석유화학 제품과 윤활유 사업 중심의 에너지·화학 계열",
+        "asOfDate": "2022-03-14",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220314000379",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "정유, 윤활유, 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2021-03-22",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210322000581"
+      },
+      {
+        "description": "정유, 윤활유, 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330003105"
+      },
+      {
+        "description": "정유, 윤활유, 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401004049"
+      },
+      {
+        "description": "정유, 윤활유, 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402004868"
+      },
+      {
+        "description": "정유·석유화학 제품과 윤활유 사업 중심의 에너지·화학 계열",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331004792"
+      },
+      {
+        "description": "정유, 윤활유, 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2016-03-30",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160330004075"
+      },
+      {
+        "description": "정유, 윤활유, 석유화학 제품 중심의 에너지 기업",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331002919"
+      },
+      {
+        "description": "정유·석유화학 제품과 윤활유 사업 중심의 에너지·화학 계열",
+        "asOfDate": "2014-03-31",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140331002103"
+      }
+    ],
+    "STOCK_011170": [
+      {
+        "description": "석유화학 제품 중심의 제조업체",
+        "asOfDate": "2024-04-01",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240401004380",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "화학 제품 제조 중심의 대형 화학주",
+        "asOfDate": "2023-03-21",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230321001511",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "화학 제품 제조와 연구개발 중심의 기업",
+        "asOfDate": "2022-03-16",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220316001034",
+        "qualityNote": "주요 제품 및 서비스 정보 부족"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 판매 중심의 화학 계열",
+        "asOfDate": "2021-03-15",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210315001080"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 판매 중심의 화학 계열",
+        "asOfDate": "2020-03-31",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200331002363"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 판매 중심의 화학 계열",
+        "asOfDate": "2019-07-26",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190726000472"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 판매 중심의 화학 계열",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402004475"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 시장 진출 중심의 화학 계열",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331005370"
+      },
+      {
+        "description": "석유화학 제품 생산 중심의 대형 제조주",
+        "asOfDate": "2016-06-02",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160602000002"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 시장 판매 중심의 제조업체",
+        "asOfDate": "2015-05-18",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150518000282"
+      },
+      {
+        "description": "석유화학 제품 생산과 글로벌 시장 판매 중심의 제조업체",
+        "asOfDate": "2014-05-20",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140520000119"
+      }
+    ],
+    "STOCK_011200": [
+      {
+        "description": "종합해운물류기업으로 컨테이너·벌크화물 운송 중심",
+        "asOfDate": "2024-03-28",
+        "businessYear": 2023,
+        "sourceReceiptNo": "20240328001188"
+      },
+      {
+        "description": "컨테이너 및 벌크화물 운송 중심의 해운업체",
+        "asOfDate": "2023-07-14",
+        "businessYear": 2022,
+        "sourceReceiptNo": "20230714000061"
+      },
+      {
+        "description": "컨테이너 및 벌크화물 운송 중심의 해운사",
+        "asOfDate": "2022-03-21",
+        "businessYear": 2021,
+        "sourceReceiptNo": "20220321001124"
+      },
+      {
+        "description": "컨테이너 및 벌크화물 운송 중심의 해운사",
+        "asOfDate": "2021-03-18",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210318001102"
+      },
+      {
+        "description": "컨테이너·벌크화물 운송과 터미널 운영 중심의 해운 계열",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004588"
+      },
+      {
+        "description": "컨테이너 및 벌크화물 운송 중심의 해운사",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401004468"
+      },
+      {
+        "description": "컨테이너 및 벌크화물 운송 중심의 해운사",
+        "asOfDate": "2018-09-07",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180907000532"
+      },
+      {
+        "description": "해상화물운송, 해운대리점, 선박관리 중심의 해운업체",
+        "asOfDate": "2018-09-07",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20180907000531"
+      },
+      {
+        "description": "해상화물운송과 해운대리점 중심의 해운 계열",
+        "asOfDate": "2018-09-07",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20180907000529"
+      },
+      {
+        "description": "해운 및 물류 서비스 중심의 기업",
+        "asOfDate": "2018-09-07",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20180907000528",
+        "qualityNote": "주요 제품 정보 부족"
+      },
+      {
+        "description": "해운 및 물류 중심의 운송 계열",
+        "asOfDate": "2014-05-15",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140515001799",
+        "qualityNote": "주요 제품 정보 부족"
+      }
+    ],
+    "STOCK_011780": [
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 에너지 중심의 석유화학 계열",
+        "asOfDate": "2021-03-30",
+        "businessYear": 2020,
+        "sourceReceiptNo": "20210330001578"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지, 페놀유도체, 항만운영 중심의 화학 계열",
+        "asOfDate": "2020-03-30",
+        "businessYear": 2019,
+        "sourceReceiptNo": "20200330004439"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지, 페놀유도체, 항만운영 중심의 화학 계열",
+        "asOfDate": "2019-04-01",
+        "businessYear": 2018,
+        "sourceReceiptNo": "20190401004932"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지, 페놀유도체, 항만운영 중심의 화학 계열",
+        "asOfDate": "2018-04-02",
+        "businessYear": 2017,
+        "sourceReceiptNo": "20180402005051"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지, 페놀유도체, 항만운영 중심의 화학 계열",
+        "asOfDate": "2017-03-31",
+        "businessYear": 2016,
+        "sourceReceiptNo": "20170331005241"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지 사업 중심의 화학 계열",
+        "asOfDate": "2016-05-16",
+        "businessYear": 2015,
+        "sourceReceiptNo": "20160516003040"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지 사업 중심의 화학 계열",
+        "asOfDate": "2015-03-31",
+        "businessYear": 2014,
+        "sourceReceiptNo": "20150331004415"
+      },
+      {
+        "description": "합성고무, 합성수지, 정밀화학, 전자소재, 건자재, 에너지 사업 중심의 석유화학 계열",
+        "asOfDate": "2014-05-15",
+        "businessYear": 2013,
+        "sourceReceiptNo": "20140515001639"
+      }
+    ]
+  }
+}

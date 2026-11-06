@@ -1,0 +1,786 @@
+{
+  "schemaVersion": 1,
+  "basis": "fixed_game_universe",
+  "note": "게임 수록 117종목의 고정 업종 분류입니다. 과거 시점의 공식 업종지수 구성종목을 뜻하지 않습니다.",
+  "provenance": {
+    "mapping": {
+      "path": "data-pipeline/news_generator/scripts/processors/build_sector_reaction_layer.py",
+      "sha256": "6aea1c6bbe2a7a553aefbe0da89e5ad51e24db1cc116eaa24d46a11f51ba4f80",
+      "extraction": "MAPPING_ROWS literal read with Python AST; source module was not executed"
+    },
+    "indices": {
+      "path": "data-pipeline/market_indicator/data/raw/kr_index_master_sector_candidates.csv",
+      "sha256": "05e2dfd4189a67a6a178a372a49c4c7acd78c9ea3dfe8220f85ef849070f2676"
+    },
+    "scope": "Explicit coarse classification for the fixed 117-stock game universe. Broad Manufacturing assignments are preserved from the source. No historical constituent-membership claim."
+  },
+  "stocks": [
+    {
+      "code": "000210",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "000240",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "000270",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "000660",
+      "market": "KOSPI",
+      "sector": "전기전자"
+    },
+    {
+      "code": "000990",
+      "market": "KOSPI",
+      "sector": "전기전자"
+    },
+    {
+      "code": "002380",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "003490",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "003550",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "004000",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "004800",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "005380",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "006120",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "006400",
+      "market": "KOSPI",
+      "sector": "전기전자"
+    },
+    {
+      "code": "006800",
+      "market": "KOSPI",
+      "sector": "증권"
+    },
+    {
+      "code": "007700",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "008770",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "009150",
+      "market": "KOSPI",
+      "sector": "전기전자"
+    },
+    {
+      "code": "010060",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "010130",
+      "market": "KOSPI",
+      "sector": "금속"
+    },
+    {
+      "code": "010950",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "011170",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "011200",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "011780",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "012450",
+      "market": "KOSPI",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "012750",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "014680",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "015760",
+      "market": "KOSPI",
+      "sector": "전기·가스"
+    },
+    {
+      "code": "016360",
+      "market": "KOSPI",
+      "sector": "증권"
+    },
+    {
+      "code": "016600",
+      "market": "KOSDAQ",
+      "sector": "금융"
+    },
+    {
+      "code": "017670",
+      "market": "KOSPI",
+      "sector": "통신"
+    },
+    {
+      "code": "021240",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "027410",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "028260",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "028300",
+      "market": "KOSDAQ",
+      "sector": "제약"
+    },
+    {
+      "code": "028670",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "029780",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "030000",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "030190",
+      "market": "KOSDAQ",
+      "sector": "금융"
+    },
+    {
+      "code": "032500",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "032830",
+      "market": "KOSPI",
+      "sector": "보험"
+    },
+    {
+      "code": "033780",
+      "market": "KOSPI",
+      "sector": "음식료·담배"
+    },
+    {
+      "code": "034730",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "034830",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "035250",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "035420",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "035720",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "035900",
+      "market": "KOSDAQ",
+      "sector": "오락·문화"
+    },
+    {
+      "code": "036460",
+      "market": "KOSPI",
+      "sector": "전기·가스"
+    },
+    {
+      "code": "036570",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "036830",
+      "market": "KOSDAQ",
+      "sector": "화학"
+    },
+    {
+      "code": "039490",
+      "market": "KOSPI",
+      "sector": "증권"
+    },
+    {
+      "code": "039840",
+      "market": "KOSDAQ",
+      "sector": "의료·정밀기기"
+    },
+    {
+      "code": "041190",
+      "market": "KOSDAQ",
+      "sector": "금융"
+    },
+    {
+      "code": "041830",
+      "market": "KOSDAQ",
+      "sector": "의료·정밀기기"
+    },
+    {
+      "code": "042700",
+      "market": "KOSPI",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "046890",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "047810",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "049950",
+      "market": "KOSDAQ",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "051360",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "051600",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "051900",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "052690",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "053210",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "055550",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "058470",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "060980",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "064350",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "068270",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "069960",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "071050",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "071320",
+      "market": "KOSPI",
+      "sector": "전기·가스"
+    },
+    {
+      "code": "078150",
+      "market": "KOSDAQ",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "078340",
+      "market": "KOSDAQ",
+      "sector": "출판·매체복제"
+    },
+    {
+      "code": "078930",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "086280",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "089590",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "089600",
+      "market": "KOSDAQ",
+      "sector": "출판·매체복제"
+    },
+    {
+      "code": "090430",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "091700",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "094840",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "096530",
+      "market": "KOSDAQ",
+      "sector": "제약"
+    },
+    {
+      "code": "098460",
+      "market": "KOSDAQ",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "099190",
+      "market": "KOSDAQ",
+      "sector": "의료·정밀기기"
+    },
+    {
+      "code": "100120",
+      "market": "KOSDAQ",
+      "sector": "의료·정밀기기"
+    },
+    {
+      "code": "108230",
+      "market": "KOSDAQ",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "121800",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "126560",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "137310",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "138040",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "139480",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "141000",
+      "market": "KOSDAQ",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "149950",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "161390",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "180640",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "192400",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "192440",
+      "market": "KOSDAQ",
+      "sector": "유통"
+    },
+    {
+      "code": "204620",
+      "market": "KOSDAQ",
+      "sector": "유통"
+    },
+    {
+      "code": "207940",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "210980",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "213420",
+      "market": "KOSDAQ",
+      "sector": "화학"
+    },
+    {
+      "code": "214150",
+      "market": "KOSDAQ",
+      "sector": "의료·정밀기기"
+    },
+    {
+      "code": "214320",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "214370",
+      "market": "KOSDAQ",
+      "sector": "제약"
+    },
+    {
+      "code": "214450",
+      "market": "KOSDAQ",
+      "sector": "제약"
+    },
+    {
+      "code": "215000",
+      "market": "KOSDAQ",
+      "sector": "오락·문화"
+    },
+    {
+      "code": "253450",
+      "market": "KOSDAQ",
+      "sector": "오락·문화"
+    },
+    {
+      "code": "259960",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "263750",
+      "market": "KOSDAQ",
+      "sector": "출판·매체복제"
+    },
+    {
+      "code": "272290",
+      "market": "KOSDAQ",
+      "sector": "화학"
+    },
+    {
+      "code": "278280",
+      "market": "KOSDAQ",
+      "sector": "화학"
+    },
+    {
+      "code": "282330",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "285130",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "302440",
+      "market": "KOSPI",
+      "sector": "제조"
+    },
+    {
+      "code": "323410",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "363280",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "383220",
+      "market": "KOSPI",
+      "sector": "섬유·의류"
+    },
+    {
+      "code": "393890",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    }
+  ],
+  "indices": [
+    {
+      "code": "sector_kosdaq_2024",
+      "market": "KOSDAQ",
+      "sector": "제조"
+    },
+    {
+      "code": "sector_kosdaq_2026",
+      "market": "KOSDAQ",
+      "sector": "건설"
+    },
+    {
+      "code": "sector_kosdaq_2027",
+      "market": "KOSDAQ",
+      "sector": "유통"
+    },
+    {
+      "code": "sector_kosdaq_2029",
+      "market": "KOSDAQ",
+      "sector": "운송·창고"
+    },
+    {
+      "code": "sector_kosdaq_2031",
+      "market": "KOSDAQ",
+      "sector": "금융"
+    },
+    {
+      "code": "sector_kosdaq_2037",
+      "market": "KOSDAQ",
+      "sector": "오락·문화"
+    },
+    {
+      "code": "sector_kosdaq_2056",
+      "market": "KOSDAQ",
+      "sector": "음식료·담배"
+    },
+    {
+      "code": "sector_kosdaq_2058",
+      "market": "KOSDAQ",
+      "sector": "섬유·의류"
+    },
+    {
+      "code": "sector_kosdaq_2062",
+      "market": "KOSDAQ",
+      "sector": "종이·목재"
+    },
+    {
+      "code": "sector_kosdaq_2063",
+      "market": "KOSDAQ",
+      "sector": "출판·매체복제"
+    },
+    {
+      "code": "sector_kosdaq_2065",
+      "market": "KOSDAQ",
+      "sector": "화학"
+    },
+    {
+      "code": "sector_kosdaq_2066",
+      "market": "KOSDAQ",
+      "sector": "제약"
+    },
+    {
+      "code": "sector_kosdaq_2067",
+      "market": "KOSDAQ",
+      "sector": "비금속"
+    },
+    {
+      "code": "sector_kosdaq_2068",
+      "market": "KOSDAQ",
+      "sector": "금속"
+    },
+    {
+      "code": "sector_kosdaq_2070",
+      "market": "KOSDAQ",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "sector_kosdaq_2072",
+      "market": "KOSDAQ",
+      "sector": "전기전자"
+    },
+    {
+      "code": "sector_kosdaq_2074",
+      "market": "KOSDAQ",
+      "sector": "의료·정밀기기"
+    },
+    {
+      "code": "sector_kosdaq_2075",
+      "market": "KOSDAQ",
+      "sector": "운송장비·부품"
+    },
+    {
+      "code": "sector_kosdaq_2077",
+      "market": "KOSDAQ",
+      "sector": "기타제조"
+    },
+    {
+      "code": "sector_kospi_1005",
+      "market": "KOSPI",
+      "sector": "음식료·담배"
+    },
+    {
+      "code": "sector_kospi_1006",
+      "market": "KOSPI",
+      "sector": "섬유·의류"
+    },
+    {
+      "code": "sector_kospi_1007",
+      "market": "KOSPI",
+      "sector": "종이·목재"
+    },
+    {
+      "code": "sector_kospi_1008",
+      "market": "KOSPI",
+      "sector": "화학"
+    },
+    {
+      "code": "sector_kospi_1010",
+      "market": "KOSPI",
+      "sector": "비금속"
+    },
+    {
+      "code": "sector_kospi_1011",
+      "market": "KOSPI",
+      "sector": "금속"
+    },
+    {
+      "code": "sector_kospi_1012",
+      "market": "KOSPI",
+      "sector": "기계·장비"
+    },
+    {
+      "code": "sector_kospi_1013",
+      "market": "KOSPI",
+      "sector": "전기전자"
+    },
+    {
+      "code": "sector_kospi_1016",
+      "market": "KOSPI",
+      "sector": "유통"
+    },
+    {
+      "code": "sector_kospi_1017",
+      "market": "KOSPI",
+      "sector": "전기·가스"
+    },
+    {
+      "code": "sector_kospi_1018",
+      "market": "KOSPI",
+      "sector": "건설"
+    },
+    {
+      "code": "sector_kospi_1020",
+      "market": "KOSPI",
+      "sector": "통신"
+    },
+    {
+      "code": "sector_kospi_1021",
+      "market": "KOSPI",
+      "sector": "금융"
+    },
+    {
+      "code": "sector_kospi_1024",
+      "market": "KOSPI",
+      "sector": "증권"
+    },
+    {
+      "code": "sector_kospi_1025",
+      "market": "KOSPI",
+      "sector": "보험"
+    },
+    {
+      "code": "sector_kospi_1026",
+      "market": "KOSPI",
+      "sector": "일반서비스"
+    },
+    {
+      "code": "sector_kospi_1027",
+      "market": "KOSPI",
+      "sector": "제조"
+    }
+  ]
+}

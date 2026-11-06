@@ -12,7 +12,7 @@ import QuantAttribution from './QuantAttribution';
 import { getQuantExplanation } from '../utils/quantExplanation';
 import './QuantModal.css';
 
-const tabs = [['challenge', '투자 챌린지'], ['workshop', '나만의 투자 모델 만들기'], ['portfolio', 'alpha158의 포트폴리오'], ['about', 'What is Alpha158?']];
+const tabs = [['challenge', '투자 챌린지'], ['workshop', '내 투자 전략'], ['portfolio', 'alpha158의 포트폴리오'], ['about', 'What is Alpha158?']];
 const portfolioTabs = [['holdings','보유 종목'], ['selection','종목 선택'], ['orders','예약 주문'], ['history','운용 기록']];
 
 const help = (data) => <>

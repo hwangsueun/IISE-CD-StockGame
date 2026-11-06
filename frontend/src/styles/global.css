@@ -768,6 +768,19 @@ button { cursor: pointer; font: inherit; }
 .mk-sector-title { display: flex; justify-content: space-between; gap: 6px; color: var(--px-ink); }
 .mk-sector-card small { font-size: 10px; color: var(--px-ink-dim); }
 .mk-sector-card strong { font-size: 24px; }
+.mk-sector-card { cursor: pointer; }
+.mk-sector-card:hover,.mk-sector-card:focus-visible { outline: 2px solid var(--px-gold); outline-offset: 2px; }
+.mk-sector-action { color: var(--px-gold); font-size: 12px; margin-top: auto; }
+.mk-sector-selection { flex-shrink: 0; padding: 10px 0; border-bottom: 1px dashed #5a3624; font-family: 'Galmuri11', monospace; }
+.mk-sector-selection > strong { color: var(--px-gold); font-size: 14px; }
+.mk-sector-selection p { margin: 5px 0 8px; color: var(--px-ink-dim); font-size: 11px; line-height: 1.6; }
+.mk-sector-selection > div { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-sector-selection button { border: 1px solid #5a3624; padding: 5px 8px; background: #2a1a10; color: var(--px-ink); font: inherit; font-size: 12px; cursor: pointer; }
+.mk-sector-selection button:focus-visible { outline: 2px solid var(--px-gold); outline-offset: 2px; }
+.mk-business-description { display: block; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; color: var(--px-ink-dim); font-size: 11px; }
+.stock-business-profile { margin: 0 0 12px; padding: 12px; border-left: 3px solid var(--px-gold); background: #0c0704; font-family: 'Galmuri11', monospace; }
+.stock-business-profile p { margin: 0 0 5px; color: var(--px-ink); font-size: 14px; line-height: 1.7; }
+.stock-business-profile small { color: var(--px-ink-dim); font-size: 11px; }
 .mk-sector-card.up strong { color: #ff7b73; }
 .mk-sector-card.down strong { color: #80b8eb; }
 .mk-sector-breadth { font-size: 12px; color: var(--px-ink); }
@@ -820,6 +833,17 @@ button { cursor: pointer; font: inherit; }
   color: var(--px-gold);
 }
 .mk-main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 0 14px 10px; }
+.mk-search { padding: 12px 0 0; flex-shrink: 0; font-family: 'Galmuri11', monospace; }
+.mk-search > label { display: block; margin-bottom: 6px; color: var(--px-ink); font-size: 13px; }
+.mk-search-input { display: flex; align-items: stretch; gap: 6px; }
+.mk-search-input input { flex: 1; width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 10px; border: 2px solid #5a3624; background: #0c0704; color: var(--px-ink); font: inherit; font-size: 14px; }
+.mk-search-input input::placeholder { color: var(--px-ink-dim); }
+.mk-search-input button,.mk-empty button { padding: 6px 10px; border: 2px solid #5a3624; background: #2a1a10; color: var(--px-ink); font: inherit; cursor: pointer; }
+.mk-search-input button { flex-shrink: 0; }
+.mk-search-input input:focus-visible,.mk-search-input button:focus-visible,.mk-empty button:focus-visible { outline: 2px solid var(--px-gold); outline-offset: 2px; }
+.mk-search-count { min-height: 18px; margin: 5px 0 0; color: var(--px-ink-dim); font-size: 12px; }
+.mk-empty { padding: 24px 12px; color: var(--px-ink-dim); text-align: center; font-family: 'Galmuri11', monospace; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+@media(max-width:620px) { .mk-search-input { flex-wrap: wrap; } .mk-search-input input { flex-basis: 100%; font-size: 16px; } }
 .mk-rank-tabs { display: flex; gap: 4px; padding: 10px 0 6px; border-bottom: 1px dashed #3d2418; }
 .mk-rank-tabs button {
   background: #0c0704; border: 2px solid #000;
@@ -850,6 +874,20 @@ button { cursor: pointer; font: inherit; }
 .mk-row .px { text-align: right; font-variant-numeric: tabular-nums; font-family: 'Galmuri11', monospace; font-size: 14px; color: var(--px-ink); }
 .mk-row .ch { text-align: right; font-family: 'Press Start 2P', monospace; font-size: 10px; letter-spacing: 1px; }
 .mk-row .vol { text-align: right; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--px-gold); letter-spacing: 1px; }
+@media(max-width:620px) {
+  .mk-body { flex-direction: column; }
+  .mk-side { width: auto; flex-direction: row; border-right: 0; border-bottom: 3px solid #000; padding: 6px 8px; }
+  .mk-tab { flex: 1; width: auto; justify-content: center; padding: 8px 6px; font-size: 13px; }
+  .mk-main { min-height: 0; }
+  .mk-rank-tabs button { flex: 1; padding: 6px 4px; white-space: nowrap; }
+  .mk-row { grid-template-columns: 24px minmax(0, 1fr) auto; grid-template-areas: 'rank name price' 'rank volume change'; gap: 5px 8px; }
+  .mk-row .rnk { grid-area: rank; }
+  .mk-row .nm { grid-area: name; }
+  .mk-row .px { grid-area: price; font-size: 13px; }
+  .mk-row .ch { grid-area: change; font-size: 9px; }
+  .mk-row .vol { grid-area: volume; text-align: left; font-size: 8px; }
+  .mk-row .vol::before { content: '거래량 '; font-family: 'Galmuri11', monospace; }
+}
 
 .mk-ref-note {
   flex-shrink: 0;

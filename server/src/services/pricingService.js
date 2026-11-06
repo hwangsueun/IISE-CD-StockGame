@@ -3,6 +3,8 @@
 const { query } = require('../db');
 const { notFound, badRequest } = require('../utils/errors');
 const { EXECUTION_RULES } = require('./executionService');
+const { getStockClassification } = require('./stockSectorClassification');
+const { getStockBusinessProfile } = require('./stockBusinessProfile');
 
 /** 특정 자산의 특정 날짜 종가. 없으면 null. */
 async function getPriceAt(assetId, date, client) {
@@ -69,7 +71,9 @@ async function listAssets({ type = 'stock', sort, date }) {
     assetId: r.asset_id,
     assetType: r.asset_type,
     name: r.name,
-    sector: r.sector,
+    sector: r.sector || getStockClassification(r.asset_id)?.sector || null,
+    market: getStockClassification(r.asset_id)?.market || null,
+    businessProfile: getStockBusinessProfile(r.asset_id, date),
     currency: r.currency,
     price: r.price === null ? null : Number(r.price),
     changeRate: r.change_rate === null ? null : Number(r.change_rate),
@@ -91,7 +95,9 @@ async function getAssetDetail(assetId, date) {
     assetId: asset.asset_id,
     assetType: asset.asset_type,
     name: asset.name,
-    sector: asset.sector,
+    sector: asset.sector || getStockClassification(asset.asset_id)?.sector || null,
+    market: getStockClassification(asset.asset_id)?.market || null,
+    businessProfile: getStockBusinessProfile(asset.asset_id, date),
     currency: asset.currency,
     orderSupported: Boolean(EXECUTION_RULES[asset.asset_type]),
     executionRule: EXECUTION_RULES[asset.asset_type] || null,

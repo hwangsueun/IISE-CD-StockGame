@@ -100,6 +100,16 @@
 .workshop-automation { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; margin:18px 0; border:1px solid #a89159; border-radius:10px; background:rgba(215,184,116,.07); }
 .workshop-automation p { margin:6px 0 0; }
 .workshop-automation button { flex-shrink:0; }
+.workshop-save-row { display: flex; align-items: center; gap: 16px; }
+.workshop-save-row > .workshop-field { flex: 1; }
+.workshop-save-row > button { flex-shrink: 0; }
+.workshop-list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.workshop-strategy-list { display: grid; gap: 16px; margin-top: 20px; }
+.workshop-strategy-card { min-width: 0; padding: 20px; border: 1px solid var(--lab-line); background: #1c211a; }
+.workshop-strategy-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.workshop-strategy-heading h4 { margin: 5px 0 0; font-size: 20px; }
+.workshop-strategy-status { padding: 4px 8px; border: 1px solid #a5bd9b; color: #d7e8b9; font-size: 11px; flex-shrink: 0; }
+@media(max-width:620px) { .workshop-save-row,.workshop-strategy-heading { align-items: stretch; flex-direction: column; } .workshop-strategy-card { padding: 15px; } .workshop-list-actions > button { flex: 1; } }
 .alpha158-about > * { margin-bottom:24px; }
 .alpha158-about #alpha158-indicators { scroll-margin-top:140px; }
 @media(max-width:600px) { .workshop-automation { align-items:stretch; flex-direction:column; } }

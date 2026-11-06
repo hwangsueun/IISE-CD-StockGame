@@ -1,6 +1,16 @@
 export const strategySignature = value => JSON.stringify(value, function (_key, v) {
   return v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v;
 });
+export function createStrategyDraft(template, versions) {
+  const base = template.name.trim() || '새 투자 전략';
+  const names = new Set(versions.map(v => v.config.name.trim()));
+  let name = base.slice(0, 60), index = 2;
+  while (names.has(name)) {
+    const suffix = ` (${index++})`;
+    name = `${base.slice(0, 60 - suffix.length)}${suffix}`;
+  }
+  return structuredClone({ ...template, name });
+}
 export function restoreStrategyDraft(raw, blank, features) {
   try {
     const c = JSON.parse(raw), allowed = new Set(features.map(f => f.id));

@@ -1,13 +1,15 @@
 const { query } = require('../db');
 const { badRequest, notFound, conflict } = require('../utils/errors');
+const { sectorClassification, classificationNote, classificationSource } = require('./stockSectorClassification');
 
 function sectorQuote(row) {
   const price = row.price === null ? null : Number(row.price);
   const previous = row.previous_price === null ? null : Number(row.previous_price);
-  return { code: row.indicator_code, sector: row.display_name,
+  const quote = { code: row.indicator_code, sector: row.display_name,
     market: row.indicator_code.startsWith('sector_kosdaq_') ? 'KOSDAQ' : 'KOSPI',
     value: price, date: row.trade_date, previousDate: row.previous_date,
     changeRate: price > 0 && previous > 0 ? price / previous - 1 : null };
+  return { ...quote, classification: sectorClassification(quote) };
 }
 
 async function getSectors(sessionId, requestedDate) {
@@ -31,7 +33,7 @@ async function getSectors(sessionId, requestedDate) {
     WHERE i.indicator_code ~ '^sector_(kospi|kosdaq)_[0-9]+$'`, [date]);
   const sectors = rows.map(sectorQuote).sort((a,b) => (b.changeRate ?? -Infinity) - (a.changeRate ?? -Infinity) || a.sector.localeCompare(b.sector, 'ko'));
   const asOfDate = sectors.map(s => s.date).sort().at(-1) || null;
-  return { date, asOfDate, marketOpen: asOfDate === date, sectors };
+  return { date, asOfDate, marketOpen: asOfDate === date, classificationNote, classificationSource, sectors };
 }
 
 module.exports = { sectorQuote, getSectors };

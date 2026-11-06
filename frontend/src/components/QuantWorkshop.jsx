@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { useGameStore } from '../state/gameStore';
 import { won, pct, relativeYearDate } from '../utils/format';
 import './QuantWorkshop.css';
 import { TargetControls, ReductionControls, RiskControls, ResearchResult } from './QuantResearch';
-import { strategySignature as signature, restoreStrategyDraft } from '../utils/userStrategy';
+import { strategySignature as signature, restoreStrategyDraft, createStrategyDraft } from '../utils/userStrategy';
 import ModelGuide, { guidePosition, guideStepFor } from './ModelGuide';
 
 const number = value => value == null || !Number.isFinite(value) ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
@@ -126,11 +126,13 @@ function Comparison({ report, workspace, config, onBuild, onAsset }) {
   </section><Result report={current} workspace={workspace} dirty={!custom && signature(report.config)!==signature(config)} onBuild={()=>onBuild(current.config)} onAsset={onAsset} /></>;
 }
 export default function QuantWorkshop({ sessionId, turnNumber }) {
-  const [workspace, setWorkspace] = useState(null), [config, setConfig] = useState(null), [view, setView] = useState('references');
+  const [workspace, setWorkspace] = useState(null), [config, setConfig] = useState(null), [view, setView] = useState('versions');
   const [report, setReport] = useState(null), [feeBps, setFeeBps] = useState(10), [busy, setBusy] = useState(false);
   const [error, setError] = useState(''), [message, setMessage] = useState(''), [autoBusy,setAutoBusy]=useState(false);
   const [comparisonIds, setComparisonIds] = useState([]), [comparisonPeriod, setComparisonPeriod] = useState('practice');
   const alive = useRef(true), saveKey = useRef(null), pending = useRef(false);
+  const workspaceScope = useMemo(() => ({ sessionId, turnNumber }), [sessionId, turnNumber]);
+  const activeWorkspaceScope = useRef(null), workspaceRequestSequence = useRef(0);
   // '너무 어려워요' 설명서 ↔ 편집 화면 코너(data-guide)를 서로 연결한다.
   // guide = 열린 설명 단계 id, spot = 설명서에서 돌아온 { 단계 id, 코너 }
   const [guide, setGuide] = useState(null), [spot, setSpot] = useState(null), root = useRef(null);
@@ -149,21 +151,47 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
   const openModal = useGameStore(s => s.openModal);
   const draftKey = `antsurvival_strategy_draft_v1:${sessionId}`;
   useEffect(() => {
+    let cancelled = false;
     alive.current = true;
+    activeWorkspaceScope.current = workspaceScope;
+    const requestSequence = ++workspaceRequestSequence.current;
+    const isCurrent = () => !cancelled && alive.current && activeWorkspaceScope.current === workspaceScope &&
+      workspaceRequestSequence.current === requestSequence;
     api.getStrategyWorkspace(sessionId).then(w => {
-      if (!alive.current) return;
+      if (!isCurrent()) return;
       setWorkspace(w); setConfig(current => {
         if (current) return current;
         try { return restoreStrategyDraft(localStorage.getItem(draftKey), w.blank, w.features); } catch { /* Storage can be unavailable. */ }
         return w.blank;
       });
-    }).catch(e => { if (alive.current) setError(e.message); });
-    return () => { alive.current = false; };
-  }, [sessionId, turnNumber, draftKey]);
+    }).catch(e => { if (isCurrent()) setError(e.message); });
+    return () => {
+      cancelled = true;
+      alive.current = false;
+      if (activeWorkspaceScope.current === workspaceScope) activeWorkspaceScope.current = null;
+      workspaceRequestSequence.current++;
+    };
+  }, [sessionId, turnNumber, draftKey, workspaceScope]);
   useEffect(() => { if (config) try { localStorage.setItem(draftKey, JSON.stringify(config)); } catch { /* Server-saved versions remain available. */ } }, [config, draftKey]);
   const update = patch => { setConfig(c => { const next={ ...c, ...patch, researchVersion: 1 }; if(next.terms.length>1)next.components=Math.min(next.components,next.terms.length-1); return next; }); saveKey.current = null; setMessage(''); };
-  const replace = next => { setConfig(structuredClone({ ...workspace.blank, ...next, researchVersion: 1 })); saveKey.current = null; setView('build'); setMessage(''); setError(''); };
-  const refresh = async () => { const w = await api.getStrategyWorkspace(sessionId); if (alive.current) setWorkspace(w); };
+  const replace = next => { setConfig(createStrategyDraft({ ...workspace.blank, ...next, researchVersion: 1 }, workspace.versions)); saveKey.current = null; setView('build'); setMessage(''); setError(''); };
+  const refresh = async () => {
+    if (!alive.current || activeWorkspaceScope.current !== workspaceScope) return false;
+    // Turn loads and action refreshes share an ordering guard. A slow response
+    // captured before saving must never replace the newly saved strategy list.
+    const requestSequence = ++workspaceRequestSequence.current;
+    const isCurrent = () => alive.current && activeWorkspaceScope.current === workspaceScope &&
+      workspaceRequestSequence.current === requestSequence;
+    try {
+      const w = await api.getStrategyWorkspace(sessionId);
+      if (!isCurrent()) return false;
+      setWorkspace(w);
+      return true;
+    } catch (error) {
+      if (isCurrent()) throw error;
+      return false;
+    }
+  };
   const act = async fn => {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError(''); setMessage('');
@@ -186,11 +214,14 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
     catch(e){if(alive.current)setError(e.message);}finally{if(alive.current)setAutoBusy(false);}
   };
   const save = () => act(async () => {
+    const namedConfig = { ...config, name: config.name.trim() };
+    if (!namedConfig.name) throw new Error('전략 이름을 입력해 주세요.');
     saveKey.current ||= crypto.randomUUID();
-    const saved = await api.saveStrategy(sessionId, config, saveKey.current);
-    await refresh(); if (alive.current) {
+    const saved = await api.saveStrategy(sessionId, namedConfig, saveKey.current);
+    const refreshed = await refresh(); if (alive.current && refreshed) {
+      setConfig(namedConfig);
       setComparisonIds(ids => ids.includes(saved.id) || ids.length >= 4 ? ids : [...ids, saved.id]);
-      setMessage('모델을 저장했습니다. 다른 모델을 더 만들어 결과를 비교할 수 있습니다.'); setView('versions');
+      setMessage(`‘${namedConfig.name}’ 전략을 내 전략 목록에 저장했습니다.`); setView('versions');
     }
   });
   const observe = id => act(async () => { const r = await api.observeStrategy(sessionId, id); if (alive.current) { setReport(r); setView('results'); } });
@@ -199,6 +230,7 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
   const options = workspace.features.map(f => [f.id, `${f.name} (${f.unit})`]);
   const learn = ['ridge', 'tree', 'randomForest', 'lightgbm', 'xgboost'].includes(config.method);
   const unavailable = id => ['randomForest', 'lightgbm', 'xgboost'].includes(id) && !workspace.modelCapabilities?.[id]?.available;
+  const cannotSave = !config.name.trim() || workspace.versions.length >= 20 || workspace.ended || workspace.turn >= 240 || unavailable(config.method);
   const currentRef = workspace.references.find(r => r.id === config.referenceId);
   const changeTerm = (i, patch) => update({ terms: config.terms.map((t, j) => i === j ? { ...t, ...patch } : t) });
   const changeRule = (i, patch) => update({ conditions: config.conditions.map((t, j) => i === j ? { ...t, ...patch } : t) });
@@ -214,8 +246,8 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
       <button type="button" onClick={() => setSpot(null)}>그만하기</button></div>;
   };
   return <div className="workshop" aria-busy={busy} ref={root}>
-    <div className="workshop-intro"><span className="workshop-kicker">내 아이디어로 종목을 고르는 도구</span><h3>나만의 투자 모델 만들기</h3>
-      <p>모델은 종목을 고르고 투자 금액을 정하는 방법입니다. 예시 아이디어에서 시작해도 좋아요. 과거 자료로 연습한 뒤 저장하면 게임을 진행하며 성과를 확인할 수 있습니다.</p>
+    <div className="workshop-intro"><span className="workshop-kicker">내 아이디어로 종목을 고르는 도구</span><h3>내 투자 전략</h3>
+      <p>전략마다 이름을 붙여 여러 개 저장할 수 있어요. 내 전략 목록에서 설정과 성과를 확인하고, 서로 다른 전략을 비교해 보세요.</p>
       <div className="workshop-flow"><span>01 참고하기</span><span>02 판단 방법 정하기</span><span>03 연습하기</span><span>04 저장하고 지켜보기</span></div>
       {!guide && <button type="button" className="mg-open" onClick={() => openGuide('overview')}>너무 어려워요 · 설정을 하나씩 설명해 주세요</button>}</div>
     {guide && <ModelGuide key={guide} config={config} learn={learn} startId={guide}
@@ -227,9 +259,9 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
         {workspace.automation?.paused && <p role="status">{workspace.automation.pauseReason}{workspace.automation.resumeTurn && workspace.automation.resumeTurn < 240 ? ` ${workspace.automation.resumeTurn}턴부터 다시 판단할 수 있습니다.` : ''} 제한이 풀린 뒤 다음 턴을 진행하면 재개합니다.</p>}
         <p>입원 중이거나 부업을 한 날에는 자동 투자도 쉽니다. 아직 체결되지 않은 주문은 취소하고, 재개할 때 최신 가격과 잔액으로 다시 판단합니다.</p>
         {workspace.automation?.lastResult && <p>{workspace.automation.lastTurn}턴: {workspace.automation.lastResult.reason}</p>}
-      </div>{workspace.automation?.enabled ? <button type="button" disabled={autoBusy} onClick={()=>automate(false)}>자동 투자 해제</button> : <button type="button" onClick={()=>setView('versions')}>저장한 모델 선택</button>}
+      </div>{workspace.automation?.enabled ? <button type="button" disabled={autoBusy} onClick={()=>automate(false)}>자동 투자 해제</button> : <button type="button" onClick={()=>setView('versions')}>내 전략 목록에서 선택</button>}
     </section>
-    <nav className="workshop-nav" aria-label="전략 제작 단계">{[['references', '전략 레퍼런스'], ['build', '내 전략 편집'], ['compare', '모델 비교'], ['results', '연습·관찰 결과'], ['versions', '저장·연습 기록']].map(([id, label]) => <button type="button" key={id} aria-pressed={view === id} disabled={busy} onClick={() => setView(id)}>{label}</button>)}</nav>
+    <nav className="workshop-nav" aria-label="전략 제작 단계">{[['versions', `내 전략 목록 (${workspace.versions.length})`], ['build', '내 전략 편집'], ['references', '전략 레퍼런스'], ['compare', '전략 비교'], ['results', '연습·관찰 결과'], ['history', '연습·비교 기록']].map(([id, label]) => <button type="button" key={id} aria-pressed={view === id} disabled={busy} onClick={() => setView(id)}>{label}</button>)}</nav>
     {error && <p role="alert" className="workshop-error">{error}</p>}{message && <p role="status" className="workshop-notice">{message}</p>}
     {busy && <p role="status" className="workshop-notice">{view === 'compare'
       ? '여러 모델을 차례로 계산하고 있습니다. 비교가 끝날 때까지 몇 분 정도 걸릴 수 있어요.'
@@ -273,6 +305,15 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
       </article>)}</div>
     </>}
     {view === 'build' && <>
+      <section className="workshop-section workshop-save" aria-labelledby="workshop-save-title">
+        <h4 id="workshop-save-title">전략에 이름을 붙여 저장하세요</h4>
+        <div className="workshop-save-row"><Field label="전략 이름" note="최대 60자 · 저장한 이름이 내 전략 목록에 표시됩니다.">
+          <input maxLength={60} required value={config.name} placeholder="예: 변동성이 낮은 5종목 전략" onChange={e => update({ name: e.target.value })} />
+        </Field><button className="btn-primary" type="button" disabled={cannotSave} onClick={save}>이 이름으로 전략 저장</button></div>
+        {!config.name.trim() && <p>전략 이름을 입력하면 저장할 수 있습니다.</p>}
+        {workspace.versions.length >= 20 && <p>이 게임에서 저장할 수 있는 전략 20개를 모두 사용했습니다.</p>}
+        <p>아래에서 투자 규칙을 정한 뒤 저장하세요. 저장할 때마다 전략이 하나씩 추가되며, 기존 전략의 설정은 유지됩니다.</p>
+      </section>
       <section className="workshop-section" data-guide="method" aria-labelledby="workshop-model-title"><h4 id="workshop-model-title">어떤 방법으로 종목을 고를까요? {ask('method')}</h4>{resume('method')}
         <p>과거 사례에서 판단 방법을 배우게 하거나 내가 규칙을 직접 정할 수 있어요. 아래의 모델 중 하나를 선택하세요.</p>
         <div className="workshop-models" role="radiogroup" aria-labelledby="workshop-model-title">
@@ -307,7 +348,7 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
         <p>{learn ? '연습 시작 전까지 확인할 수 있었던 과거 사례로만 배웁니다. 저장하면 배운 모델을 고정해 이후 게임에서 성과를 지켜봅니다.' : '직접 만든 규칙은 별도 학습 없이 실행합니다. 같은 지표를 사용하는 학습 모델과도 비교할 수 있어요.'}</p>
       </section>
       <TargetControls config={config} update={update} learn={learn} ask={ask} resume={resume} />
-      <section className="workshop-section" data-guide="memo"><h4>어떤 생각으로 투자하나요? {ask('memo')}</h4>{resume('memo')}<Field label="전략 이름"><input maxLength={60} value={config.name} onChange={e => update({ name: e.target.value })} /></Field>
+      <section className="workshop-section" data-guide="memo"><h4>어떤 생각으로 투자하나요? {ask('memo')}</h4>{resume('memo')}
         <Field label="어떤 종목을 고르면 좋을까요?"><textarea rows={2} maxLength={500} value={config.hypothesis} placeholder="예: 꾸준히 오른 종목이 잠깐 조정받았을 때 매수한다." onChange={e => update({ hypothesis: e.target.value })} /></Field>
         {currentRef && <p>참고한 아이디어: <a href={currentRef.url} target="_blank" rel="noreferrer">{currentRef.title} ↗</a> · 각 요소는 아래에서 바꿀 수 있어요.</p>}
       </section>
@@ -351,18 +392,35 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
       {resume('actions')}<div className="workshop-actions" data-guide="actions"><Choice label="살 때와 팔 때 각각 적용할 거래비용" numeric value={feeBps} options={[[0, '0% · 현재 게임 규칙'], [10, '0.1% · 비용 가정'], [20, '0.2% · 비용 가정']]} onChange={setFeeBps} />
         <button className="btn-primary" type="button" disabled={unavailable(config.method)} onClick={practice}>과거 최대 240턴 연습</button>{ask('actions')}
         <button type="button" disabled={!config.terms.length || (config.comparison === 'models' && (unavailable('randomForest') || unavailable('lightgbm') || unavailable('xgboost')))} onClick={compare}>같은 조건으로 비교</button>
-        <button type="button" disabled={workspace.ended || workspace.turn >= 240 || unavailable(config.method)} onClick={save}>전략 저장 · 오늘부터 관찰</button></div>
+        <button type="button" disabled={cannotSave} onClick={save}>이 이름으로 전략 저장</button></div>
       <p>‘같은 조건으로 비교’를 누르면 선택한 설정만 바꾼 결과를 나란히 볼 수 있어요. 초기 자금과 기간을 맞춰 비교합니다.</p>
       <p>연습 초기 자금은 이 게임의 시작 자금 {won(workspace.initialCash)}입니다. 저장 후 관찰 비용은 현재 게임 규칙을 사용합니다. 저장된 버전은 변경되지 않으며 수정본은 새 버전으로 남습니다.</p>
     </>}
     {view === 'results' && (report ? (report.kind === 'compare'
       ? <Comparison key={report.id} report={report} workspace={workspace} config={config} onBuild={replace} onAsset={assetId => openModal('asset', { assetId })} />
       : <Result report={report} workspace={workspace} dirty={signature(report.config) !== signature(config)} onBuild={() => replace(report.config)} onAsset={assetId => openModal('asset', { assetId })} />) : <div className="workshop-empty"><h4>내 아이디어는 어떤 결과를 만들까?</h4><p>전략을 만든 뒤 과거 연습을 실행해 보세요. 돈이 얼마나 늘거나 줄었는지와 어떤 이유로 종목을 골랐는지 볼 수 있습니다.</p><button type="button" onClick={() => setView('build')}>내 전략 편집</button></div>)}
-    {view === 'versions' && <><details className="workshop-details"><summary>자동 투자 기록</summary>{workspace.automation?.history?.length ? workspace.automation.history.map(r=><p key={r.turn_number}>{r.turn_number}턴 · {r.detail.reason}{r.detail.orderCount ? ` (${r.detail.orderCount}건)` : ''}</p>) : <p>아직 자동 투자 기록이 없습니다.</p>}</details><section className="workshop-section">
-      <div className="workshop-section-heading"><h4>저장한 전략 · {workspace.versions.length}/20</h4><button type="button" onClick={() => setView('compare')}>모델 골라 비교하기</button></div>
+    {view === 'versions' && <section className="workshop-section" aria-labelledby="workshop-strategy-list-title">
+      <div className="workshop-section-heading"><div><h4 id="workshop-strategy-list-title">내 전략 목록 · {workspace.versions.length}/20</h4><p>이 게임에 저장한 전략입니다. 이름으로 구분하고 전략별 설정과 성과를 확인하세요.</p></div>
+        <div className="workshop-list-actions"><button className="btn-primary" type="button" onClick={() => replace(workspace.blank)}>새 전략 만들기</button>
+          <button type="button" disabled={workspace.versions.length < 2} onClick={() => setView('compare')}>전략 골라 비교하기</button></div></div>
       <p>자동 투자를 켜면 내 보유 주식과 현금을 모델에 맞춰 조절합니다. 언제든 해제할 수 있습니다. 해제하면 자동 대기 주문만 취소하고 보유 주식은 유지합니다.</p>
-      {!workspace.versions.length && <p>아직 저장한 전략이 없습니다.</p>}{workspace.versions.map(v => <article className="workshop-record" key={v.id}><div><strong>{v.config.name}</strong><p>{v.saved_turn}턴부터 · {methods[v.config.method]}</p></div><button type="button" onClick={() => observe(v.id)}>현재까지 관찰</button>
-      <button type="button" disabled={autoBusy || workspace.ended || (workspace.automation?.enabled && workspace.automation.versionId===v.id)} onClick={()=>automate(true,v.id)}>{workspace.automation?.enabled && workspace.automation.versionId===v.id ? '자동 투자 중' : '이 모델로 자동 투자'}</button><button type="button" onClick={() => replace(v.config)}>복사해서 수정</button></article>)}</section>
+      {!workspace.versions.length && <div className="workshop-empty"><h4>아직 저장한 전략이 없습니다</h4><p>‘새 전략 만들기’에서 이름과 투자 규칙을 정하거나, 전략 레퍼런스의 예시로 시작해 보세요.</p><button type="button" onClick={() => setView('references')}>예시 전략 살펴보기</button></div>}
+      <div className="workshop-strategy-list">{workspace.versions.map((v, i) => <article className="workshop-strategy-card" key={v.id} aria-label={`${v.config.name} · 저장 전략 ${workspace.versions.length - i}`}>
+        <div className="workshop-strategy-heading"><div><span className="workshop-kicker">저장 전략 {workspace.versions.length - i} · {v.saved_turn}턴</span><h4>{v.config.name}</h4></div>
+          {workspace.automation?.enabled && workspace.automation.versionId === v.id && <span className="workshop-strategy-status">{workspace.automation.paused ? '자동 투자 일시정지' : '자동 투자 중'}</span>}</div>
+        <p>{methods[v.config.method]} · 최대 {v.config.topK}종목 · 주식 {v.config.exposure}% · {v.config.rebalanceTurns === 1 ? '매 턴 점검' : `${v.config.rebalanceTurns}턴마다 점검`}</p>
+        {v.config.hypothesis && <p>{v.config.hypothesis}</p>}
+        <details className="workshop-details"><summary>전략 설정 보기</summary><dl>
+          <dt>참고 지표</dt><dd>{v.config.terms.length ? v.config.terms.map(t => `${workspace.features.find(f => f.id === t.feature)?.name || t.feature}${v.config.method === 'score' ? ` (가중치 ${t.weight})` : v.config.reduction === 'anchoredPca' ? ` (첫 요약값 가중치 ${t.weight})` : ''}`).join(', ') : '없음'}</dd>
+          <dt>종목 선정 조건</dt><dd>{v.config.conditions.length ? v.config.conditions.map(r => `${workspace.features.find(f => f.id === r.feature)?.name || r.feature} ${r.measure === 'rank' ? '종목 간 위치 ' : ''}${r.value} ${r.op === 'gte' ? '이상' : '이하'}`).join(v.config.conditionMode === 'any' ? ' 또는 ' : ' · ') : '추가 조건 없음'}</dd>
+          <dt>저장한 시점</dt><dd>{v.saved_turn}턴 · {relativeYearDate(v.saved_date, workspace.date)}</dd>
+        </dl></details>
+        <div className="workshop-list-actions"><button type="button" onClick={() => observe(v.id)}>현재까지 관찰</button>
+          <button type="button" onClick={() => replace(v.config)}>복사해서 수정</button>
+          <button type="button" disabled={autoBusy || workspace.ended || (workspace.automation?.enabled && workspace.automation.versionId===v.id)} onClick={()=>automate(true,v.id)}>{workspace.automation?.enabled && workspace.automation.versionId===v.id ? '자동 투자 중' : '이 모델로 자동 투자'}</button></div>
+      </article>)}</div>
+    </section>}
+    {view === 'history' && <><details className="workshop-details"><summary>자동 투자 기록</summary>{workspace.automation?.history?.length ? workspace.automation.history.map(r=><p key={r.turn_number}>{r.turn_number}턴 · {r.detail.reason}{r.detail.orderCount ? ` (${r.detail.orderCount}건)` : ''}</p>) : <p>아직 자동 투자 기록이 없습니다.</p>}</details>
       <section className="workshop-section"><h4>연습·비교 기록 · 최근 12개</h4><p>잘된 결과와 실패한 결과를 함께 남깁니다. 반복해서 확인한 기간은 새로운 검증 기간이 아닙니다.</p>
       {!workspace.runs.length && <p>아직 실행한 연습이 없습니다.</p>}{workspace.runs.map(r => <article className="workshop-record" key={r.id}><div><strong>{r.config.name}</strong><p>{r.comparison === 'custom' ? r.comparison_period === 'observe' ? '저장 모델 관찰 비교' : '저장 모델 과거 비교' : r.kind === 'compare' ? '학습 모델 비교' : `수익률 ${pct(r.performance?.returnRate)}`} · 편도 비용 {Number(r.fee_bps) / 100}%</p></div><button type="button" onClick={() => oldReport(r.id)}>결과 보기</button></article>)}</section></>}
     </fieldset>

@@ -269,6 +269,10 @@ export default function AssetDetailModal({ assetId }) {
       wide
       help={tab === 'chart' && detail.assetType === 'stock' ? INDICATOR_HELP : null}
     >
+      <section className="stock-business-profile" aria-label="이 종목은 어떤 회사인가요?">
+        <p>{detail.businessProfile?.description || '이 날짜에 제공할 사업 설명 자료가 없습니다.'}</p>
+        {detail.businessProfile && <small>사업 설명 · {relativeYearDate(detail.businessProfile.asOfDate, turn.date)} 공개 자료 기준</small>}
+      </section>
       <div className="filter-bar">
         {['chart', 'news', 'community', 'info'].map((t) => (
           <button key={t} data-tutorial={`asset-tab-${t}`} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
