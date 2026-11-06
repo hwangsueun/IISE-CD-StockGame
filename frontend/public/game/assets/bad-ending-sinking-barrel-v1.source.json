@@ -1,0 +1,7 @@
+{
+  "asset": "bad-ending-sinking-barrel-v1.png",
+  "method": "Built-in image_gen tool",
+  "transparentBackground": false,
+  "purpose": "Pixel-art underwater barrel scene for the bad-ending result summary",
+  "prompt": "Use case: stylized-concept. Asset type: a production background illustration for the final bad-ending scene of a Korean pixel-art stock-survival game. Create ONE landscape 16:9 scene showing a single sealed, weathered steel drum barrel slowly sinking into dark ocean water, viewed from underwater. Place the complete barrel prominently in the LEFT third, tilted slightly, with a small trail of pixel bubbles rising toward the dim rippling water surface at the top. Keep the RIGHT half mostly deep navy water with subtle texture and generous negative space so a separate HTML results panel can be overlaid there. The barrel should remain recognizable when the image is reduced on mobile. Mood: quiet, bleak, lonely, cinematic; dim cyan surface light fading into midnight-blue depths. Style: authentic chunky 16-bit pixel art / dot art, crisp visible square pixels, stepped edges, limited palette, hand-placed-looking pixel clusters and restrained dithering, like a low-resolution 320x180 adventure-game ending cleanly upscaled with nearest-neighbor. No smooth vector gradients, no photorealism, no painterly blur. No people, no bodies, no violence, no logos, no lettering, no text, no watermark. Barrel and water only; do not add boats, creatures, chains, or other props."
+}

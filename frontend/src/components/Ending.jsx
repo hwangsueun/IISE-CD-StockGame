@@ -1,7 +1,7 @@
 // 엔딩 컷신 — 해피(기간 내 빚 완납) / 배드(기한 내 미상환 또는 신뢰도 0)
 // 흐름: 사채업자 김씨와의 대화 -> 최종 리포트 -> 독백 -> 다시 하기
 //   해피: 전화벨 -> 통화(상환 완료) -> 리포트 -> "또.. 해볼까?"
-//   배드: 쾅쾅(배경 흔들림) -> 문밖 대화 -> 리포트 -> 후회 -> "다시 돌아가고 싶어"
+//   배드: 쾅쾅(배경 흔들림) -> 문밖 대화 -> 바닷속 장면 -> 리포트 -> 후회 -> 다시 하기
 // 배경: public/game/assets/{happy,bad}_end_bgr.webp / 대화창·버튼은 인트로 컷신(IntroPage) 스타일 공용
 import { useState } from 'react';
 import { useTypewriter } from '../hooks/useTypewriter';
@@ -10,6 +10,7 @@ import { gameDuration, hasReachedEndingDeadline } from '../utils/ending';
 
 const SHARK = { portrait: '☠', name: '사채업자 김씨' };
 const ME = { portrait: '나', name: '나' };
+const BAD_OCEAN_IMAGE = '/game/assets/bad-ending-sinking-barrel-v1.png';
 
 /** 150_000_000 -> '1억 5천만 원' (인트로 빚 선택지와 같은 말투) */
 function debtLabel(n) {
@@ -52,12 +53,13 @@ function badScenes(result) {
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DOOR', html: `${reason} 아직 <span class="em">${debtLabel(result.debtRemaining)}</span> 남았어.` },
     { type: 'line', bg: 'dim', who: SHARK, tag: 'DOOR', html: '빚 다 못 갚으면 <span class="red">내가 찾아간다고 했지?</span>' },
     { type: 'line', bg: 'dim', shake: true, who: SHARK, tag: 'DOOR', html: '<span class="red">좋은 말로 할 때 나오세요, 형님.</span>' },
-    { type: 'report', bg: 'dark' },
-    { type: 'line', bg: 'lit', who: ME, tag: 'REGRET', html: '…내가 왜 그랬을까.' },
-    { type: 'line', bg: 'lit', who: ME, tag: 'REGRET', html: '그때로 돌아간다면, <span class="em">절대 사채 같은 건 쓰지 않을 텐데.</span>' },
-    { type: 'line', bg: 'lit', who: ME, tag: 'REGRET', html: '한 번만… 딱 한 번만 다시 돌아갈 수 있다면.' },
+    { type: 'ocean', backdrop: 'ocean' },
+    { type: 'report', backdrop: 'ocean' },
+    { type: 'line', backdrop: 'ocean', who: ME, tag: 'REGRET', html: '…내가 왜 그랬을까.' },
+    { type: 'line', backdrop: 'ocean', who: ME, tag: 'REGRET', html: '그때로 돌아간다면, <span class="em">절대 사채 같은 건 쓰지 않을 텐데.</span>' },
+    { type: 'line', backdrop: 'ocean', who: ME, tag: 'REGRET', html: '한 번만… 딱 한 번만 다시 돌아갈 수 있다면.' },
     {
-      type: 'final', bg: 'lit', who: ME, tag: 'REGRET', html: '<span class="em">…다시 돌아가고 싶어. 이전으로…</span>',
+      type: 'final', backdrop: 'ocean', who: ME, tag: 'REGRET', html: '<span class="em">…다시 돌아가고 싶어. 이전으로…</span>',
       button: { num: 'NEW GAME', text: '▶ 다시 하기', sub: '그날 밤, 전화벨이 울리기 전으로' },
     },
   ];
@@ -73,6 +75,7 @@ export default function Ending({ kind, result, report, onRestart }) {
   const [scenes] = useState(() => build(result));
   const [step, setStep] = useState(0);
   const scene = scenes[step];
+  const oceanScene = kind === 'bad' && scene.backdrop === 'ocean';
   const hasNarration = scene.type === 'line' || scene.type === 'final';
   const { html: typedHtml, done: typedDone, skip } = useTypewriter(hasNarration ? scene.html : '', hasNarration);
 
@@ -85,12 +88,15 @@ export default function Ending({ kind, result, report, onRestart }) {
   };
 
   return (
-    <div className="intro-page ending-page">
-      <div className="game-frame ending-frame" onClick={handleStageClick}>
+    <div className={`intro-page ending-page${oceanScene ? ' ending-ocean-page' : ''}`}>
+      <div className={`game-frame ending-frame${oceanScene ? ' ending-ocean-frame' : ''}`} onClick={handleStageClick}>
         <div className="title-plate">{plate}</div>
-        <div className={`ending-bg ${kind} ${scene.bg}${scene.shake ? ' shake' : ''}`} />
+        {oceanScene ? <figure className="ending-ocean-media">
+          <img className="ending-ocean-image" src={BAD_OCEAN_IMAGE}
+            alt="어두운 바닷속으로 드럼통이 가라앉는 픽셀 아트 장면" />
+        </figure> : <div className={`ending-bg ${kind} ${scene.bg}${scene.shake ? ' shake' : ''}`} />}
 
-        <div className="intro-stage">
+        {!oceanScene && <div className="intro-stage">
           {scene.type === 'title' && (
             <div className="black-title">
               <div className="small">{scene.small}</div>
@@ -104,7 +110,15 @@ export default function Ending({ kind, result, report, onRestart }) {
               <div className="big" style={{ fontSize: 26, color: 'var(--px-ink-dim)' }}>{scene.stage.big}</div>
             </div>
           )}
-        </div>
+        </div>}
+
+        {scene.type === 'ocean' && <section className="ending-ocean-arrival" aria-labelledby="ending-ocean-title" onClick={e => e.stopPropagation()}>
+          <span className="ending-ocean-caption">BAD ENDING</span>
+          <h2 id="ending-ocean-title">…깊은 바닷속.</h2>
+          <button type="button" className="choice-btn gold" onClick={next}>
+            <span className="text">최종 결산 보기 ▶</span>
+          </button>
+        </section>}
 
         {(scene.type === 'title' || scene.type === 'knock') && <div className="press-hint">▶ 화면을 클릭하세요</div>}
 

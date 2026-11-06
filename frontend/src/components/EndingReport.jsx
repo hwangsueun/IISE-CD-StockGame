@@ -21,7 +21,7 @@ export default function EndingReport({ result, report, onNext }) {
   }
 
   return (
-    <div className="ending-report" onClick={(e) => e.stopPropagation()}>
+    <div className="ending-report" role="region" aria-label="최종 결산" onClick={(e) => e.stopPropagation()}>
       <div className="er-head">
         <span className="er-en">FINAL REPORT</span>
         <span className="er-ko">최종 리포트</span>
