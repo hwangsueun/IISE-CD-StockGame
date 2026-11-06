@@ -30,6 +30,7 @@ async function main() {
   const { importSectors } = require('./import_sectors');
   const { importNews } = require('./import_news');
   const { importCommunity } = require('./import_community');
+  const { importFinancials } = require('./import_financials');
   const { applyMasking } = require('./apply_masking');
   const { finalizeListingRange } = require('./finalize_listing_range');
 
@@ -47,7 +48,8 @@ async function main() {
       'npc_generator/data/processed/dci_board_rewritten/board_threads_validated_final_screened.jsonl'
     )
   );
-  // TODO(data): stock_financials/stock_valuation 반기 재무 적재기 (DataGuide 재무 파일 확정 시 추가)
+  // Native business-report periods and actual receipt dates; the bundled source contains no synthetic values.
+  await importFinancials(pool);
 
   // --- 마무리 단계 (모든 자산/시세 적재가 끝난 뒤에만 실행) ---
   // 5. 가명 사전(rename_map) 적용 -> assets.masked_name / is_masked (apply_masking.js)

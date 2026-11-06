@@ -455,42 +455,112 @@ export default function AssetDetailModal({ assetId }) {
   );
 }
 
-/** 주식 정보 탭: 재무/밸류에이션 */
-function AssetInfo({ detail, referenceDate }) {
-  const info = detail.info;
-  if (!info) return <p>정보 없음</p>;
+/** Keep statement amounts exact as received, including integers beyond Number's safe range. */
+function financialNumber(value) {
+  if (value === null || value === undefined || !['string', 'number'].includes(typeof value)) return '-';
+  const text = String(value).trim();
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i.exec(text);
+  if (!match) return '-';
+  const exponent = Number(match[4] || 0);
+  if (Math.abs(exponent) > 100) return '-';
+  const digits = match[2] + (match[3] || '');
+  const point = match[2].length + exponent;
+  let integer, fraction;
+  if (point <= 0) { integer = '0'; fraction = '0'.repeat(-point) + digits; }
+  else if (point >= digits.length) { integer = digits + '0'.repeat(point - digits.length); fraction = ''; }
+  else { integer = digits.slice(0, point); fraction = digits.slice(point); }
+  integer = integer.replace(/^0+(?=\d)/, '');
+  const sign = match[1] === '-' && /[1-9]/.test(digits) ? '-' : '';
+  return sign + integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (fraction ? `.${fraction}` : '');
+}
 
-  if (detail.assetType === 'stock') {
-    return (
-      <div className="asset-info">
-        <h4>반기 재무제표</h4>
-        <table className="data-table">
-          <thead><tr><th>연도/반기</th><th>매출액</th><th>영업이익</th><th>순이익</th></tr></thead>
-          <tbody>
-            {(info.financials || []).map((f) => (
-              <tr key={`${f.fiscal_year}-${f.half}`}>
-                <td>{relativeYearLabel(f.fiscal_year, referenceDate)} H{f.half}</td>
-                <td>{won(f.revenue)}</td>
-                <td>{won(f.operating_income)}</td>
-                <td>{won(f.net_income)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <h4>밸류에이션</h4>
-        <table className="data-table">
-          <thead><tr><th>연도/반기</th><th>PER</th><th>PBR</th><th>ROE</th><th>EPS</th></tr></thead>
-          <tbody>
-            {(info.valuation || []).map((v) => (
-              <tr key={`${v.fiscal_year}-${v.half}`}>
-                <td>{relativeYearLabel(v.fiscal_year, referenceDate)} H{v.half}</td>
-                <td>{v.per ?? '-'}</td><td>{v.pbr ?? '-'}</td><td>{v.roe ?? '-'}</td><td>{v.eps ?? '-'}</td>
-              </tr>
-            ))}
-          </tbody>
+function statementAmount(value) {
+  const amount = financialNumber(value);
+  return amount === '-' ? '-' : `${amount}원`;
+}
+
+function statementDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!match) return null;
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? { value: match[0], month } : null;
+}
+
+function StatementPeriod({ row, referenceDate, balance = false }) {
+  const annualReport = row.period === 'annual';
+  const half = [1, 2].includes(Number(row.half)) ? `H${row.half}` : '';
+  const start = statementDate(row.period_start), end = statementDate(row.period_end);
+  return <td className="financial-period">
+    <strong>{relativeYearLabel(row.fiscal_year, referenceDate)} {annualReport ? '사업보고서' : half}</strong>
+    {annualReport && <>
+      {!balance && start && end && <span className="financial-period-range">{relativeYearDate(start.value, referenceDate)} ~ {relativeYearDate(end.value, referenceDate)}</span>}
+      {end ? <span>{balance ? `${relativeYearDate(end.value, referenceDate)} 결산` : `${end.month}월 결산`}</span> : <span>대상 기간 미상</span>}
+    </>}
+  </td>;
+}
+
+function StatementMetric({ row, field }) {
+  const label = row.metric_labels?.[field];
+  return <td>{statementAmount(row[field])}
+    {typeof label === 'string' && label.trim() && <small className="financial-metric-label">{label}</small>}
+  </td>;
+}
+
+/** 주식 정보 탭: 실제 보고기간의 재무제표와 수집된 밸류에이션만 표시한다. */
+function AssetInfo({ detail, referenceDate }) {
+  if (detail.assetType !== 'stock') return null;
+  const info = detail.info || {};
+  const financials = Array.isArray(info.financials) ? info.financials.filter(row => row && typeof row === 'object') : [];
+  const valuation = Array.isArray(info.valuation) ? info.valuation.filter(row => row && typeof row === 'object') : [];
+  const meta = info.financialsMeta || {};
+  const balanceRows = financials.filter(row => ['total_assets', 'total_liabilities', 'total_equity'].some(field => financialNumber(row[field]) !== '-'));
+  const statementTitle = meta.period === 'annual' || financials.some(row => row.period === 'annual') || !financials.length
+    ? '사업보고서 재무제표' : '재무제표';
+  const emptyStatement = meta.status === 'not_yet_available'
+    ? '수집된 사업보고서 중 현재 게임 날짜에 공개된 재무제표가 없습니다.'
+    : meta.status === 'not_collected'
+      ? '이 종목의 사업보고서 재무제표 자료가 아직 준비되지 않았습니다.'
+      : '표시할 재무제표 자료가 없습니다.';
+  return <div className="asset-info">
+    <h4 id="financial-statements-heading">{statementTitle}</h4>
+    {financials.length ? <>
+      <p className="financial-note">금액 단위: 원 · -는 자료 없음{meta.sourceName ? ` · ${meta.sourceName}` : ''}<span className="financial-scroll-hint">가로로 긴 표는 좌우로 움직여 확인하세요.</span></p>
+      <div className="asset-info-table-scroll" role="region" aria-labelledby="financial-statements-heading" tabIndex={0}>
+        <table className="data-table asset-info-table financial-statements-table">
+          <thead><tr><th scope="col">연도 / 대상 기간</th><th scope="col">기준</th><th scope="col">매출·영업수익</th><th scope="col">영업이익</th><th scope="col">순이익</th></tr></thead>
+          <tbody>{financials.map((row, index) => <tr key={`${row.fiscal_year}-${row.period || row.half}-${row.period_end || index}-${row.basis || ''}`}>
+            <StatementPeriod row={row} referenceDate={referenceDate} />
+            <td>{row.basis === 'CFS' ? '연결' : row.basis === 'OFS' ? '별도' : '-'}</td>
+            <StatementMetric row={row} field="revenue" /><StatementMetric row={row} field="operating_income" /><StatementMetric row={row} field="net_income" />
+          </tr>)}</tbody>
         </table>
       </div>
-    );
-  }
-  return null;
+    </> : <p className="financial-empty" role="status">{emptyStatement}</p>}
+    {balanceRows.length > 0 && <>
+      <h4 id="financial-balance-heading">재무상태</h4>
+      <p className="financial-note">금액 단위: 원 · -는 자료 없음<span className="financial-scroll-hint">가로로 긴 표는 좌우로 움직여 확인하세요.</span></p>
+      <div className="asset-info-table-scroll" role="region" aria-labelledby="financial-balance-heading" tabIndex={0}>
+        <table className="data-table asset-info-table financial-statements-table">
+          <thead><tr><th scope="col">연도 / 결산</th><th scope="col">기준</th><th scope="col">자산</th><th scope="col">부채</th><th scope="col">자본</th></tr></thead>
+          <tbody>{balanceRows.map((row, index) => <tr key={`${row.fiscal_year}-${row.period || row.half}-${index}-${row.basis || ''}`}>
+            <StatementPeriod row={row} referenceDate={referenceDate} balance />
+            <td>{row.basis === 'CFS' ? '연결' : row.basis === 'OFS' ? '별도' : '-'}</td>
+            <StatementMetric row={row} field="total_assets" /><StatementMetric row={row} field="total_liabilities" /><StatementMetric row={row} field="total_equity" />
+          </tr>)}</tbody>
+        </table>
+      </div>
+    </>}
+    <h4 id="financial-valuation-heading">밸류에이션</h4>
+    {valuation.length ? <div className="asset-info-table-scroll" role="region" aria-labelledby="financial-valuation-heading" tabIndex={0}>
+      <table className="data-table asset-info-table">
+        <thead><tr><th scope="col">연도 / 기간</th><th scope="col">PER</th><th scope="col">PBR</th><th scope="col">ROE</th><th scope="col">EPS</th></tr></thead>
+        <tbody>{valuation.map((row, index) => <tr key={`${row.fiscal_year}-${row.period || row.half}-${index}`}>
+          <StatementPeriod row={row} referenceDate={referenceDate} />
+          <td>{financialNumber(row.per)}</td><td>{financialNumber(row.pbr)}</td><td>{financialNumber(row.roe)}</td><td>{financialNumber(row.eps)}</td>
+        </tr>)}</tbody>
+      </table>
+    </div> : <p className="financial-empty" role="status">밸류에이션 자료가 없습니다.</p>}
+  </div>;
 }

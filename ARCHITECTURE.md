@@ -219,7 +219,8 @@ DATA_DIR=/path/to/data-pipeline
 | 코인 메타/시세 | `crypto_universe/data/processed/coin_universe_selected.csv`, `coin_history_selected.csv` | USD 원천 보존, 거래가는 `usdkrw` 환산 KRW | `import_coins.js` |
 | 종토방 | `npc_generator/data/processed/dci_board_rewritten/board_threads_validated_final_screened.jsonl` | **스레드 2,501건.** 혐오발언 스크리닝+봇 제거+닉네임 재부여 완료본. `target_kind`/`target_id`로 자산 직접 매핑 | `import_community.js` |
 | 마스킹 사전 | `data/processed/rename_map/{stock,coin,alias}_rename_map.csv` | 실명→가명 정본. 그룹 어간(`group_stem_*`) 포함 (§6-1) | `apply_masking.js` |
-| 주식 재무/밸류에이션 | (DataGuide 반기 재무 — 파일 미확정) | `stock_financials`/`stock_valuation` 스키마 준비됨 | TODO |
+| 사업보고서 재무 | `server/src/data/stockFinancialStatements.json` (DART 주요계정·원문 검증본) | 실제 회계기간·연결/별도·접수 버전·공시 다음 날부터의 가용일 보존 | `import_financials.js` |
+| 반기 재무/밸류에이션 | DataGuide 원본 미확정 | 기존 `stock_financials`/`stock_valuation`은 별도 계약. 사업보고서를 반기로 변환하지 않음 | 미제공 |
 
 미확정/잔여: ① 반기 재무 원본 ② npq 수급 시트 매핑 ③ `rename_map`의 `group_stem_masked` 7건이 어간이 아니라 종목 가명 전체로 들어가 있음(한화→`운강에어로스페이스`, 한진→`초원홀딩스`, 신한→`명한지주`, 미래에셋, HL, 티와이, KT라틴) — "한화솔루션"이 "운강에어로스페이스솔루션"이 된다. 데이터 담당 수정 대상.
 
@@ -394,6 +395,7 @@ erDiagram
 | `bond_price_detail` | `(asset_id, trade_date)` | `asset_id` | `yield_rate`, `price_index` | 채권은 수익률과 가격지수를 분리 |
 | `coin_price_detail` | `(asset_id, trade_date)` | `asset_id` | `market_cap`, `volume_usd` | 코인은 USD 원천 데이터를 보존 |
 | `stock_financials` | `(asset_id, fiscal_year, half)` | `asset_id` | 매출, 영업이익, 순이익, 부채, 현금, 재고 | 반기별 재무제표 |
+| `stock_financial_statements` | `(asset_id, receipt_no, fs_div, period_end)` | `asset_id` | 매출·영업·순이익, 자산·부채·자본, 실제 기간·가용일·원천 해시 | 사업보고서의 공시 버전별 실측값(015) |
 | `stock_valuation` | `(asset_id, fiscal_year, half)` | `asset_id` | PER, PBR, PSR, ROE, ROA, EPS 등 | 반기별 밸류에이션 |
 | `bond_info` | `asset_id` | `asset_id` | `bond_type`, `credit_rating`, `maturity` | 채권 정적 정보 |
 | `coin_info` | `asset_id` | `asset_id` | `symbol`, `market_cap_tier`, 생존 여부 | 코인 정적 정보 |
@@ -1133,3 +1135,12 @@ DB에는 `013_user_strategies.sql`을 적용한다. `user_strategy_versions`는 
 - `POST /api/game/:sessionId/quant/strategies/compare-saved`는 `versionIds`, `period`(`practice`/`observe`), 연습 시 `feeBps`를 받는다. 중복·초과 선택과 다른 세션의 버전을 거부하고 서버에 저장된 설정과 학습값만 읽는다. 현재 게임 이후 자료는 읽지 않는다. 워커의 기존 실행 제한을 적용하며 실패한 모델의 이름을 오류에 표시한다.
 - 결과는 수익률 추이, 최대 낙폭, 거래 수, 모델별 상세 결과를 제공한다. Alpha158과 코스피도 그래프에서 확인한다. 월·일은 유지하고 실제 연도는 숨긴다. 완료 결과와 선택한 버전 ID는 `user_strategy_runs`에 저장하며 `연습·비교 기록`에서 같은 결과를 다시 조회한다.
 - 검증: `userStrategyComparison.test.js`는 공통 기간·비용·초기 자금, 평가 이전 재학습, 서로 다른 저장일/자료 범위, 고정 학습값, 원본 변경 감지, 미래 데이터 비참조를 검사한다. `USER_STRATEGY_COMPARISON_INTEGRATION=1 node --test test/userStrategyComparisonIntegration.test.js`는 임시 세션에서 Ridge·LightGBM·사용자 규칙의 실제 계산, API 입력 제한, 세션 격리, 결과 보존, 잔액·자동 투자·주문 불변을 검증한다.
+
+
+## 사업보고서 재무 연결 (2026-11-06)
+
+- 원천은 DART 주요계정/전체계정의 원본 응답과 접수번호가 일치하는 사업보고서 XML이다. `scripts/collect-financial-statements.py`, `scripts/build-financial-statements-from-xml.py`, `scripts/package-financial-statements.py`로 수집·단위 검증·중복 대조 후 묶는다. 기존 `annual_financials_api.csv`는 최신 정정 숫자에 최초 공시일을 붙이는 사례가 있어 사용하지 않는다.
+- `015_stock_financial_statements.sql` 적용 후 `cd server && node seeds/import_financials.js`로 번들을 적재한다. 전체 실데이터 적재에도 포함된다. Render는 기동 시 같은 번들을 원자적으로 적재하며 버전/해시·원본 값·기존 행 누락을 검증한다. 게임·주문·전략 테이블은 변경하지 않는다.
+- 접수 버전별 실제 기간과 연결/별도를 저장한다. 공시 시각을 알 수 없어 공시 다음 날부터만 조회하며, 같은 결산일 중 그 날짜까지 수집된 연결 재무제표를 우선한다. 정정 전 기간에 나중 정정 값을 쓰지 않는다. 결산기 변경의 6개월 보고서를 반기나 12개월로 바꾸지 않는다.
+- NUMERIC 금액을 문자열로 전달해 큰 원금액을 보존한다. 원문 단위를 원으로 환산하며 미제공 값은 null이다. 정보 탭은 손익·재무상태를 분리하고 기간·연결/별도·계정명을 표시한다. 공개 DTO에는 접수번호·원문 경로·회사 실명·내부 증거를 넣지 않는다.
+- 재무제표 연결은 수집된 사업보고서 범위이며 분기/반기·PER/PBR/EPS를 임의 생성하지 않는다. 초기 날짜에 해석 가능한 원문이 확보되지 않은 경우에는 수집 범위를 명시한 빈 상태를 제공한다.

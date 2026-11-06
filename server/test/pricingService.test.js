@@ -10,7 +10,7 @@ function loadService(rows, calls = []) {
     ...realDb,
     query: async (sql, params) => {
       calls.push({ sql, params });
-      return { rows };
+      return { rows: typeof rows === 'function' ? rows(sql, params) : rows };
     },
   };
   delete require.cache[servicePath];
@@ -106,4 +106,29 @@ test('market labels the holding business separately from financial registration 
   assert.equal(stock.businessProfile.registeredIndustry.name, '기타 금융업');
   assert.equal(stock.indexReference.sector, '금융');
   assert.ok(!Object.hasOwn(stock.businessProfile, 'sourceExcerpt'));
+});
+
+test('stock detail connects actual reporting periods and receipt availability to the information tab', async () => {
+  const calls = [];
+  const service = loadService((sql) => {
+    if (sql.includes('FROM assets WHERE asset_id')) return [{ asset_id: 'STOCK_003550', asset_type: 'stock', name: '해린', currency: 'KRW' }];
+    if (sql.includes('FROM stock_financial_statements')) return [{ fiscal_year: 2015, period_start: '2015-01-01', period_end: '2015-12-31',
+      fs_div: 'CFS', currency: 'KRW', revenue: '9968190000000', operating_income: '0', net_income: null,
+      metric_labels: { revenue: '매출및지분법손익' }, receipt_no: '20160516003529', source_metadata: { private: true } }];
+    if (sql.includes('SELECT close_price')) return [{ close_price: '100' }];
+    return [];
+  }, calls);
+  const detail = await service.getAssetDetail('STOCK_003550', '2016-09-26');
+  assert.equal(detail.info.financials.length, 1);
+  assert.equal(detail.info.financials[0].revenue, '9968190000000');
+  assert.equal(detail.info.financials[0].operating_income, '0');
+  assert.equal(detail.info.financials[0].net_income, null);
+  assert.equal(detail.info.financials[0].basis, 'CFS');
+  assert.equal(detail.info.financials[0].receipt_no, undefined);
+  assert.equal(detail.info.financials[0].source_metadata, undefined);
+  assert.equal(detail.info.financialsMeta.status, 'available');
+  const source = calls.find(call => call.sql.includes('FROM stock_financial_statements'));
+  assert.deepEqual(source.params, ['STOCK_003550', '2016-09-26']);
+  assert.match(source.sql, /available_date <= \$2/);
+  assert.ok(!calls.some(call => /FROM stock_financials WHERE/.test(call.sql)));
 });

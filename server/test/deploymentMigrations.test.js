@@ -66,21 +66,22 @@ test('deployment migrations preserve old games, serialize starts, verify hashes 
   const concurrent = await Promise.all([
     runDeploymentMigrations(fresh.pool), runDeploymentMigrations(fresh.pool),
   ]);
-  assert.deepEqual(concurrent.map(r => r.applied.length).sort(), [0, 4]);
-  assert.deepEqual(concurrent.map(r => r.skipped.length).sort(), [0, 4]);
+  assert.deepEqual(concurrent.map(r => r.applied.length).sort(), [0, MIGRATIONS.length]);
+  assert.deepEqual(concurrent.map(r => r.skipped.length).sort(), [0, MIGRATIONS.length]);
   const { rows: [saved] } = await fresh.pool.query('SELECT * FROM game_sessions WHERE id=$1', [fresh.game.id]);
   assert.equal(saved.quant_challenge_enabled, false);
   delete saved.quant_challenge_enabled;
   assert.deepEqual(saved, fresh.game, 'all old game values remain unchanged');
-  assert.equal((await fresh.pool.query('SELECT COUNT(*)::int AS n FROM app_schema_migrations')).rows[0].n, 4);
+  assert.equal((await fresh.pool.query('SELECT COUNT(*)::int AS n FROM app_schema_migrations')).rows[0].n, MIGRATIONS.length);
+  assert.equal((await fresh.pool.query('SELECT COUNT(*)::int AS n FROM stock_financial_statements')).rows[0].n, 0);
   assert.deepEqual((await runDeploymentMigrations(fresh.pool)).skipped, MIGRATIONS);
 
   const changedDir = await fs.mkdtemp(path.join(os.tmpdir(), 'antsurvival-migration-checksum-'));
   directories.push(changedDir);
   for (const filename of MIGRATIONS) await fs.copyFile(path.join(migrationsDir, filename), path.join(changedDir, filename));
-  await fs.appendFile(path.join(changedDir, MIGRATIONS[3]), '\n-- changed after installation\n');
+  await fs.appendFile(path.join(changedDir, MIGRATIONS.at(-1)), '\n-- changed after installation\n');
   await assert.rejects(runDeploymentMigrations(fresh.pool, { migrationsDir: changedDir }), /checksum mismatch/);
-  assert.equal((await fresh.pool.query('SELECT COUNT(*)::int AS n FROM app_schema_migrations')).rows[0].n, 4);
+  assert.equal((await fresh.pool.query('SELECT COUNT(*)::int AS n FROM app_schema_migrations')).rows[0].n, MIGRATIONS.length);
 
   const legacy = await fixture();
   // Also support a manual 011 installation predating the deployment ledger.
@@ -101,7 +102,7 @@ test('deployment migrations preserve old games, serialize starts, verify hashes 
   const badDir = await fs.mkdtemp(path.join(os.tmpdir(), 'antsurvival-migration-rollback-'));
   directories.push(badDir);
   for (const filename of MIGRATIONS) await fs.copyFile(path.join(migrationsDir, filename), path.join(badDir, filename));
-  await fs.appendFile(path.join(badDir, MIGRATIONS[3]), '\nSELECT missing_migration_test_function();\n');
+  await fs.appendFile(path.join(badDir, MIGRATIONS.at(-1)), '\nSELECT missing_migration_test_function();\n');
   await assert.rejects(runDeploymentMigrations(broken.pool, { migrationsDir: badDir }), /does not exist/);
   const { rows: [rolledBack] } = await broken.pool.query(`SELECT
     to_regclass($1) AS ledger, to_regclass($2) AS challenge`,
@@ -109,5 +110,5 @@ test('deployment migrations preserve old games, serialize starts, verify hashes 
   assert.equal(rolledBack.ledger, null);
   assert.equal(rolledBack.challenge, null, 'the BEGIN/COMMIT in 012 cannot commit partial migrations');
   assert.deepEqual((await broken.pool.query('SELECT * FROM game_sessions WHERE id=$1', [broken.game.id])).rows[0], broken.game);
-  assert.equal((await runDeploymentMigrations(broken.pool)).applied.length, 4, 'retry succeeds after rollback');
+  assert.equal((await runDeploymentMigrations(broken.pool)).applied.length, MIGRATIONS.length, 'retry succeeds after rollback');
 });

@@ -5,6 +5,7 @@ const { notFound, badRequest } = require('../utils/errors');
 const { EXECUTION_RULES } = require('./executionService');
 const { getStockIndexReference } = require('./stockSectorClassification');
 const { getStockBusinessIntro } = require('./stockBusinessIntro');
+const { getFinancialStatements, validateDate } = require('./financialStatementService');
 
 /** 특정 자산의 특정 날짜 종가. 없으면 null. */
 async function getPriceAt(assetId, date, client) {
@@ -84,6 +85,7 @@ async function listAssets({ type = 'stock', sort, date }) {
 
 /** 종목 상세 + 자산 타입별 정보 탭 (§10 종목 상세 화면) */
 async function getAssetDetail(assetId, date) {
+  validateDate(date);
   const { rows } = await query(
     `SELECT asset_id, asset_type, masked_name AS name, sector, currency, listed_from, listed_to
      FROM assets WHERE asset_id = $1 AND asset_type = 'stock'`,
@@ -112,15 +114,11 @@ async function getAssetDetail(assetId, date) {
   };
 
   if (asset.asset_type === 'stock') {
-    // 반기 재무/밸류에이션: date 이전 공시분만 노출해야 미래 정보 누출이 없다.
-    // TODO(gamelogic): fiscal_year/half -> 공시 가능 시점 매핑 규칙 확정 (현재는 date 연도 - 1까지 노출)
-    const cutYear = date ? new Date(date).getFullYear() - 1 : 9999;
-    const [fin, val, priceDetail] = await Promise.all([
-      query(
-        `SELECT * FROM stock_financials WHERE asset_id = $1 AND fiscal_year <= $2
-         ORDER BY fiscal_year DESC, half DESC LIMIT 4`,
-        [assetId, cutYear]
-      ),
+    // Statements use their actual receipt version and availability, independently of fiscal-year labels.
+    // Existing valuation snapshots have no new source data in this financial-statement import.
+    const cutYear = date ? Number(date.slice(0, 4)) - 1 : 9999;
+    const [statements, val, priceDetail] = await Promise.all([
+      getFinancialStatements(assetId, date, { query }),
       query(
         `SELECT * FROM stock_valuation WHERE asset_id = $1 AND fiscal_year <= $2
          ORDER BY fiscal_year DESC, half DESC LIMIT 4`,
@@ -131,7 +129,7 @@ async function getAssetDetail(assetId, date) {
         : { rows: [] },
     ]);
     detail.info = {
-      financials: fin.rows,
+      ...statements,
       valuation: val.rows,
       priceDetail: priceDetail.rows[0] || null, // 거래량/수급/시총
     };

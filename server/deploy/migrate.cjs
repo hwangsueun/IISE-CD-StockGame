@@ -9,6 +9,7 @@ const MIGRATIONS = Object.freeze([
   '012_monthly_challenge_capital.sql',
   '013_user_strategies.sql',
   '014_model_automation.sql',
+  '015_stock_financial_statements.sql',
 ]);
 const LOCK_KEY = [0x414e5453, 0x4d494752]; // ANT SURVIVAL / migrations, per database
 

@@ -823,6 +823,29 @@ button { cursor: pointer; font: inherit; }
 .mk-sector-selection button { border: 1px solid #5a3624; padding: 5px 8px; background: #2a1a10; color: var(--px-ink); font: inherit; font-size: 12px; cursor: pointer; }
 .mk-sector-selection button:focus-visible { outline: 2px solid var(--px-gold); outline-offset: 2px; }
 .mk-business-description { display: block; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; color: var(--px-ink-dim); font-size: 11px; }
+/* 종목 정보 탭: 긴 원 단위 금액은 표 안에서만 가로로 이동한다. */
+.asset-info { min-width: 0; max-width: 100%; }
+.asset-info .financial-note,.asset-info .financial-empty { color: var(--px-ink-dim); font: 13px/1.7 'Galmuri11', monospace; }
+.asset-info .financial-empty { padding: 12px; border: 1px solid #5a3624; background: #0c0704; }
+.asset-info-table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: #5a3624 #0c0704; }
+.financial-scroll-hint { display: block; font-size: 12px; }
+.asset-info-table-scroll::-webkit-scrollbar { height: 8px; }
+.asset-info-table-scroll::-webkit-scrollbar-track { background: #0c0704; }
+.asset-info-table-scroll::-webkit-scrollbar-thumb { background: #5a3624; }
+.asset-info-table-scroll:focus-visible { outline: 2px solid var(--px-gold); outline-offset: 2px; }
+.asset-info .asset-info-table { min-width: 620px; margin: 0; }
+.asset-info .financial-statements-table { min-width: 760px; }
+.asset-info-table th,.asset-info-table td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.asset-info-table tbody tr { cursor: default; }
+.asset-info-table .financial-period { min-width: 180px; max-width: 260px; text-align: left; white-space: normal; }
+.financial-metric-label { display: block; max-width: 220px; margin: 4px 0 0 auto; color: var(--px-ink-dim); font-size: 11px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.financial-period strong,.financial-period span { display: block; }
+.financial-period span { margin-top: 3px; font-size: 12px; line-height: 1.5; color: var(--px-ink-dim); }
+@media (max-width: 600px) {
+  .asset-info .asset-info-table { font-size: 12px; }
+  .asset-info-table-scroll { padding-bottom: 8px; }
+}
+
 .stock-business-profile { margin: 0 0 12px; padding: 12px; border-left: 3px solid var(--px-gold); background: #0c0704; font-family: 'Galmuri11', monospace; }
 .stock-business-profile p { margin: 0 0 5px; color: var(--px-ink); font-size: 14px; line-height: 1.7; }
 .stock-business-profile small { color: var(--px-ink-dim); font-size: 11px; }

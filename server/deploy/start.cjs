@@ -28,6 +28,7 @@ async function main() {
   if (!prices.ready) throw new Error('Market prices are missing');
   console.log(JSON.stringify({ status: 'migrated', ...await require('./migrate.cjs').runDeploymentMigrations(pool) }));
   console.log(JSON.stringify({ status: 'sectors', ...await prepareSectors(pool, runtimeDir, analysisManifest) }));
+  console.log(JSON.stringify({ status: 'financials', ...await require('../seeds/import_financials').importFinancials(pool) }));
   const app = require('../src/index');
   const port = Number(process.env.PORT || 3001);
   const server = app.listen(port, '0.0.0.0', () => {
