@@ -41,6 +41,7 @@ function sectorClassification({ code, market, sector }) {
 
 module.exports = {
   getStockClassification,
+  getStockIndexReference: getStockClassification,
   sectorClassification,
   classificationNote: data.note,
   classificationSource: { basis: data.basis, stockCount: data.stocks.length, ...data.provenance },

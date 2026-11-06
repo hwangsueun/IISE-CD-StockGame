@@ -37,9 +37,9 @@ test('bundled classification covers exactly the explicit fixed117 universe witho
   const mapped = artifact.indices.flatMap(index => sectorClassification(index).assetIds);
   assert.equal(mapped.length, 117);
   assert.equal(new Set(mapped).size, 117);
-  assert.match(classificationNote, /고정 업종 분류/);
-  assert.match(classificationNote, /과거 시점의 공식 업종지수 구성종목을 뜻하지 않습니다/);
-  assert.equal(classificationSource.basis, 'fixed_game_universe');
+  assert.match(classificationNote, /지수 비교용/);
+  assert.match(classificationNote, /공식 지수 구성종목을 나타내는 자료는 아닙니다/);
+  assert.equal(classificationSource.basis, 'curated_index_reference');
   assert.match(classificationSource.mapping.path, /build_sector_reaction_layer\.py$/);
   assert.match(classificationSource.indices.path, /kr_index_master_sector_candidates\.csv$/);
   assert.match(classificationSource.mapping.sha256, /^[a-f0-9]{64}$/);

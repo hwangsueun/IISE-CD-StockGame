@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "basis": "fixed_game_universe",
-  "note": "게임 수록 117종목의 고정 업종 분류입니다. 과거 시점의 공식 업종지수 구성종목을 뜻하지 않습니다.",
+  "basis": "curated_index_reference",
+  "note": "게임 종목을 지수 비교용으로 연결한 고정 참고표입니다. 당시 거래소 업종이나 공식 지수 구성종목을 나타내는 자료는 아닙니다.",
   "provenance": {
     "mapping": {
       "path": "data-pipeline/news_generator/scripts/processors/build_sector_reaction_layer.py",
@@ -12,7 +12,7 @@
       "path": "data-pipeline/market_indicator/data/raw/kr_index_master_sector_candidates.csv",
       "sha256": "05e2dfd4189a67a6a178a372a49c4c7acd78c9ea3dfe8220f85ef849070f2676"
     },
-    "scope": "Explicit coarse classification for the fixed 117-stock game universe. Broad Manufacturing assignments are preserved from the source. No historical constituent-membership claim."
+    "scope": "Manually selected coarse index-comparison links for the fixed game universe; not operating-business industries, historical classifications, or official index constituents."
   },
   "stocks": [
     {

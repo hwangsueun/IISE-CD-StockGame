@@ -44,7 +44,7 @@ const MARKET_HELP = (
       <li><b>화면 선택</b> — 왼쪽에서 주식 종목과 시장 참고지표를 확인한다.</li>
       <li><b>주식 검색</b> — 종목 이름의 일부를 입력해 찾는다. 공백과 영문 대소문자는 구분하지 않는다.</li>
       <li><b>정렬</b> — 거래대금·거래량·상승률·하락률로 순위를 바꾼다.</li>
-      <li><b>업종별</b> — 코스피·코스닥 업종 지수가 전 개장일보다 얼마나 올랐는지 확인한다. 지수를 누르면 게임에서 해당 업종으로 분류한 종목을 볼 수 있다.</li>
+      <li><b>업종별</b> — 코스피·코스닥 업종 지수가 전 개장일보다 얼마나 올랐는지 확인한다. 지수를 누르면 비교용으로 연결한 게임 종목을 볼 수 있다. 종목의 주요 사업과 지수 비교용 연결은 구분한다.</li>
       <li>가격 옆 등락률은 <b>오르면 빨강, 내리면 파랑</b>이다.</li>
     </ul>
   </>
@@ -144,7 +144,7 @@ export default function MarketModal() {
           {cat === 'sector' ? (
             <div className="mk-sectors">
               <h3>오늘 어떤 업종이 올랐을까?</h3>
-              <p>각 업종의 주가 흐름을 모은 지수예요. 지수를 누르면 게임에서 해당 업종으로 분류한 종목을 볼 수 있습니다.</p>
+              <p>각 업종의 주가 흐름을 모은 지수예요. 지수를 누르면 이 지수에 비교용으로 연결한 게임 종목을 볼 수 있습니다.</p>
               <div className="dash-unit-tabs" aria-label="업종 시장">
                 {['KOSPI', 'KOSDAQ'].map(m => <button type="button" key={m}
                   className={sectorMarket === m ? 'active' : ''} aria-pressed={sectorMarket === m}
@@ -204,7 +204,7 @@ export default function MarketModal() {
           ) : (
             <>
               {sectorFilter && <section className="mk-sector-selection" aria-label="선택한 업종">
-                <strong>{sectorFilter.market === 'KOSPI' ? '코스피' : '코스닥'} · {sectorFilter.sector} 종목</strong>
+                <strong>{sectorFilter.market === 'KOSPI' ? '코스피' : '코스닥'} · {sectorFilter.sector} 지수에 연결한 종목</strong>
                 <p>{sectorData?.classificationNote || '게임에 수록된 고정 업종 분류를 기준으로 보여줍니다.'}</p>
                 <div><button type="button" onClick={() => { setSectorMarket(sectorFilter.market); setCat('sector'); }}>업종 지수로 돌아가기</button>
                   <button type="button" onClick={() => setSectorFilter(null)}>전체 주식 보기</button></div>
@@ -218,8 +218,8 @@ export default function MarketModal() {
                   {search && <button type="button" onClick={() => { setSearch(''); searchRef.current?.focus(); }}>검색어 지우기</button>}
                 </div>
                 <p className="mk-search-count" role="status">{!assetsLoading && !assetsError && classificationAvailable && (query
-                  ? `검색 결과 ${matches.length}종목 · ${sectorFilter ? `${sectorFilter.sector} ${scopedAssets.length}종목` : `전체 ${assets.length}종목`}`
-                  : sectorFilter ? `이 업종 ${scopedAssets.length}종목 · 전체 ${assets.length}종목` : `전체 ${assets.length}종목`)}</p>
+                  ? `검색 결과 ${matches.length}종목 · ${sectorFilter ? `연결 종목 ${scopedAssets.length}종목` : `전체 ${assets.length}종목`}`
+                  : sectorFilter ? `연결 종목 ${scopedAssets.length}종목 · 전체 ${assets.length}종목` : `전체 ${assets.length}종목`)}</p>
               </div>
               <div className="mk-rank-tabs">
                 {SORTS.map((s) => (
@@ -237,7 +237,7 @@ export default function MarketModal() {
                       : matches.map(({ asset: a, rank }) => (
                   <div className="mk-row" key={a.assetId} onClick={() => openModal('asset', { assetId: a.assetId })}>
                     <span className={`rnk ${rank <= 3 ? 'top' : ''}`}>{rank}</span>
-                    <span className="nm">{a.name}<small>{a.sector || '-'}</small><span className="mk-business-description" title={a.businessProfile?.description}>{a.businessProfile?.description || '사업 설명 자료 없음'}</span></span>
+                    <span className="nm">{a.name}<small>{a.businessProfile?.industry ? `주요 사업 · ${a.businessProfile.industry}` : a.sector || '-'}</small><span className="mk-business-description" title={a.businessProfile?.description}>{a.businessProfile?.description || '사업 설명 자료 없음'}</span></span>
                     <span className="px">{won(a.price)}</span>
                     <span className={`ch ${changeClass(a.changeRate)}`}>{signed(a.changeRate)}</span>
                     <span className="vol">{a.volume ? Math.round(a.volume).toLocaleString('ko-KR') : '-'}</span>

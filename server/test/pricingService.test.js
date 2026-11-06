@@ -95,3 +95,15 @@ test('decline ranking sorts ascending with missing prices last and excludes out-
     { assetId: 'STOCK_MISSING', changeRate: null },
   ]);
 });
+
+test('market labels the holding business separately from financial registration and index links', async () => {
+  const service = loadService([{ asset_id: 'STOCK_003550', asset_type: 'stock', name: '해린', sector: null,
+    currency: 'KRW', price: '100', change_rate: null, volume: '1000' }]);
+  const [stock] = await service.listAssets({ type: 'stock', date: '2013-01-02' });
+  assert.equal(stock.name, '해린');
+  assert.equal(stock.sector, '지주회사');
+  assert.equal(stock.businessProfile.kind, 'basic_reference');
+  assert.equal(stock.businessProfile.registeredIndustry.name, '기타 금융업');
+  assert.equal(stock.indexReference.sector, '금융');
+  assert.ok(!Object.hasOwn(stock.businessProfile, 'sourceExcerpt'));
+});

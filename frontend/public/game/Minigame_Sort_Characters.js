@@ -66,6 +66,18 @@
   };
   var GROUPS = Object.keys(CHARS);
   var ASSET = 'assets/mini3/';
+  var GROUP_INFO = {
+    blue: { name: '파랑 상자', hint: '큰 드래곤 3종 · 옷 색 무관', color: '#83b8ff' },
+    green: { name: '초록 상자', hint: '남자아이·여자아이·아기 드래곤', color: '#73e69d' },
+    purple: { name: '보라 상자', hint: '안경 드래곤·오리·개구리', color: '#d2a2ff' },
+    red: { name: '빨강 상자', hint: '어른 남녀·우산 쓴 남녀', color: '#ff9b94' },
+  };
+  var CHARACTER_NAMES = {
+    'blue_dra1.png': '큰 드래곤 · 파랑 옷', 'blue_dra2.png': '큰 드래곤 · 초록 옷', 'blue_dra3.png': '큰 드래곤 · 빨강 옷',
+    'green_boy.png': '빨간 티셔츠 남자아이', 'green_dragon.png': '아기 드래곤', 'green_girl.png': '빨간 티셔츠 여자아이',
+    'purple_professor.png': '안경 쓴 드래곤', 'purple_sueun.png': '오리', 'purple_taeun.png': '개구리',
+    'red_man.png': '정장 남자', 'red_woman.png': '정장 여자', 'red_rain_man.png': '우산 쓴 남자', 'red_rain_woman.png': '우산 쓴 여자',
+  };
 
   // 그룹별 기본 점수: 보라 > 초록 > 파랑 > 빨강.
   // 보라는 스프라이트도 작아 집기 가장 어렵다 (크기는 CSS .char.g-purple { height }).
@@ -83,6 +95,67 @@
   var vignette = document.getElementById('vignette');
   var pileCountEl = document.getElementById('pileCount');
   var boxEls = Array.prototype.slice.call(document.querySelectorAll('.box'));
+  var criteriaOverlay = document.getElementById('criteriaOverlay');
+  var criteriaBtn = document.getElementById('criteriaBtn');
+  var criteriaCloseBtn = document.getElementById('criteriaCloseBtn');
+  var criteriaOpen = false, criteriaPausedAt = 0, criteriaReturnFocus = null;
+
+  // Spawn choices and both reference tables share this one registry.
+  Array.prototype.forEach.call(document.querySelectorAll('[data-character-guide]'), function (guide) {
+    GROUPS.forEach(function (group) {
+      var info = GROUP_INFO[group];
+      var section = document.createElement('section'); section.className = 'guide-group'; section.dataset.group = group;
+      section.style.setProperty('--group-color', info.color);
+      var heading = document.createElement('h3'); heading.textContent = info.name;
+      var hint = document.createElement('p'); hint.className = 'guide-hint'; hint.textContent = info.hint;
+      var images = document.createElement('div'); images.className = 'guide-images';
+      images.style.gridTemplateColumns = 'repeat(' + CHARS[group].length + ',minmax(0,1fr))';
+      CHARS[group].forEach(function (file) {
+        var img = document.createElement('img'); img.src = ASSET + file;
+        img.alt = CHARACTER_NAMES[file] || info.name + ' 캐릭터'; img.title = img.alt; img.dataset.characterFile = file;
+        images.appendChild(img);
+      });
+      section.appendChild(heading); section.appendChild(hint); section.appendChild(images); guide.appendChild(section);
+    });
+  });
+  boxEls.forEach(function (box) {
+    var label = document.createElement('span'); label.className = 'box-name'; label.textContent = GROUP_INFO[box.dataset.group].name;
+    box.appendChild(label);
+  });
+
+  function openCriteria() {
+    if (criteriaOpen || drag) return;
+    criteriaReturnFocus = document.activeElement;
+    criteriaPausedAt = performance.now();
+    if (playing) {
+      timeLeft = Math.max(0, GAME_SECONDS - (criteriaPausedAt - startTs) / 1000);
+      updateHud();
+      if (timeLeft <= 0) end('TIME OVER', null);
+    }
+    criteriaOpen = true;
+    tut.timers.forEach(function (timer) {
+      if (timer.id !== null) { clearTimeout(timer.id); timer.remaining = Math.max(0, timer.remaining - (criteriaPausedAt - timer.startedAt)); timer.id = null; }
+    });
+    criteriaOverlay.hidden = false; criteriaBtn.setAttribute('aria-expanded', 'true');
+    var dialog = criteriaOverlay.querySelector('.window'); dialog.focus({ preventScroll: true });
+    criteriaOverlay.querySelector('[data-character-guide]').scrollTop = 0;
+  }
+  function closeCriteria() {
+    if (!criteriaOpen) return;
+    var now = performance.now();
+    if (playing) { startTs += now - criteriaPausedAt; lastTs = now; }
+    if (tut.active) { tut.lastTs = now; tut.timers.forEach(function (timer) { if (timer.id === null) timer.schedule(); }); }
+    criteriaOpen = false; criteriaOverlay.hidden = true; criteriaBtn.setAttribute('aria-expanded', 'false');
+    if (criteriaReturnFocus && criteriaReturnFocus.isConnected) criteriaReturnFocus.focus({ preventScroll: true });
+  }
+  criteriaBtn.addEventListener('click', openCriteria);
+  criteriaCloseBtn.addEventListener('click', closeCriteria);
+  criteriaOverlay.addEventListener('click', function (e) { if (e.target === criteriaOverlay) closeCriteria(); });
+  document.addEventListener('keydown', function (e) {
+    if (!criteriaOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeCriteria(); }
+    if (e.key === 'Tab') { e.preventDefault(); criteriaCloseBtn.focus(); }
+  });
 
   // ===== 상태 =====
   var chars = [];   // { el, group, x, y, vx, vy, rot, vrot, w, age, settled, dragging, alive }
@@ -181,7 +254,7 @@
     });
 
     el.addEventListener('pointerdown', function (e) {
-      if ((!playing && !tut.active) || !p.alive) return;
+      if (criteriaOpen || (!playing && !tut.active) || !p.alive) return;
       e.preventDefault();
       startDrag(p, e);
     });
@@ -413,7 +486,7 @@
   // rAF 대신 setInterval 을 쓴다: iframe이 가려지면 rAF가 아예 멈춰서
   // 더미가 공중에 얼어붙는다. (다른 미니게임들도 setInterval 방식)
   function step() {
-    if (!playing) return;
+    if (!playing || criteriaOpen) return;
     var ts = performance.now();
     var dt = Math.min(0.05, (ts - lastTs) / 1000);
     lastTs = ts;
@@ -439,7 +512,7 @@
 
   // ===== 시작 / 종료 =====
   function start() {
-    if (HOWTO_ONLY) return;
+    if (HOWTO_ONLY || criteriaOpen) return;
     tutStop();
     chars.slice().forEach(function (p) { if (p.el.parentNode) p.el.parentNode.removeChild(p.el); });
     chars = [];
@@ -504,19 +577,26 @@
   var tutBubble = document.getElementById('tutBubble');
   var tutSkip = document.getElementById('tutSkip');
   var tutEndOverlay = document.getElementById('tutEndOverlay');
-  var WRONG_NOTE = '<span class="warn">앗, 다른 상자예요! 실전에선 목숨(❤)이 하나 줄어요. 상자 그림을 잘 보고 다시!</span>';
+  var WRONG_NOTE = '<span class="warn">앗, 다른 상자예요! 실전에선 목숨(❤)이 하나 줄어요. 분류 기준에서 캐릭터와 상자 색을 확인해 보세요.</span>';
 
   function say(html, ok) {
     tutBubble.innerHTML = html;
     tutBubble.classList.toggle('ok', !!ok);
     tutBubble.hidden = false;
   }
-  function later(fn, ms) { tut.timers.push(setTimeout(fn, ms)); }
+  function later(fn, ms) {
+    var timer = { remaining: ms, startedAt: 0, id: null };
+    timer.schedule = function () {
+      timer.startedAt = performance.now();
+      timer.id = setTimeout(function () { timer.id = null; var i = tut.timers.indexOf(timer); if (i >= 0) tut.timers.splice(i, 1); if (tut.active) fn(); }, timer.remaining);
+    };
+    tut.timers.push(timer); if (!criteriaOpen) timer.schedule();
+  }
   function aliveCount() { return chars.filter(function (p) { return p.alive; }).length; }
 
   function renderStep() {
     if (tut.step === 1) {
-      say('<span class="step">STEP 1 / 3</span>캐릭터를 <b>끌어서</b> 같은 그림이 있는 <b>상자</b>에 넣어 보세요!'
+      say('<span class="step">STEP 1 / 3</span><b>분류 기준</b>에서 캐릭터를 찾고, 해당 색 <b>상자</b>에 끌어 넣어 보세요!'
         + (tut.note ? '<br>' + tut.note : ''));
     } else if (tut.step === 2) {
       say('<span class="step">STEP 2 / 3</span><b>연속으로 맞히면 콤보 보너스!</b> 3명을 모두 분류해 보세요.<br>'
@@ -528,6 +608,7 @@
   }
 
   function tutTick() {
+    if (criteriaOpen) return;
     var ts = performance.now();
     var dt = Math.min(0.05, (ts - tut.lastTs) / 1000);
     tut.lastTs = ts;
@@ -552,7 +633,7 @@
   }
 
   function tutStart() {
-    if (playing) return;
+    if (playing || criteriaOpen) return;
     tutStop();
     tutClear();
     score = 0; combo = 0; bestCombo = 0; sorted = 0; wrong = 0;
@@ -624,7 +705,7 @@
     tut.active = false;
     tut.step = 0;
     clearInterval(tut.loopId);
-    tut.timers.forEach(clearTimeout); tut.timers = [];
+    tut.timers.forEach(function (timer) { clearTimeout(timer.id); }); tut.timers = [];
     tutClear();
     score = 0; combo = 0; lives = START_LIVES; timeLeft = GAME_SECONDS;
     updateHud();

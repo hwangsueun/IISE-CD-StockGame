@@ -14,7 +14,7 @@ import { won } from '../utils/format';
 const GAMES = {
   catch_waxon: { label: '왝슨을 잡아라', desc: '날아다니는 왝슨을 클릭으로 포획', icon: '🦢', Component: CatchWaxon, howto: true },
   avoid_professor: { label: '교수님을 피해라', desc: '낙하하는 과제를 방향키로 회피', icon: '🏃', Component: AvoidProfessor, howto: true },
-  sort_characters: { label: '상자에 캐릭터 분류하기', desc: '쏟아진 캐릭터를 같은 색 상자에 분류', icon: '📦', Component: SortCharacters, howto: true },
+  sort_characters: { label: '상자에 캐릭터 분류하기', desc: '분류표에서 캐릭터를 찾아 알맞은 상자에 분류', icon: '📦', Component: SortCharacters, howto: true },
 };
 const GRADE_LABEL = {
   great_success: '대성공', success: '성공', normal: '보통', fail: '실패', great_fail: '대실패',
