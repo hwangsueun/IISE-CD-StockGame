@@ -272,14 +272,11 @@ export default function AssetDetailModal({ assetId }) {
       <section className="stock-business-profile" aria-label="이 종목은 어떤 회사인가요?">
         <p>{detail.businessProfile?.description || '사업 소개 자료를 불러오지 못했습니다.'}</p>
         {detail.businessProfile && <>
-          <small>기업 기본 소개 · {detail.businessProfile.sourceAsOfDate} 자료 기준</small>
-          <details className="stock-profile-sources"><summary>사업 분야·등록 업종·자료 출처</summary>
+          <details className="stock-profile-sources"><summary>사업 분야·등록 업종</summary>
             <dl><dt>주요 사업 분야</dt><dd>{detail.businessProfile.industry}</dd>
-              {detail.businessProfile.registeredIndustry && <><dt>거래소 등록 업종</dt><dd>{detail.businessProfile.registeredIndustry.name} · {detail.businessProfile.registeredIndustry.asOfDate} 참고 자료</dd></>}
+              {detail.businessProfile.registeredIndustry && <><dt>거래소 등록 업종</dt><dd>{detail.businessProfile.registeredIndustry.name}</dd></>}
               {detail.indexReference && <><dt>지수 비교용 연결</dt><dd>{detail.indexReference.market} · {detail.indexReference.sector} 지수</dd></>}
             </dl><p>등록 업종은 분류 체계상 항목으로, 실제 주요 사업 분야와 다를 수 있습니다. 지수 비교용 연결은 게임에서 정한 참고 연결입니다.</p>
-            <p>{detail.businessProfile.scopeNote}</p>
-            <small>사업보고서의 제품·서비스와 수익원 설명을 확인해 작성했습니다.</small>
           </details>
         </>}
       </section>
