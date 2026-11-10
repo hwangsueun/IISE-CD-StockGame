@@ -17,19 +17,19 @@ services:
         value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: antsurvival-db
+          name: antsurvival-db-20261110
           property: connectionString
       - key: GAME_START_RANGE
         value: 2014-01-02..2023-12-31
       - key: VITE_USE_MOCK
-        value: false
+        value: "false"
       - key: VITE_API_BASE
         value: ""
 databases:
-  - name: antsurvival-db
+  - name: antsurvival-db-20261110
     plan: free
     region: singapore
     postgresMajorVersion: "16"
-    databaseName: antsurvival
-    user: antsurvival
+    databaseName: antsurvival_db_20261110
+    user: antsurvival_db_20261110_user
     ipAllowList: []
