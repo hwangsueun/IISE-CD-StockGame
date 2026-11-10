@@ -7,6 +7,11 @@ const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
 
 async function main() {
+  // Temporary, explicitly configured DB transfer mode runs without the game app.
+  if (process.env.MIGRATION_MODE) {
+    await require('./migration-server.cjs').startFromEnv();
+    return;
+  }
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   const metadata = JSON.parse(fs.readFileSync(path.join(__dirname, 'quant-manifest.json'), 'utf8'));
   const raw = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'quant-signals.json.gz')));
