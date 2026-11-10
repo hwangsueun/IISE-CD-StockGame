@@ -31,11 +31,22 @@ test('custom practice compares independent settings with one period, capital and
     assert.equal(report.initialCash, input.initialCash); assert.equal(report.feeBps, input.feeBps);
     assert.equal(report.chart.length, 240);
     assert.equal(report.chart[0].own, 0);
+    assert.equal(report.history.length, report.chart.length);
+    report.history.forEach((day, i) => {
+      assert.equal(day.returnRate, report.chart[i].own);
+      assert.equal(day.returnRate, day.totalAsset / report.initialCash - 1);
+      assert.ok(day.cash >= 0);
+    });
+    assert.equal(report.history.at(-1).totalAsset, report.totalAsset);
+    assert.equal(report.history.at(-1).cash, report.cash);
+    assert.ok(Math.abs(report.cash + report.holdings.reduce((sum, h) => sum + h.value, 0) - report.totalAsset) < 1e-8);
   }
   assert.ok(result.reports[0].model.trainedThrough < result.from);
   assert.ok(result.reports[0].own.tradeCount > 0);
   assert.equal(result.reports[1].own.tradeCount, 0);
   assert.equal(result.reports[1].own.returnRate, 0);
+  assert.equal(result.reports[1].holdings.length, 0);
+  assert.ok(result.reports[1].history.every(h => h.cash === input.initialCash));
   assert.notEqual(result.reports[0].own.returnRate, result.reports[1].own.returnRate);
 });
 
@@ -67,4 +78,5 @@ test('common observation starts at latest save, preserves frozen models and chec
   const firstDay = execute({ ...request, asOf: input.dates[370] });
   assert.equal(firstDay.turnCount, 1);
   assert.ok(firstDay.reports.every(r => r.own.returnRate === 0 && r.own.tradeCount === 0));
+  assert.ok(firstDay.reports.every(r => r.holdings.length === 0 && r.cash === input.initialCash && r.history.length === 1));
 });

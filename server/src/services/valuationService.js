@@ -2,6 +2,7 @@
 const { query } = require('../db');
 const { notFound } = require('../utils/errors');
 const C = require('../config/constants');
+const { InvestmentValuation } = require('./investmentValuation');
 
 const DASHBOARD_UNITS = ['day', 'week', 'month', 'all'];
 const DASHBOARD_ASSET_TYPES = ['all', 'stock'];
@@ -148,6 +149,7 @@ async function getPortfolio(sessionId) {
     netAsset: Math.round(totalAsset - Number(rows[0].debt)),
     holdings,
     weights,
+    investment: new InvestmentValuation(holdings).toJSON(),
     unrealizedPnl: holdings.reduce((s, h) => s + h.unrealizedPnl, 0),
   };
 }

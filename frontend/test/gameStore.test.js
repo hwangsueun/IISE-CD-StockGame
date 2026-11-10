@@ -30,7 +30,7 @@ function fixture(api) {
     sessionId: 'game-a', status: 'active', state,
     turn: { turnNumber: 20, isRepaymentTurn: true, repaymentCompleted: false, state: { ...state } },
   });
-  return { store, errors };
+  return { store, errors, storage };
 }
 
 function deferred() {
@@ -38,6 +38,74 @@ function deferred() {
   const promise = new Promise((done) => { resolve = done; });
   return { promise, resolve };
 }
+
+test('reset clears the saved active game and all transient state while preserving account and tutorial preferences', () => {
+  const { store, storage } = fixture({});
+  const user = { id: 1, username: 'player' };
+  const tutorialProgress = { welcome: true, portfolio: true };
+  storage.setItem('antsurvival_session', 'game-a');
+  storage.setItem('antsurvival_token', 'test-token');
+  store.setState({
+    user, tutorialProgress,
+    pendingEvents: [{ eventLogId: 1 }], lastTurnResult: { turnNumber: 20 },
+    surgeResults: [{ pnl: 1000 }], surgePromptPending: true,
+    pendingTurnNumber: 21, turnLoadError: 'offline',
+    activeModal: 'trade', modalProps: { assetId: 'STOCK_1' }, loading: true, error: 'offline',
+    tutorialCategory: 'market', tutorialStep: 2, firstDayStep: 3, quantTourStep: 1,
+    lastTrade: { assetId: 'STOCK_1', quantity: 10 },
+  });
+
+  store.getState().resetGame();
+  const current = store.getState();
+  for (const key of ['sessionId', 'status', 'state', 'turn', 'lastTurnResult', 'pendingTurnNumber',
+    'turnLoadError', 'activeModal', 'error', 'tutorialCategory', 'tutorialStep',
+    'firstDayStep', 'quantTourStep', 'lastTrade']) assert.equal(current[key], null, key);
+  assert.equal(current.pendingEvents.length, 0);
+  assert.equal(current.surgeResults.length, 0);
+  assert.equal(Object.keys(current.modalProps).length, 0);
+  assert.equal(current.loading, false);
+  assert.equal(current.surgePromptPending, false);
+  assert.equal(storage.getItem('antsurvival_session'), null);
+  assert.equal(storage.getItem('antsurvival_token'), 'test-token');
+  assert.equal(current.user, user);
+  assert.equal(current.tutorialProgress, tutorialProgress);
+});
+
+test('reset during a new-game request cannot restore the abandoned game or its storage', async () => {
+  const start = deferred();
+  const { store, storage } = fixture({
+    startGame: () => start.promise,
+    getTurn: () => assert.fail('a reset game must not load its turn'),
+  });
+  const request = store.getState().startGame('normal');
+  store.getState().resetGame();
+  start.resolve({ sessionId: 'abandoned', currentTurn: 1, status: 'active', cash: 50000000 });
+  await request;
+  assert.equal(store.getState().sessionId, null);
+  assert.equal(store.getState().state, null);
+  assert.equal(store.getState().loading, false);
+  assert.equal(storage.getItem('antsurvival_session'), null);
+});
+
+test('starting again after reset receives fresh cash, debt and day-one state', async () => {
+  const initial = { cash: 50000000, debt: 30000000, totalAsset: 50000000, trust: 100, stress: 0 };
+  const { store, storage } = fixture({
+    startGame: async () => ({ sessionId: 'game-b', currentTurn: 1, status: 'active', ...initial }),
+    getTurn: async () => ({ turnNumber: 1, state: initial }),
+  });
+  store.setState({ lastTrade: { assetId: 'STOCK_1', quantity: 10 } });
+  store.getState().resetGame();
+  await store.getState().startGame('easy');
+  const current = store.getState();
+  assert.equal(current.sessionId, 'game-b');
+  assert.equal(current.state.cash, 50000000);
+  assert.equal(current.state.debt, 30000000);
+  assert.equal(current.state.totalAsset, 50000000);
+  assert.equal(current.turn.turnNumber, 1);
+  assert.equal(current.lastTrade, null);
+  assert.equal(current.pendingEvents.length, 0);
+  assert.equal(storage.getItem('antsurvival_session'), 'game-b');
+});
 
 const paid = () => ({
   status: 'active', dueAmount: 1000, paidAmount: 1000,

@@ -126,7 +126,7 @@ function execute(input, consumeInput = false) {
     own: summary(own), equal: summary(equal), rival: rival && summary(rival), rivalNote,
     benchmarkReturn: indexHistory.at(-1), monthly: engine.monthly(own.history, input.initialCash, rival?.history),
     chart: own.history.map((r, i) => ({ turn: r.turn, own: r.returnRate, equal: equal.history[i].returnRate, rival: rival?.history[i]?.returnRate ?? null, benchmark: indexHistory[i] })),
-    decision: own.decision, holdings: own.holdings, cash: own.cash, totalAsset: own.totalAsset,
+    decision: own.decision, holdings: own.holdings, cash: own.cash, totalAsset: own.totalAsset, history: own.history,
     pendingOrders: own.orders.filter(o => o.status === 'pending').map(o => ({ ...o, name: data.assets.get(o.assetId)?.masked_name || '이름 미등록' })),
     limitations: [input.mode !== 'observe' ? '이미 공개된 과거를 반복해 보는 연습입니다. 새로운 기간에서의 검증이 아닙니다.' : '저장한 규칙과 학습값을 고정해 저장 이후의 성과를 관찰합니다. 실제 계좌 수익이 아닙니다.',
       '주식과 현금만 사용합니다. 월급·생활비·상환·상금은 포함하지 않습니다.',

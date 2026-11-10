@@ -10,7 +10,7 @@ export default function EndingReport({ result, report, onNext }) {
     ['남은 빚', won(result.debtRemaining)],
     [result.status === 'success' ? '걸린 기간' : '버틴 기간', result.turnsPlayed < 20 ? duration : `${duration} (${result.turnsPlayed}일)`],
     ['최종 총자산', won(result.finalTotalAsset)],
-    ['투자 수익률', report ? (report.totalReturn === null ? '계산 불가' : pct(report.totalReturn)) : '-'],
+    ['계좌 운용 수익률 · 현금 포함', report ? (report.totalReturn === null ? '계산 불가' : pct(report.totalReturn)) : '-'],
     ['실현손익 합계', won(result.realizedPnlSum)],
     ['총 거래 횟수', `${result.tradeCount}회`],
     ['마지막 신뢰도 · 스트레스', `${result.trust} · ${result.stress}`],

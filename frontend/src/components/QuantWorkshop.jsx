@@ -6,6 +6,7 @@ import './QuantWorkshop.css';
 import { TargetControls, ReductionControls, RiskControls, ResearchResult } from './QuantResearch';
 import { strategySignature as signature, restoreStrategyDraft, createStrategyDraft } from '../utils/userStrategy';
 import ModelGuide, { guidePosition, guideStepFor } from './ModelGuide';
+import StrategyPortfolio from './StrategyPortfolio';
 
 const number = value => value == null || !Number.isFinite(value) ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const modelOptions = [
@@ -38,15 +39,20 @@ function Choice({ label, value, options, onChange, numeric = false, note }) {
 function Numeric({ label, value, onChange, min, max, step = 1, note }) {
   return <Field label={label} note={note}><input type="number" value={value} min={min} max={max} step={step} onChange={e => onChange(e.target.value === '' ? '' : Number(e.target.value))} /></Field>;
 }
-function Curve({ rows, lines = [['own', '내 전략', '#d7b874'], ['rival', 'alpha158', '#a5bd9b'], ['equal', '동일금액 보유', '#9cbce1'], ['benchmark', '코스피 참고', '#bd9fc9']] }) {
+function Curve({ rows, lines = [['own', '내 모델', '#d7b874'], ['rival', 'alpha158', '#a5bd9b'], ['equal', '첫날 동일금액 매수·보유', '#9cbce1'], ['benchmark', '코스피 참고지수', '#bd9fc9']] }) {
   const values = rows.flatMap(r => lines.map(([k]) => r[k]).filter(Number.isFinite));
   if (!values.length) return null;
   const lo = Math.min(0, ...values), hi = Math.max(.01, ...values), span = hi - lo || .01;
   const x = i => 54 + i / Math.max(1, rows.length - 1) * 632, y = v => 190 - (v - lo) / span * 162;
-  return <figure className="workshop-curve"><svg role="img" aria-label={`${lines.map(l => l[1]).join(' · ')} 누적 수익률`} viewBox="0 0 710 228">
+  return <figure className="workshop-curve">
+    <div className="workshop-chart-heading"><strong>모의 운용 누적 수익률</strong>
+      <p>가로축: 연습·관찰 기간 내 턴 · 세로축: 초기 자금 대비 수익률(%)</p>
+      <p>모델 수익률 = (현금 + 보유 주식 평가액) ÷ 초기 자금 − 1. 10%면 초기 100만 원이 110만 원이 된 것입니다. 코스피는 기간 시작 대비 지수 변화입니다.</p></div>
+    <svg role="img" aria-label={`${lines.map(l => l[1]).join(' · ')} 누적 수익률`} viewBox="0 0 710 228">
     {[lo, lo + span / 2, hi].map(v => <g key={v}><line x1="54" y1={y(v)} x2="686" y2={y(v)} stroke="#655b47" strokeDasharray="3 4" /><text x="47" y={y(v) + 4} textAnchor="end">{(v * 100).toFixed(0)}%</text></g>)}
     {lines.map(([key, , color]) => <path key={key} d={rows.map((r, i) => Number.isFinite(r[key]) ? `${i === 0 || !Number.isFinite(rows[i - 1]?.[key]) ? 'M' : 'L'}${x(i)},${y(r[key])}` : '').join(' ')} fill="none" stroke={color} strokeWidth={key === 'own' ? 3 : 1.6} />)}
-    <text x="54" y="215">1턴</text><text x="686" y="215" textAnchor="end">{rows.length}턴</text>
+    {rows.length === 1 && lines.filter(([key]) => Number.isFinite(rows[0][key])).map(([key, , color]) => <circle key={key} cx={x(0)} cy={y(rows[0][key])} r="3" fill={color} />)}
+    <text x="54" y="215">기간 1턴</text>{rows.length > 1 && <text x="686" y="215" textAnchor="end">기간 {rows.length}턴</text>}
   </svg><figcaption>{lines.filter(([k]) => rows.some(r => Number.isFinite(r[k]))).map(([key, title, color]) => <span key={key}><i style={{ background: color }} />{title}</span>)}</figcaption></figure>;
 }
 function Result({ report, workspace, dirty, onBuild, onAsset }) {
@@ -58,6 +64,7 @@ function Result({ report, workspace, dirty, onBuild, onAsset }) {
       <h4>{report.config.name}</h4><p>{report.config.hypothesis || '가설을 적으면 결과와 함께 다시 돌아볼 수 있어요.'}</p></div>
       <button type="button" onClick={onBuild}>이 설정으로 수정</button></div>
     {dirty && <p className="workshop-notice">현재 편집한 설정과 다른 결과입니다. 수정 후 다시 연습해 주세요.</p>}
+    <StrategyPortfolio key={`${report.id || report.versionId || report.config.name}:${report.from}:${report.to}`} report={report} referenceDate={workspace.date} onAsset={onAsset} />
     <p>{relativeYearDate(report.from, workspace.date)} ~ {relativeYearDate(report.to, workspace.date)} · {report.turnCount}턴 · 초기 자금 {won(report.initialCash)} · 편도 비용 {report.feeBps / 100}%</p>
     <div className="workshop-metrics"><div><span>내 전략 수익률</span><strong>{pct(report.own.returnRate)}</strong></div>
       <div><span>가장 크게 줄어든 폭</span><strong>{pct(Math.abs(report.own.maxDrawdown))}</strong></div><div><span>체결 거래</span><strong>{report.own.tradeCount}건</strong></div></div>
@@ -123,7 +130,7 @@ function Comparison({ report, workspace, config, onBuild, onAsset }) {
     <div className="workshop-scroll"><table className="data-table"><thead><tr><th>설정</th><th>수익률</th><th>최고점에서 줄어든 폭</th><th>거래</th></tr></thead><tbody>{report.reports.map((r,i)=><tr key={i}><td>{label(r)}{custom && <small className="workshop-comparison-method">{methods[r.config.method]}</small>}</td><td>{pct(r.own.returnRate)}</td><td>{pct(Math.abs(r.own.maxDrawdown))}</td><td>{r.own.tradeCount}건</td></tr>)}</tbody></table></div>
     {!observing && <p>반복해서 확인하는 과거 연습입니다. 이 비교의 최고 수익률이 다음 기간의 성과를 보장하지 않습니다.</p>}
     <nav className="workshop-nav" aria-label="비교 설정 상세">{report.reports.map((r,i)=><button type="button" key={i} aria-pressed={current===r} onClick={()=>setSelected(i)}>{label(r)} 상세</button>)}</nav>
-  </section><Result report={current} workspace={workspace} dirty={!custom && signature(report.config)!==signature(config)} onBuild={()=>onBuild(current.config)} onAsset={onAsset} /></>;
+  </section><Result key={selected} report={current} workspace={workspace} dirty={!custom && signature(report.config)!==signature(config)} onBuild={()=>onBuild(current.config)} onAsset={onAsset} /></>;
 }
 export default function QuantWorkshop({ sessionId, turnNumber }) {
   const [workspace, setWorkspace] = useState(null), [config, setConfig] = useState(null), [view, setView] = useState('versions');
@@ -398,9 +405,9 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
     </>}
     {view === 'results' && (report ? (report.kind === 'compare'
       ? <Comparison key={report.id} report={report} workspace={workspace} config={config} onBuild={replace} onAsset={assetId => openModal('asset', { assetId })} />
-      : <Result report={report} workspace={workspace} dirty={signature(report.config) !== signature(config)} onBuild={() => replace(report.config)} onAsset={assetId => openModal('asset', { assetId })} />) : <div className="workshop-empty"><h4>내 아이디어는 어떤 결과를 만들까?</h4><p>전략을 만든 뒤 과거 연습을 실행해 보세요. 돈이 얼마나 늘거나 줄었는지와 어떤 이유로 종목을 골랐는지 볼 수 있습니다.</p><button type="button" onClick={() => setView('build')}>내 전략 편집</button></div>)}
+      : <Result report={report} workspace={workspace} dirty={report.kind !== 'observe' && signature(report.config) !== signature(config)} onBuild={() => replace(report.config)} onAsset={assetId => openModal('asset', { assetId })} />) : <div className="workshop-empty"><h4>내 아이디어는 어떤 결과를 만들까?</h4><p>전략을 만든 뒤 과거 연습을 실행해 보세요. 돈이 얼마나 늘거나 줄었는지와 어떤 이유로 종목을 골랐는지 볼 수 있습니다.</p><button type="button" onClick={() => setView('build')}>내 전략 편집</button></div>)}
     {view === 'versions' && <section className="workshop-section" aria-labelledby="workshop-strategy-list-title">
-      <div className="workshop-section-heading"><div><h4 id="workshop-strategy-list-title">내 전략 목록 · {workspace.versions.length}/20</h4><p>이 게임에 저장한 전략입니다. 이름으로 구분하고 전략별 설정과 성과를 확인하세요.</p></div>
+      <div className="workshop-section-heading"><div><h4 id="workshop-strategy-list-title">내 전략 목록 · {workspace.versions.length}/20</h4><p>각 모델의 ‘포트폴리오 보기’에서 저장 이후의 보유 종목, 현금, 예약 주문과 운용 기록을 확인하세요.</p></div>
         <div className="workshop-list-actions"><button className="btn-primary" type="button" onClick={() => replace(workspace.blank)}>새 전략 만들기</button>
           <button type="button" disabled={workspace.versions.length < 2} onClick={() => setView('compare')}>전략 골라 비교하기</button></div></div>
       <p>자동 투자를 켜면 내 보유 주식과 현금을 모델에 맞춰 조절합니다. 언제든 해제할 수 있습니다. 해제하면 자동 대기 주문만 취소하고 보유 주식은 유지합니다.</p>
@@ -415,7 +422,7 @@ export default function QuantWorkshop({ sessionId, turnNumber }) {
           <dt>종목 선정 조건</dt><dd>{v.config.conditions.length ? v.config.conditions.map(r => `${workspace.features.find(f => f.id === r.feature)?.name || r.feature} ${r.measure === 'rank' ? '종목 간 위치 ' : ''}${r.value} ${r.op === 'gte' ? '이상' : '이하'}`).join(v.config.conditionMode === 'any' ? ' 또는 ' : ' · ') : '추가 조건 없음'}</dd>
           <dt>저장한 시점</dt><dd>{v.saved_turn}턴 · {relativeYearDate(v.saved_date, workspace.date)}</dd>
         </dl></details>
-        <div className="workshop-list-actions"><button type="button" onClick={() => observe(v.id)}>현재까지 관찰</button>
+        <div className="workshop-list-actions"><button type="button" className="btn-primary" onClick={() => observe(v.id)}>포트폴리오 보기</button>
           <button type="button" onClick={() => replace(v.config)}>복사해서 수정</button>
           <button type="button" disabled={autoBusy || workspace.ended || (workspace.automation?.enabled && workspace.automation.versionId===v.id)} onClick={()=>automate(true,v.id)}>{workspace.automation?.enabled && workspace.automation.versionId===v.id ? '자동 투자 중' : '이 모델로 자동 투자'}</button></div>
       </article>)}</div>

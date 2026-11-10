@@ -94,7 +94,7 @@ export const STEPS = {
       },
       {
         sel: '.px-money',
-        // 총자산 바로 아래에 시장 대비 수익률 배지가 있어 설명은 배지 밑에 붙인다.
+        // 총자산 바로 아래에 보유 주식 수익률 배지가 있어 설명은 배지 밑에 붙인다.
         noteFrom: '.market-performance-badge',
         place: 'below',
         note: () => (
@@ -110,7 +110,7 @@ export const STEPS = {
         note: () => (
           <>
             <span className="big">↗ 내 투자 성적</span>
-            코스피와 비교한 내 수익률<br />
+            현금을 제외한 보유 주식 수익률<br />
             <span className="dim">누르면 포트폴리오에서 자세히</span>
           </>
         ),

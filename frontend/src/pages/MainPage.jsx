@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../state/gameStore';
 import StatusBar from '../components/StatusBar';
+import ResetGameButton from '../components/ResetGameButton';
 import EventPopup from '../components/EventPopup';
 import MarketModal from '../components/MarketModal';
 import AssetDetailModal from '../components/AssetDetailModal';
@@ -120,6 +121,7 @@ export default function MainPage() {
             </button>
           </>
         ) : '불러오는 중...'}
+        <ResetGameButton />
       </div>
     );
   }
@@ -136,6 +138,7 @@ export default function MainPage() {
       <div className="game-content" inert={tutorialVisible} aria-hidden={tutorialVisible ? true : undefined}>
       <div className="game-frame">
         <div className="title-plate">★ ANT SURVIVAL ★</div>
+        <div className="nav-strip"><ResetGameButton /></div>
         <StatusBar />
 
         <div className="stage">
@@ -269,6 +272,7 @@ export default function MainPage() {
               <button className="surge-confirm-btn" disabled={loading} onClick={retryPendingTurn}>
                 {loading ? '불러오는 중...' : '다시 불러오기'}
               </button>
+              <ResetGameButton />
             </div>
             <div className="crt" />
           </div>

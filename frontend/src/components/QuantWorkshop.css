@@ -89,6 +89,13 @@
 .workshop-curve figcaption { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-size: 11px; }
 .workshop-curve i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 5px; }
 .workshop-scroll { overflow: auto; }
+.workshop-portfolio .workshop-metrics strong { font-size: clamp(14px, 2.4vw, 22px); overflow-wrap: anywhere; }
+.workshop-table-caption { text-align: left; padding: 0 0 10px; color: var(--lab-muted); }
+.workshop-portfolio .data-table { white-space: nowrap; }
+.workshop-history-scroll { max-height: 360px; }
+.workshop button.workshop-asset-button { padding: 3px 6px; text-align: left; color: #d7e8b9; }
+.workshop-chart-heading { padding: 4px 6px; }
+.workshop-chart-heading p { font-size: 11px; margin: 5px 0; }
 .workshop-stock { border-top: 1px solid #565842; padding: 12px 0; }
 .workshop-stock summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .workshop-stock summary::before { content: '+'; color: #c9b578; }

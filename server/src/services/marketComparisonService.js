@@ -1,5 +1,6 @@
 const { pool } = require('../db');
 const { notFound } = require('../utils/errors');
+const { InvestmentValuation } = require('./investmentValuation');
 
 const INDEX_NAMES = { kospi: '코스피', kosdaq: '코스닥' };
 const numeric = value => value === null || value === undefined ? null : Number(value);
@@ -166,10 +167,14 @@ async function getPerformance(sessionId) {
         WHERE d.indicator_code=i.indicator_code AND d.trade_date<=gt.trade_date AND d.value>0
         ORDER BY d.trade_date DESC LIMIT 1) p ON TRUE
       WHERE gt.session_id=$1 AND gt.turn_number<=$2`, params);
-    const actualTotal = await require('./valuationService').computeTotalAsset(sessionId, client);
+    // Read current holdings in the same snapshot as the ledger. The headline
+    // return matches the holdings table; account history still includes cash.
+    const holdings = await require('./valuationService').evaluateHoldings(sessionId, client);
+    const investment = new InvestmentValuation(holdings).toJSON();
+    const actualTotal = Math.round(Number(session.cash) + holdings.reduce((sum, h) => sum + h.value, 0));
     const result = buildPerformance({ initialCash: Number(session.initial_cash), turns, trades, events, surges, prices, indices, actualTotal });
     await client.query('COMMIT');
-    return result;
+    return { ...result, investment };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

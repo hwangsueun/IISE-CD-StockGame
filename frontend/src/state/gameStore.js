@@ -98,6 +98,7 @@ export const useGameStore = create((set, get) => ({
       tutorialCategory: null,
       tutorialStep: null,
       firstDayStep: null, quantTourStep: null,
+      lastTrade: null,
       error: null,
     });
     await get().resumeGame(generation);
@@ -201,6 +202,7 @@ export const useGameStore = create((set, get) => ({
       tutorialCategory: null,
       tutorialStep: null,
       firstDayStep: null, quantTourStep: null,
+      lastTrade: null,
     });
     try {
       const s = await api.startGame(difficulty);
@@ -499,7 +501,7 @@ export const useGameStore = create((set, get) => ({
     set({ lastTurnResult: null });
   },
 
-  /** 게임 초기화 (엔딩 후 다시하기) */
+  /** 새 게임으로 돌아가기. 이전 세션의 늦은 응답은 무효화하고 로그인·안내 설정은 유지한다. */
   resetGame() {
     sessionRequestGeneration += 1;
     localStorage.removeItem('antsurvival_session');
@@ -509,6 +511,7 @@ export const useGameStore = create((set, get) => ({
       pendingTurnNumber: null, turnLoadError: null,
       activeModal: null, modalProps: {}, loading: false, error: null,
       tutorialCategory: null, tutorialStep: null, firstDayStep: null, quantTourStep: null,
+      lastTrade: null,
     });
   },
 }));

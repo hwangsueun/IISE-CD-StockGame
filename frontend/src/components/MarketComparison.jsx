@@ -23,11 +23,11 @@ function useComparison() {
 export function MarketComparisonBadge() {
   const { data } = useComparison();
   const openModal = useGameStore(s => s.openModal);
-  const rate = data?.summary?.benchmarks.find(b => b.code === 'kospi')?.excessReturn;
+  const investment = data?.investment;
   return <button type="button" className="market-performance-badge" onClick={() => openModal('portfolio')}
-    title="게임 시작일부터의 투자 수익률을 시장과 비교합니다">
-    <span>내 투자 {signed(data?.summary?.playerReturn)}</span>
-    <b className={changeClass(rate)}>코스피 대비 {percentagePoints(rate)}</b><span aria-hidden="true">↗</span>
+    title="현금 제외 · 보유 주식의 총 평가손익 ÷ 총 매입금액">
+    <span className={changeClass(investment?.returnRate)}>내 투자 {signed(investment?.returnRate)}</span>
+    <b className={changeClass(investment?.unrealizedPnl)}>평가손익 {won(investment?.unrealizedPnl)}</b><span aria-hidden="true">↗</span>
   </button>;
 }
 
@@ -51,8 +51,8 @@ function ReturnChart({ points, code, name }) {
     return result;
   };
   return <div className="comparison-chart">
-    <div className="comparison-legend"><span>● 내 투자</span><span>● {name}</span><small>게임 시작일부터 누적</small></div>
-    <svg viewBox="0 0 650 195" role="img" aria-label={`게임 시작일부터 내 투자와 ${name} 수익률 추이`}>
+    <div className="comparison-legend"><span>● 내 계좌 · 현금 포함</span><span>● {name}</span><small>게임 시작일부터 누적</small></div>
+    <svg viewBox="0 0 650 195" role="img" aria-label={`게임 시작일부터 현금을 포함한 내 계좌와 ${name} 수익률 추이`}>
       {[low, 0, high].map((v, i) => <g key={i}>
         <line x1="52" x2="632" y1={y(v)} y2={y(v)} stroke="#493223" strokeDasharray="4 4" />
         <text x="45" y={y(v) + 4} textAnchor="end">{(v * 100).toFixed(1)}%</text>
@@ -70,33 +70,45 @@ export default function MarketComparison() {
   const [unit, setUnit] = useState('day');
   const benchmark = data?.summary?.benchmarks.find(b => b.code === code);
   const name = code === 'kospi' ? '코스피' : '코스닥';
-  return <section className="dash-performance market-comparison" aria-label="시장 대비 내 투자">
+  const investment = data?.investment;
+  return <section className="dash-performance market-comparison" aria-label="내 투자 수익률">
+    <h4 className="dash-h">내 투자 수익률 <small>현금 제외 · 보유 주식 기준</small></h4>
+    {!data ? <p className={error ? 'dash-error' : 'dash-empty'}>{error || '투자 성과를 계산하는 중…'}</p> : <>
+      <div className="dash-kpis">
+        <div className="dash-kpi hero"><span className="k">내 투자 수익률</span><b className={`v ${changeClass(investment?.returnRate)}`}>{signed(investment?.returnRate)}</b></div>
+        <div className="dash-kpi"><span className="k">총 매입금액</span><b className="v">{won(investment?.cost)}</b></div>
+        <div className="dash-kpi"><span className="k">주식 평가액</span><b className="v">{won(investment?.value)}</b></div>
+        <div className="dash-kpi"><span className="k">평가손익</span><b className={`v ${changeClass(investment?.unrealizedPnl)}`}>{won(investment?.unrealizedPnl)}</b></div>
+      </div>
+      <p>수익률 = 총 평가손익 ÷ 총 매입금액</p>
+      <p className="dash-empty">현금 잔액은 수익률에 영향을 주지 않아요. 종목이 여러 개면 매입금액으로 가중하며, 종목별 수익률처럼 수수료와 매도한 종목의 손익은 제외해요.</p>
+      {investment?.cost === 0 && <p className="dash-empty">보유한 주식이 없어 수익률을 표시하지 않아요. 매도해 확정된 손익은 수익분석에서 확인하세요.</p>}
+    <details className="comparison-help account-performance"><summary>계좌 운용 성과 보기 · 현금 포함</summary>
     <div className="dash-unit-head">
-      <h4 className="dash-h">시장 대비 내 투자</h4>
+      <h4 className="dash-h">시장 대비 계좌 운용</h4>
       <div className="dash-unit-tabs" aria-label="비교 시장">
         {['kospi', 'kosdaq'].map(key => <button type="button" key={key} className={code === key ? 'active' : ''}
           aria-pressed={code === key} onClick={() => setCode(key)}>{key === 'kospi' ? '코스피' : '코스닥'}</button>)}
       </div>
     </div>
-    {!data ? <p className={error ? 'dash-error' : 'dash-empty'}>{error || '투자 성과를 계산하는 중…'}</p> : <>
       <p className="comparison-period">{relativeYearDate(data.fromDate, data.toDate)} → {relativeYearDate(data.toDate, data.toDate)} · {data.currentTurn}일차까지</p>
       {data.timingEstimated && <p className="dash-empty">이전 저장 기록에 일부 이벤트의 처리 시각이 없어 해당 구간은 발생일 기준으로 추정했어요.</p>}
       <div className="dash-kpis">
-        <div className="dash-kpi"><span className="k">내 투자 수익률</span><b className={`v ${changeClass(data.summary.playerReturn)}`}>{signed(data.summary.playerReturn)}</b></div>
+        <div className="dash-kpi"><span className="k">계좌 운용 수익률 · 현금 포함</span><b className={`v ${changeClass(data.summary.playerReturn)}`}>{signed(data.summary.playerReturn)}</b></div>
         <div className="dash-kpi"><span className="k">{name} 수익률</span><b className={`v ${changeClass(benchmark?.returnRate)}`}>{signed(benchmark?.returnRate)}</b></div>
         <div className="dash-kpi hero"><span className="k">시장과의 차이</span><b className={`v ${changeClass(benchmark?.excessReturn)}`}>{percentagePoints(benchmark?.excessReturn)}</b></div>
       </div>
       {data.reason && <p className="dash-empty">{data.reason === 'nonpositive_capital'
-        ? '투자 자산이 0원 이하가 된 구간이 있어 수익률을 계산할 수 없어요.'
-        : '투자 기록이나 가격이 부족해 내 수익률을 계산할 수 없어요.'}</p>}
+        ? '계좌 자산이 0원 이하가 된 구간이 있어 계좌 운용 수익률을 계산할 수 없어요.'
+        : '투자 기록이나 가격이 부족해 계좌 운용 수익률을 계산할 수 없어요.'}</p>}
       {!benchmark?.startDate || !benchmark?.endDate ? <p className="dash-empty">이 기간의 시장 지수 자료가 부족해요.</p>
         : (benchmark.startDate !== data.fromDate || benchmark.endDate !== data.toDate) &&
           <p className="dash-empty">지수는 최근 개장일 기록을 사용해요: {relativeYearDate(benchmark.startDate, data.toDate)} → {relativeYearDate(benchmark.endDate, data.toDate)}</p>}
       <ReturnChart points={data.points} code={code} name={name} />
       <details className="comparison-help"><summary>어떻게 비교하나요?</summary>
-        <p>현금과 보유 주식을 합친 투자 계좌의 성과예요. 부업 수입·월급·상금·생활비·상환금은 투자 손익에서 빼요. 돈이 들어오거나 나갈 때마다 그때까지의 수익률을 이어 계산해요.</p>
+        <p>이 기록은 현금과 보유 주식을 합친 전체 계좌의 누적 성과예요. 위의 보유 주식 수익률과 계산 기준이 달라요. 부업 수입·월급·상금·생활비·상환금은 투자 손익에서 빼요. 돈이 들어오거나 나갈 때마다 그때까지의 수익률을 이어 계산해요.</p>
         <p>실제 매매 비용과 급등주 투자 손익은 반영해요. 코스피·코스닥은 같은 기간의 지수 변화예요. 지수에는 매매 비용이 없어요. 현금을 보유한 비중도 내 성과에 영향을 줘요.</p>
-        <p>내 수익률이 5%이고 시장이 3%라면 차이는 +2%p예요. 게임 시작 자금이 달라도 같은 방식으로 비교해요.</p>
+        <p>계좌 운용 수익률이 5%이고 시장이 3%라면 차이는 +2%p예요. 게임 시작 자금이 달라도 같은 방식으로 비교해요.</p>
       </details>
       <div className="dash-unit-head"><h4 className="dash-h">기간별 비교</h4>
         <div className="dash-unit-tabs" aria-label="성과 조회 기간">
@@ -105,7 +117,7 @@ export default function MarketComparison() {
         </div>
       </div>
       <div className="dash-period-scroll"><table className="data-table dash-period-table">
-        <thead><tr><th>기간</th><th>투자 손익</th><th>내 수익률</th><th>{name}</th><th>시장과 차이</th></tr></thead>
+        <thead><tr><th>기간</th><th>투자 손익</th><th>계좌 운용 수익률</th><th>{name}</th><th>시장과 차이</th></tr></thead>
         <tbody>{data.periods[unit].map((p, i) => {
           const market = p.benchmarks.find(b => b.code === code);
           return <tr key={i}><td>{p.label}</td><td className={changeClass(p.netAmount)}>{won(p.netAmount)}</td>
@@ -114,6 +126,7 @@ export default function MarketComparison() {
             <td className={changeClass(market?.excessReturn)}>{percentagePoints(market?.excessReturn)}</td></tr>;
         })}</tbody>
       </table></div>
+    </details>
     </>}
   </section>;
 }
